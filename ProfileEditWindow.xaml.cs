@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 
 namespace DisplayProfileManager
@@ -14,6 +15,7 @@ namespace DisplayProfileManager
         private Profile _profile;
         private bool _isEditMode;
         private List<DisplaySettingControl> _displayControls;
+        private WindowResizeHelper _resizeHelper;
 
         public ProfileEditWindow(Profile profileToEdit = null)
         {
@@ -23,6 +25,7 @@ namespace DisplayProfileManager
             _displayControls = new List<DisplaySettingControl>();
             _isEditMode = profileToEdit != null;
             _profile = profileToEdit ?? new Profile();
+            _resizeHelper = new WindowResizeHelper(this);
 
             InitializeWindow();
         }
@@ -257,12 +260,39 @@ namespace DisplayProfileManager
             Close();
         }
 
-        private void HeaderBorder_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        private void HeaderBorder_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ClickCount == 1)
             {
                 DragMove();
             }
+        }
+
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            _resizeHelper.Initialize();
+        }
+
+        private void Window_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (WindowState == WindowState.Normal)
+            {
+                _resizeHelper.HandleMouseMove(e.GetPosition(this));
+            }
+        }
+
+        private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (WindowState == WindowState.Normal)
+            {
+                _resizeHelper.StartResize(e);
+            }
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            _resizeHelper.Cleanup();
+            base.OnClosed(e);
         }
     }
 
