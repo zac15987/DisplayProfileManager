@@ -332,6 +332,14 @@ namespace DisplayProfileManager
             }
         }
 
+        private void HeaderBorder_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ClickCount == 1)
+            {
+                DragMove();
+            }
+        }
+
         protected override void OnStateChanged(EventArgs e)
         {
             if (WindowState == WindowState.Minimized && _settingsManager.ShouldMinimizeToTray())
