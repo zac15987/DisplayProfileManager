@@ -256,6 +256,14 @@ namespace DisplayProfileManager
             DialogResult = false;
             Close();
         }
+
+        private void HeaderBorder_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (e.ClickCount == 1)
+            {
+                DragMove();
+            }
+        }
     }
 
     public class DisplaySettingControl : UserControl

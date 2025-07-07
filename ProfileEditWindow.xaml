@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:DisplayProfileManager"
         mc:Ignorable="d"
         Title="Profile Editor" Height="500" Width="600" 
-        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" ResizeMode="CanResize"
         Background="#F3F3F3" WindowStyle="SingleBorderWindow">
     
     <Window.Resources>
@@ -94,7 +94,8 @@
         <Border Grid.Row="0" Background="White" BorderBrush="#E1DFDD" BorderThickness="0,0,0,1" Padding="24,16">
             <TextBlock Name="HeaderTextBlock" Text="Create New Profile" 
                        FontSize="20" FontWeight="SemiBold" 
-                       Style="{StaticResource ModernTextBlockStyle}"/>
+                       Style="{StaticResource ModernTextBlockStyle}"
+                       MouseLeftButtonDown="HeaderBorder_MouseLeftButtonDown"/>
         </Border>
 
         <ScrollViewer Grid.Row="1" Padding="24" VerticalScrollBarVisibility="Auto">
