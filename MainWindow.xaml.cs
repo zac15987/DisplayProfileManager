@@ -20,6 +20,7 @@ namespace DisplayProfileManager
         private ProfileManager _profileManager;
         private SettingsManager _settingsManager;
         private Profile _selectedProfile;
+        private WindowResizeHelper _resizeHelper;
 
         public MainWindow()
         {
@@ -27,6 +28,7 @@ namespace DisplayProfileManager
             
             _profileManager = ProfileManager.Instance;
             _settingsManager = SettingsManager.Instance;
+            _resizeHelper = new WindowResizeHelper(this);
             
             SetupEventHandlers();
             LoadProfiles();
@@ -338,6 +340,33 @@ namespace DisplayProfileManager
             {
                 DragMove();
             }
+        }
+
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            _resizeHelper.Initialize();
+        }
+
+        private void Window_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (WindowState == WindowState.Normal)
+            {
+                _resizeHelper.HandleMouseMove(e.GetPosition(this));
+            }
+        }
+
+        private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (WindowState == WindowState.Normal)
+            {
+                _resizeHelper.StartResize(e);
+            }
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            _resizeHelper.Cleanup();
+            base.OnClosed(e);
         }
 
         protected override void OnStateChanged(EventArgs e)

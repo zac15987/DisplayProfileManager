@@ -7,7 +7,9 @@
         mc:Ignorable="d"
         Title="Display Profile Manager" Height="600" Width="900" MinHeight="500" MinWidth="700"
         WindowStartupLocation="CenterScreen" ResizeMode="CanResize"
-        Background="#F3F3F3" WindowStyle="None" AllowsTransparency="True">
+        Background="Transparent" WindowStyle="None" AllowsTransparency="True"
+        MouseMove="Window_MouseMove" MouseLeftButtonDown="Window_MouseLeftButtonDown"
+        Loaded="Window_Loaded">
     
     <Window.Resources>
         <Style x:Key="ModernButtonStyle" TargetType="Button">
@@ -75,8 +77,18 @@
         </Style>
     </Window.Resources>
 
-    <Border BorderBrush="#8A8A8A" BorderThickness="1">
+    <Border BorderBrush="#8A8A8A" BorderThickness="1" CornerRadius="8" Background="#F3F3F3">
         <Grid>
+            <Grid.Clip>
+                <RectangleGeometry RadiusX="8" RadiusY="8">
+                    <RectangleGeometry.Rect>
+                        <MultiBinding Converter="{x:Static local:RectConverter.Instance}">
+                            <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Grid}"/>
+                            <Binding Path="ActualHeight" RelativeSource="{RelativeSource AncestorType=Grid}"/>
+                        </MultiBinding>
+                    </RectangleGeometry.Rect>
+                </RectangleGeometry>
+            </Grid.Clip>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
@@ -84,6 +96,7 @@
             </Grid.RowDefinitions>
 
             <Border Grid.Row="0" Background="White" BorderBrush="#E1DFDD" BorderThickness="0,0,0,1" Padding="24,16"
+                    CornerRadius="8,8,0,0"
                     MouseLeftButtonDown="HeaderBorder_MouseLeftButtonDown">
             <Grid>
                 <Grid.ColumnDefinitions>

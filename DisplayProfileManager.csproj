@@ -86,8 +86,10 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="ProfileManager.cs" />
+    <Compile Include="RectConverter.cs" />
     <Compile Include="SettingsManager.cs" />
     <Compile Include="TrayIcon.cs" />
+    <Compile Include="WindowResizeHelper.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs">
