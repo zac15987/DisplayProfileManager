@@ -74,6 +74,7 @@ src/
   - Display device enumeration via EnumDisplayDevices/EnumDisplaySettings
   - Monitor-specific resolution detection with `GetSupportedResolutionsOnly()`
   - Comprehensive resolution enumeration with `GetAvailableResolutions()`
+  - Monitor-specific refresh rate detection with `GetAvailableRefreshRates()`
 
 - **Helpers/WindowResizeHelper.cs**: Window manipulation utility for custom chrome:
   - Resize handle detection and cursor management
@@ -94,8 +95,9 @@ src/
 1. On startup: App reads current display settings and saves as default profile
 2. Profile data stored as JSON in `%AppData%/DisplayProfileManager/profiles.json`
 3. Settings stored in `%AppData%/DisplayProfileManager/settings.json`
-4. Profile switching applies both resolution and DPI changes sequentially
+4. Profile switching applies resolution, refresh rate, and DPI changes sequentially
 5. Resolution dropdowns dynamically populate with monitor-supported resolutions via Windows API enumeration
+6. Refresh rate dropdowns update automatically based on selected resolution and monitor capabilities
 
 ## Dependencies
 
@@ -114,7 +116,7 @@ src/
 - Event-driven architecture: Subscribe to ProfileManager events for UI updates
 - Thread-safe singleton pattern with double-checked locking
 - Resolution UI controls use monitor-specific enumeration for accurate supported resolutions
-- Refresh rates default to 60Hz unless explicitly configured (resolution and refresh rate are handled separately)
+- Refresh rate UI controls dynamically update based on resolution selection and monitor capabilities
 
 ### UI Style Patterns
 
@@ -133,8 +135,9 @@ All windows use consistent styles defined in Window.Resources:
 ### Adding a new profile property
 1. Update `src/Core/Profile.cs` data model
 2. Update `src/UI/Windows/ProfileEditWindow.xaml` and code-behind for UI controls
-3. Update `src/Core/ProfileManager.cs` ApplyProfile() method for display changes
-4. Handle JSON serialization compatibility in ProfileManager.LoadProfilesAsync()
+3. Update `DisplaySettingControl` class in ProfileEditWindow.xaml.cs for new UI elements
+4. Update `src/Core/ProfileManager.cs` ApplyProfile() method for display changes
+5. Handle JSON serialization compatibility in ProfileManager.LoadProfilesAsync()
 
 ### Adding a new application setting
 1. Add property to `AppSettings` class in `src/Core/SettingsManager.cs` with JsonProperty attribute
@@ -162,16 +165,28 @@ All windows use consistent styles defined in Window.Resources:
 2. Follow existing patterns for error handling and return value checking
 3. Match DEVMODE and other structure definitions to Windows SDK
 
-### Working with display resolution detection
-- Use `DisplayHelper.GetSupportedResolutionsOnly()` for UI dropdowns (returns resolution strings without refresh rates)
+### Working with display resolution and refresh rate detection
+- Use `DisplayHelper.GetSupportedResolutionsOnly()` for resolution UI dropdowns (returns resolution strings without refresh rates)
 - Use `DisplayHelper.GetAvailableResolutions()` for comprehensive mode enumeration (includes refresh rates and detailed info)
+- Use `DisplayHelper.GetAvailableRefreshRates(deviceName, width, height)` for refresh rate dropdowns
 - Resolution dropdowns automatically detect and populate monitor-specific supported resolutions
+- Refresh rate dropdowns dynamically update when resolution changes, showing only monitor-supported rates
+- Refresh rates are sorted in descending order (highest first) with 60Hz as fallback
 - Existing profiles with refresh rate data remain backward compatible
-- Default refresh rate is set to 60Hz when not explicitly configured
+
+### Implementing refresh rate UI controls
+- Add refresh rate ComboBox alongside resolution ComboBox in DisplaySettingControl
+- Connect resolution ComboBox SelectionChanged event to refresh rate population
+- Use `PopulateRefreshRateComboBox()` method to initialize with current setting values
+- Update `GetDisplaySetting()` method to extract refresh rate from ComboBox selection
+- Add validation in `ValidateInput()` to ensure refresh rate is selected
+- Handle event-driven updates: resolution change triggers refresh rate dropdown refresh
+- Grid layout pattern: Resolution, Refresh Rate, then DPI/Primary controls in columns
 
 ### Debugging display changes
 - Check Windows Event Log for display driver errors
 - Use DisplayHelper.GetDisplays() to enumerate available displays
 - Use DisplayHelper.GetSupportedResolutionsOnly() to test resolution detection for specific monitors
+- Use DisplayHelper.GetAvailableRefreshRates() to test refresh rate detection for specific resolution/monitor combinations
 - Verify DEVMODE structure matches Windows SDK documentation
 - Test DPI awareness with SetProcessDpiAwarenessContext calls in App.xaml.cs
