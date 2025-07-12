@@ -45,10 +45,7 @@ namespace DisplayProfileManager
                 SetupTrayIcon();
                 await HandleStartupProfileAsync();
                 
-                if (!_settingsManager.ShouldMinimizeToTray() || _settingsManager.IsFirstRun())
-                {
-                    ShowMainWindow();
-                }
+                ShowMainWindow();
 
                 if (_settingsManager.IsFirstRun())
                 {
