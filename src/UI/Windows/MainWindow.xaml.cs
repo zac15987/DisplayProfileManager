@@ -343,16 +343,50 @@ namespace DisplayProfileManager.UI.Windows
             }
         }
 
-        private void CloseButton_Click(object sender, RoutedEventArgs e)
+        private async void CloseButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_settingsManager.ShouldMinimizeToTray())
+            // Check if user has already made a choice and wants to remember it
+            if (_settingsManager.ShouldRememberCloseChoice())
             {
-                Hide();
+                // Use the saved preference
+                if (_settingsManager.ShouldCloseToTray())
+                {
+                    Hide();
+                }
+                else
+                {
+                    Application.Current.Shutdown();
+                }
+                return;
             }
-            else
+
+            // Show confirmation dialog
+            var dialog = new CloseConfirmationDialog();
+            dialog.Owner = this;
+            
+            var result = dialog.ShowDialog();
+            
+            if (result == true)
             {
-                Application.Current.Shutdown();
+                // User clicked OK, execute their choice
+                if (dialog.RememberChoice)
+                {
+                    // Save the user's preferences
+                    await _settingsManager.SetRememberCloseChoiceAsync(true);
+                    await _settingsManager.SetCloseToTrayAsync(dialog.ShouldCloseToTray);
+                }
+
+                // Execute the chosen action
+                if (dialog.ShouldCloseToTray)
+                {
+                    Hide();
+                }
+                else
+                {
+                    Application.Current.Shutdown();
+                }
             }
+            // If result is false (Cancel or X button), do nothing
         }
 
         private void HeaderBorder_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)

@@ -1,0 +1,179 @@
+﻿<Window x:Class="DisplayProfileManager.UI.Windows.CloseConfirmationDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:DisplayProfileManager.UI.Windows"
+        xmlns:converters="clr-namespace:DisplayProfileManager.UI.Converters"
+        mc:Ignorable="d"
+        Title="Close Application" Height="360" Width="450"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        Background="Transparent" WindowStyle="None" AllowsTransparency="True"
+        MouseMove="Window_MouseMove" MouseLeftButtonDown="Window_MouseLeftButtonDown">
+    
+    <Window.Resources>
+        <Style x:Key="ModernButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#0078D4"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                CornerRadius="4" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#106EBE"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#005A9E"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource ModernButtonStyle}">
+            <Setter Property="Background" Value="#E5E5E5"/>
+            <Setter Property="Foreground" Value="#323130"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#D2D0CE"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#C8C6C4"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="ModernTextBlockStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Foreground" Value="#323130"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+        </Style>
+
+        <Style x:Key="HeaderTextBlockStyle" TargetType="TextBlock" BasedOn="{StaticResource ModernTextBlockStyle}">
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#201F1E"/>
+        </Style>
+
+        <Style x:Key="ModernRadioButtonStyle" TargetType="RadioButton">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="Foreground" Value="#323130"/>
+            <Setter Property="Padding" Value="8,4"/>
+        </Style>
+
+        <Style x:Key="ModernCheckBoxStyle" TargetType="CheckBox">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="Foreground" Value="#323130"/>
+            <Setter Property="Padding" Value="8,4"/>
+        </Style>
+    </Window.Resources>
+
+    <Border BorderBrush="#8A8A8A" BorderThickness="1" CornerRadius="8" Background="#F3F3F3">
+        <Grid>
+            <Grid.Clip>
+                <RectangleGeometry RadiusX="8" RadiusY="8">
+                    <RectangleGeometry.Rect>
+                        <MultiBinding Converter="{x:Static converters:RectConverter.Instance}">
+                            <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Grid}"/>
+                            <Binding Path="ActualHeight" RelativeSource="{RelativeSource AncestorType=Grid}"/>
+                        </MultiBinding>
+                    </RectangleGeometry.Rect>
+                </RectangleGeometry>
+            </Grid.Clip>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Border Grid.Row="0" Background="White" BorderBrush="#E1DFDD" BorderThickness="0,0,0,1" Padding="24,16"
+                    CornerRadius="8,8,0,0"
+                    MouseLeftButtonDown="HeaderBorder_MouseLeftButtonDown">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <TextBlock Grid.Column="0" Text="Close Application" Style="{StaticResource HeaderTextBlockStyle}" VerticalAlignment="Center"/>
+
+                    <Button Name="DialogCloseButton" Content="✕" Grid.Column="1"
+                            Style="{StaticResource SecondaryButtonStyle}" 
+                            Width="32" Height="32" Padding="0" 
+                            Click="DialogCloseButton_Click"/>
+                </Grid>
+            </Border>
+
+            <!-- Content -->
+            <Grid Grid.Row="1" Margin="24">
+                <StackPanel>
+                    <TextBlock Text="What would you like to do when closing the application?" 
+                               Style="{StaticResource ModernTextBlockStyle}" 
+                               Margin="0,0,0,16"/>
+                    
+                    <RadioButton Name="MinimizeToTrayRadioButton" 
+                                 Content="Minimize to system tray" 
+                                 Style="{StaticResource ModernRadioButtonStyle}"
+                                 IsChecked="True" 
+                                 Margin="0,0,0,8"/>
+                    
+                    <TextBlock Text="The application will continue running in the background and can be accessed from the system tray." 
+                               Style="{StaticResource ModernTextBlockStyle}" 
+                               FontSize="12" Foreground="#8A8886" 
+                               Margin="24,0,0,16"/>
+                    
+                    <RadioButton Name="CloseApplicationRadioButton" 
+                                 Content="Close the application completely" 
+                                 Style="{StaticResource ModernRadioButtonStyle}"
+                                 Margin="0,0,0,8"/>
+                    
+                    <TextBlock Text="The application will be completely closed and stopped." 
+                               Style="{StaticResource ModernTextBlockStyle}" 
+                               FontSize="12" Foreground="#8A8886" 
+                               Margin="24,0,0,24"/>
+                    
+                    <CheckBox Name="RememberChoiceCheckBox" 
+                              Content="Remember my choice and don't ask again" 
+                              Style="{StaticResource ModernCheckBoxStyle}"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Footer with buttons -->
+            <Border Grid.Row="2" Background="White" BorderBrush="#E1DFDD" BorderThickness="0,1,0,0" Padding="24,16"
+                    CornerRadius="0,0,8,8">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Button Name="CancelButton" Content="Cancel" 
+                                Style="{StaticResource SecondaryButtonStyle}" 
+                                Width="80" Margin="0,0,8,0" 
+                                Click="CancelButton_Click"/>
+                        <Button Name="OKButton" Content="OK" 
+                                Style="{StaticResource ModernButtonStyle}" 
+                                Width="80" Click="OKButton_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

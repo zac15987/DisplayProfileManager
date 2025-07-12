@@ -20,6 +20,12 @@ namespace DisplayProfileManager.Core
         [JsonProperty("minimizeToTray")]
         public bool MinimizeToTray { get; set; } = true;
 
+        [JsonProperty("rememberCloseChoice")]
+        public bool RememberCloseChoice { get; set; } = false;
+
+        [JsonProperty("closeToTray")]
+        public bool CloseToTray { get; set; } = true;
+
         [JsonProperty("showNotifications")]
         public bool ShowNotifications { get; set; } = true;
 
@@ -219,6 +225,18 @@ namespace DisplayProfileManager.Core
             return await SaveSettingsAsync();
         }
 
+        public async Task<bool> SetRememberCloseChoiceAsync(bool rememberChoice)
+        {
+            _settings.RememberCloseChoice = rememberChoice;
+            return await SaveSettingsAsync();
+        }
+
+        public async Task<bool> SetCloseToTrayAsync(bool closeToTray)
+        {
+            _settings.CloseToTray = closeToTray;
+            return await SaveSettingsAsync();
+        }
+
         public async Task<bool> ResetSettingsAsync()
         {
             try
@@ -273,6 +291,16 @@ namespace DisplayProfileManager.Core
         public bool ShouldMinimizeToTray()
         {
             return _settings.MinimizeToTray;
+        }
+
+        public bool ShouldRememberCloseChoice()
+        {
+            return _settings.RememberCloseChoice;
+        }
+
+        public bool ShouldCloseToTray()
+        {
+            return _settings.CloseToTray;
         }
 
         public bool ShouldShowNotifications()
