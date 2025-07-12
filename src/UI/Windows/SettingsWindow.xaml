@@ -1,0 +1,295 @@
+﻿<Window x:Class="DisplayProfileManager.UI.Windows.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:DisplayProfileManager.UI.Windows"
+        xmlns:converters="clr-namespace:DisplayProfileManager.UI.Converters"
+        mc:Ignorable="d"
+        Title="Settings" Height="600" Width="500" MinHeight="500" MinWidth="450"
+        WindowStartupLocation="CenterOwner" ResizeMode="CanResize"
+        Background="Transparent" WindowStyle="None" AllowsTransparency="True"
+        MouseMove="Window_MouseMove"  MouseLeftButtonDown="Window_MouseLeftButtonDown"
+        Loaded="Window_Loaded">
+    
+    <Window.Resources>
+        <Style x:Key="ModernButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#0078D4"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                CornerRadius="4" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#106EBE"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#005A9E"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource ModernButtonStyle}">
+            <Setter Property="Background" Value="#E5E5E5"/>
+            <Setter Property="Foreground" Value="#323130"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#D2D0CE"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#C8C6C4"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="DangerButtonStyle" TargetType="Button" BasedOn="{StaticResource ModernButtonStyle}">
+            <Setter Property="Background" Value="#D13438"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#B92B30"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#A12125"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="ModernTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#E1DFDD"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+        </Style>
+
+        <Style x:Key="ModernComboBoxStyle" TargetType="ComboBox">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#E1DFDD"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+        </Style>
+
+        <Style x:Key="ModernCheckBoxStyle" TargetType="CheckBox">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="Foreground" Value="#323130"/>
+            <Setter Property="Margin" Value="0,4"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="ModernRadioButtonStyle" TargetType="RadioButton">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="Foreground" Value="#323130"/>
+            <Setter Property="Margin" Value="0,4"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="ModernTextBlockStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Foreground" Value="#323130"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+        </Style>
+
+        <Style x:Key="HeaderTextBlockStyle" TargetType="TextBlock" BasedOn="{StaticResource ModernTextBlockStyle}">
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#201F1E"/>
+        </Style>
+
+        <Style x:Key="SectionHeaderStyle" TargetType="TextBlock" BasedOn="{StaticResource ModernTextBlockStyle}">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+
+        <Style x:Key="LabelTextBlockStyle" TargetType="TextBlock" BasedOn="{StaticResource ModernTextBlockStyle}">
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+        </Style>
+    </Window.Resources>
+
+    <Border BorderBrush="#8A8A8A" BorderThickness="1" CornerRadius="8" Background="#F3F3F3">
+        <Grid>
+            <Grid.Clip>
+                <RectangleGeometry RadiusX="8" RadiusY="8">
+                    <RectangleGeometry.Rect>
+                        <MultiBinding Converter="{x:Static converters:RectConverter.Instance}">
+                            <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Grid}"/>
+                            <Binding Path="ActualHeight" RelativeSource="{RelativeSource AncestorType=Grid}"/>
+                        </MultiBinding>
+                    </RectangleGeometry.Rect>
+                </RectangleGeometry>
+            </Grid.Clip>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" Background="White" BorderBrush="#E1DFDD" BorderThickness="0,0,0,1" Padding="24,16"
+                    CornerRadius="8,8,0,0"
+                    MouseLeftButtonDown="HeaderBorder_MouseLeftButtonDown">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <TextBlock Grid.Column="0" Text="Settings" Style="{StaticResource HeaderTextBlockStyle}"/>
+
+                    <Button Grid.Column="1" Name="CloseButton" Content="✕" 
+                            Style="{StaticResource SecondaryButtonStyle}" 
+                            Width="32" Height="32" Padding="0" 
+                            Click="CloseButton_Click"/>
+                </Grid>
+            </Border>
+
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="24">
+                    <!-- General Section -->
+                    <Border Background="White" BorderBrush="#E1DFDD" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBlock Text="General" Style="{StaticResource SectionHeaderStyle}"/>
+                            
+                            <TextBlock Text="Theme" Style="{StaticResource LabelTextBlockStyle}"/>
+                            <ComboBox Name="ThemeComboBox" Style="{StaticResource ModernComboBoxStyle}" 
+                                      SelectionChanged="ThemeComboBox_SelectionChanged">
+                                <ComboBoxItem Content="System" Tag="System"/>
+                                <ComboBoxItem Content="Light" Tag="Light"/>
+                                <ComboBoxItem Content="Dark" Tag="Dark"/>
+                            </ComboBox>
+                            
+                            <TextBlock Text="Language" Style="{StaticResource LabelTextBlockStyle}" Margin="0,12,0,4"/>
+                            <ComboBox Name="LanguageComboBox" Style="{StaticResource ModernComboBoxStyle}" 
+                                      SelectionChanged="LanguageComboBox_SelectionChanged">
+                                <ComboBoxItem Content="English (US)" Tag="en-US"/>
+                            </ComboBox>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Startup Section -->
+                    <Border Background="White" BorderBrush="#E1DFDD" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBlock Text="Startup" Style="{StaticResource SectionHeaderStyle}"/>
+                            
+                            <CheckBox Name="StartWithWindowsCheckBox" Content="Start with Windows" 
+                                      Style="{StaticResource ModernCheckBoxStyle}"
+                                      Checked="StartWithWindowsCheckBox_Changed"
+                                      Unchecked="StartWithWindowsCheckBox_Changed"/>
+                            
+                            <TextBlock Text="Startup Profile" Style="{StaticResource LabelTextBlockStyle}" Margin="0,12,0,4"/>
+                            <ComboBox Name="StartupProfileComboBox" Style="{StaticResource ModernComboBoxStyle}"
+                                      SelectionChanged="StartupProfileComboBox_SelectionChanged">
+                                <ComboBoxItem Content="None" Tag=""/>
+                            </ComboBox>
+                            
+                            <CheckBox Name="ApplyStartupProfileCheckBox" Content="Apply startup profile on launch" 
+                                      Style="{StaticResource ModernCheckBoxStyle}" Margin="0,8,0,0"
+                                      IsEnabled="{Binding ElementName=StartupProfileComboBox, Path=SelectedIndex, Converter={x:Static converters:BooleanToVisibilityConverter.Instance}}"
+                                      Checked="ApplyStartupProfileCheckBox_Changed"
+                                      Unchecked="ApplyStartupProfileCheckBox_Changed"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Window Behavior Section -->
+                    <Border Background="White" BorderBrush="#E1DFDD" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBlock Text="Window Behavior" Style="{StaticResource SectionHeaderStyle}"/>
+                            
+                            <CheckBox Name="MinimizeToTrayCheckBox" Content="Minimize to system tray" 
+                                      Style="{StaticResource ModernCheckBoxStyle}"
+                                      Checked="MinimizeToTrayCheckBox_Changed"
+                                      Unchecked="MinimizeToTrayCheckBox_Changed"/>
+                            
+                            <TextBlock Text="When closing the application:" Style="{StaticResource LabelTextBlockStyle}" Margin="0,12,0,4"/>
+                            <StackPanel Margin="20,0,0,0">
+                                <RadioButton Name="CloseToTrayRadio" Content="Minimize to system tray" 
+                                             Style="{StaticResource ModernRadioButtonStyle}"
+                                             GroupName="CloseAction"
+                                             Checked="CloseActionRadio_Changed"/>
+                                <RadioButton Name="ExitApplicationRadio" Content="Exit application" 
+                                             Style="{StaticResource ModernRadioButtonStyle}"
+                                             GroupName="CloseAction"
+                                             Checked="CloseActionRadio_Changed"/>
+                            </StackPanel>
+                            
+                            <CheckBox Name="RememberCloseChoiceCheckBox" Content="Remember my choice" 
+                                      Style="{StaticResource ModernCheckBoxStyle}" Margin="20,8,0,0"
+                                      Checked="RememberCloseChoiceCheckBox_Changed"
+                                      Unchecked="RememberCloseChoiceCheckBox_Changed"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Notifications Section -->
+                    <Border Background="White" BorderBrush="#E1DFDD" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBlock Text="Notifications" Style="{StaticResource SectionHeaderStyle}"/>
+                            
+                            <CheckBox Name="ShowNotificationsCheckBox" Content="Show notifications when profiles are applied" 
+                                      Style="{StaticResource ModernCheckBoxStyle}"
+                                      Checked="ShowNotificationsCheckBox_Changed"
+                                      Unchecked="ShowNotificationsCheckBox_Changed"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Updates Section -->
+                    <Border Background="White" BorderBrush="#E1DFDD" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBlock Text="Updates" Style="{StaticResource SectionHeaderStyle}"/>
+                            
+                            <CheckBox Name="CheckForUpdatesCheckBox" Content="Automatically check for updates" 
+                                      Style="{StaticResource ModernCheckBoxStyle}"
+                                      Checked="CheckForUpdatesCheckBox_Changed"
+                                      Unchecked="CheckForUpdatesCheckBox_Changed"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- About Section -->
+                    <Border Background="White" BorderBrush="#E1DFDD" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBlock Text="About" Style="{StaticResource SectionHeaderStyle}"/>
+                            
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Version: " Style="{StaticResource ModernTextBlockStyle}"/>
+                                <TextBlock Name="VersionTextBlock" Text="1.0.0" Style="{StaticResource ModernTextBlockStyle}"/>
+                            </StackPanel>
+                            
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <TextBlock Text="Settings Location: " Style="{StaticResource ModernTextBlockStyle}" FontSize="12" Foreground="#8A8886"/>
+                                <TextBlock Name="SettingsPathTextBlock" Style="{StaticResource ModernTextBlockStyle}" 
+                                           FontSize="12" Foreground="#8A8886" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <Border Grid.Row="2" Background="White" BorderBrush="#E1DFDD" BorderThickness="0,1,0,0" Padding="24,12">
+                <Button Name="ResetSettingsButton" Content="Reset All Settings" 
+                        Style="{StaticResource DangerButtonStyle}" 
+                        HorizontalAlignment="Right"
+                        Click="ResetSettingsButton_Click"/>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

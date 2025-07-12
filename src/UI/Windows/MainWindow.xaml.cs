@@ -328,8 +328,9 @@ namespace DisplayProfileManager.UI.Windows
 
         private void SettingsButton_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("Settings functionality will be implemented in future updates.", 
-                "Settings", MessageBoxButton.OK, MessageBoxImage.Information);
+            var settingsWindow = new SettingsWindow();
+            settingsWindow.Owner = this;
+            settingsWindow.ShowDialog();
         }
 
         private void MinimizeButton_Click(object sender, RoutedEventArgs e)
@@ -391,7 +392,14 @@ namespace DisplayProfileManager.UI.Windows
 
         private void HeaderBorder_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (e.ClickCount == 1)
+            if (e.ClickCount == 2)
+            {
+                if (WindowState == WindowState.Normal)
+                    WindowState = WindowState.Maximized;
+                else
+                    WindowState = WindowState.Normal;
+            }
+            else
             {
                 DragMove();
             }
