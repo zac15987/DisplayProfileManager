@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
@@ -281,6 +282,55 @@ namespace DisplayProfileManager.Helpers
                 BitsPerPixel = 32,
                 IsPrimary = true
             };
+        }
+
+        public static List<string> GetSupportedResolutionsOnly(string deviceName = null)
+        {
+            // If no device name specified, use primary display
+            if (string.IsNullOrEmpty(deviceName))
+            {
+                var primaryDisplay = GetPrimaryDisplay();
+                if (primaryDisplay != null)
+                {
+                    deviceName = primaryDisplay.DeviceName;
+                }
+                else
+                {
+                    // Fallback for when we can't detect primary display
+                    var displays = GetDisplays();
+                    if (displays.Count > 0)
+                    {
+                        deviceName = displays[0].DeviceName;
+                    }
+                    else
+                    {
+                        return new List<string> { "1920x1080", "1366x768", "1280x720" }; // Basic fallback
+                    }
+                }
+            }
+
+            var allResolutions = GetAvailableResolutions(deviceName);
+            var uniqueResolutions = new HashSet<string>();
+            var resolutionList = new List<(int width, int height, string text)>();
+
+            foreach (var resolution in allResolutions)
+            {
+                var resolutionText = $"{resolution.Width}x{resolution.Height}";
+                if (!uniqueResolutions.Contains(resolutionText))
+                {
+                    uniqueResolutions.Add(resolutionText);
+                    resolutionList.Add((resolution.Width, resolution.Height, resolutionText));
+                }
+            }
+
+            // Sort by width descending, then height descending
+            resolutionList.Sort((a, b) =>
+            {
+                if (a.width != b.width) return b.width.CompareTo(a.width);
+                return b.height.CompareTo(a.height);
+            });
+
+            return resolutionList.Select(r => r.text).ToList();
         }
 
         #endregion

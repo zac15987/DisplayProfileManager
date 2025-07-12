@@ -433,30 +433,23 @@ namespace DisplayProfileManager.UI.Windows
 
         private void PopulateResolutionComboBox()
         {
-            var resolutions = new[]
-            {
-                "1920x1080 @ 60Hz",
-                "1920x1080 @ 144Hz",
-                "2560x1440 @ 60Hz",
-                "2560x1440 @ 144Hz",
-                "3840x2160 @ 60Hz",
-                "1680x1050 @ 60Hz",
-                "1366x768 @ 60Hz",
-                "1280x720 @ 60Hz"
-            };
+            // Get supported resolutions for the current device (without refresh rates)
+            var supportedResolutions = DisplayHelper.GetSupportedResolutionsOnly(_setting.DeviceName);
 
-            foreach (var resolution in resolutions)
+            foreach (var resolution in supportedResolutions)
             {
                 _resolutionComboBox.Items.Add(resolution);
             }
 
-            var currentResolution = $"{_setting.Width}x{_setting.Height} @ {_setting.Frequency}Hz";
+            // Try to select the current resolution (without refresh rate)
+            var currentResolution = $"{_setting.Width}x{_setting.Height}";
             if (_resolutionComboBox.Items.Contains(currentResolution))
             {
                 _resolutionComboBox.SelectedItem = currentResolution;
             }
             else
             {
+                // If current resolution is not in supported list, add it and select it
                 _resolutionComboBox.Items.Insert(0, currentResolution);
                 _resolutionComboBox.SelectedIndex = 0;
             }
@@ -491,16 +484,28 @@ namespace DisplayProfileManager.UI.Windows
             var resolutionText = _resolutionComboBox.SelectedItem.ToString();
             var dpiText = _dpiComboBox.SelectedItem.ToString();
 
-            var resolutionParts = resolutionText.Split('x', '@');
-            if (resolutionParts.Length < 3) return null;
+            // Handle both old format (with @ and Hz) and new format (just WIDTHxHEIGHT)
+            var resolutionParts = resolutionText.Split('x');
+            if (resolutionParts.Length < 2) return null;
 
-            if (!int.TryParse(resolutionParts[0], out int width) ||
-                !int.TryParse(resolutionParts[1], out int height) ||
-                !int.TryParse(resolutionParts[2].Replace("Hz", "").Trim(), out int frequency))
+            if (!int.TryParse(resolutionParts[0], out int width))
+                return null;
+
+            // Extract height (might have @ and Hz suffix from old format)
+            string heightPart = resolutionParts[1];
+            if (heightPart.Contains("@"))
+            {
+                heightPart = heightPart.Split('@')[0].Trim();
+            }
+
+            if (!int.TryParse(heightPart, out int height))
                 return null;
 
             if (!uint.TryParse(dpiText.Replace("%", ""), out uint dpiScaling))
                 return null;
+
+            // Set default frequency to 60Hz since we're not configuring refresh rates
+            int frequency = 60;
 
             return new DisplaySetting
             {
