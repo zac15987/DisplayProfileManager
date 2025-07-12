@@ -12,8 +12,11 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using DisplayProfileManager.Core;
+using DisplayProfileManager.UI.ViewModels;
+using DisplayProfileManager.Helpers;
 
-namespace DisplayProfileManager
+namespace DisplayProfileManager.UI.Windows
 {
     public partial class MainWindow : Window
     {

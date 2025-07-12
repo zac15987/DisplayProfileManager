@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 
-namespace DisplayProfileManager
+namespace DisplayProfileManager.Core
 {
     public class Profile
     {

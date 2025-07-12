@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
-namespace DisplayProfileManager
+namespace DisplayProfileManager.Helpers
 {
     public class DisplayHelper
     {

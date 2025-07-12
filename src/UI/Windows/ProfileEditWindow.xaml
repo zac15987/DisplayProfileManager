@@ -1,9 +1,10 @@
-﻿<Window x:Class="DisplayProfileManager.ProfileEditWindow"
+﻿<Window x:Class="DisplayProfileManager.UI.Windows.ProfileEditWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:DisplayProfileManager"
+        xmlns:local="clr-namespace:DisplayProfileManager.UI.Windows"
+        xmlns:converters="clr-namespace:DisplayProfileManager.UI.Converters"
         mc:Ignorable="d"
         Title="Profile Editor" Height="500" Width="600" 
         WindowStartupLocation="CenterOwner" ResizeMode="CanResize"
@@ -91,7 +92,7 @@
             <Grid.Clip>
                 <RectangleGeometry RadiusX="8" RadiusY="8">
                     <RectangleGeometry.Rect>
-                        <MultiBinding Converter="{x:Static local:RectConverter.Instance}">
+                        <MultiBinding Converter="{x:Static converters:RectConverter.Instance}">
                             <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Grid}"/>
                             <Binding Path="ActualHeight" RelativeSource="{RelativeSource AncestorType=Grid}"/>
                         </MultiBinding>

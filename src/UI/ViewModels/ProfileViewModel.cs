@@ -1,8 +1,9 @@
 using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using DisplayProfileManager.Core;
 
-namespace DisplayProfileManager
+namespace DisplayProfileManager.UI.ViewModels
 {
     public class ProfileViewModel : INotifyPropertyChanged
     {

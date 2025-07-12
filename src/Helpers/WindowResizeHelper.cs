@@ -4,7 +4,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
 
-namespace DisplayProfileManager
+namespace DisplayProfileManager.Helpers
 {
     /// <summary>
     /// Helper class to enable window resizing when AllowsTransparency is true

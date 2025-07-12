@@ -6,6 +6,10 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Runtime.InteropServices;
+using DisplayProfileManager.Core;
+using DisplayProfileManager.UI;
+using DisplayProfileManager.UI.Windows;
+using DisplayProfileManager.Helpers;
 
 namespace DisplayProfileManager
 {

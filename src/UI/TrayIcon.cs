@@ -4,8 +4,10 @@ using System.Linq;
 using System.Windows.Forms;
 using System.Windows;
 using System.Threading.Tasks;
+using DisplayProfileManager.Core;
+using DisplayProfileManager.UI.Windows;
 
-namespace DisplayProfileManager
+namespace DisplayProfileManager.UI
 {
     public class TrayIcon : IDisposable
     {

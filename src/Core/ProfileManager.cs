@@ -4,8 +4,9 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using DisplayProfileManager.Helpers;
 
-namespace DisplayProfileManager
+namespace DisplayProfileManager.Core
 {
     public class ProfileManager
     {

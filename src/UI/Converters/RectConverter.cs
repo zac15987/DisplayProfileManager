@@ -3,7 +3,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
 
-namespace DisplayProfileManager
+namespace DisplayProfileManager.UI.Converters
 {
     /// <summary>
     /// Converter to create a Rect from width and height values

@@ -2,8 +2,9 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using DisplayProfileManager.Helpers;
 
-namespace DisplayProfileManager
+namespace DisplayProfileManager.Core
 {
     public class AppSettings
     {

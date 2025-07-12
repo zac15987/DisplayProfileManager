@@ -59,41 +59,41 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
   <ItemGroup>
-    <ApplicationDefinition Include="App.xaml">
+    <ApplicationDefinition Include="src\App.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
-    <Page Include="MainWindow.xaml">
+    <Page Include="src\UI\Windows\MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
-    <Page Include="ProfileEditWindow.xaml">
+    <Page Include="src\UI\Windows\ProfileEditWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
-    <Compile Include="App.xaml.cs">
+    <Compile Include="src\App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="AutoStartHelper.cs" />
-    <Compile Include="BooleanToVisibilityConverter.cs" />
-    <Compile Include="DisplayHelper.cs" />
-    <Compile Include="DpiHelper.cs" />
-    <Compile Include="MainWindow.xaml.cs">
+    <Compile Include="src\Helpers\AutoStartHelper.cs" />
+    <Compile Include="src\UI\Converters\BooleanToVisibilityConverter.cs" />
+    <Compile Include="src\Helpers\DisplayHelper.cs" />
+    <Compile Include="src\Helpers\DpiHelper.cs" />
+    <Compile Include="src\UI\Windows\MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Profile.cs" />
-    <Compile Include="ProfileEditWindow.xaml.cs">
+    <Compile Include="src\Core\Profile.cs" />
+    <Compile Include="src\UI\Windows\ProfileEditWindow.xaml.cs">
       <DependentUpon>ProfileEditWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="ProfileManager.cs" />
-    <Compile Include="ProfileViewModel.cs" />
-    <Compile Include="RectConverter.cs" />
-    <Compile Include="SettingsManager.cs" />
-    <Compile Include="TrayIcon.cs" />
-    <Compile Include="WindowResizeHelper.cs" />
+    <Compile Include="src\Core\ProfileManager.cs" />
+    <Compile Include="src\UI\ViewModels\ProfileViewModel.cs" />
+    <Compile Include="src\UI\Converters\RectConverter.cs" />
+    <Compile Include="src\Core\SettingsManager.cs" />
+    <Compile Include="src\UI\TrayIcon.cs" />
+    <Compile Include="src\Helpers\WindowResizeHelper.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs">

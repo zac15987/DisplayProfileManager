@@ -6,8 +6,10 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using DisplayProfileManager.Core;
+using DisplayProfileManager.Helpers;
 
-namespace DisplayProfileManager
+namespace DisplayProfileManager.UI.Windows
 {
     public partial class ProfileEditWindow : Window
     {
