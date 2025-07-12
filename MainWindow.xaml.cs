@@ -268,8 +268,11 @@ namespace DisplayProfileManager
         {
             if (_selectedProfile == null) return;
 
+            // Store the profile name before deletion
+            var profileName = _selectedProfile.Name;
+            
             var result = MessageBox.Show(
-                $"Are you sure you want to delete the profile '{_selectedProfile.Name}'?\n\nThis action cannot be undone.",
+                $"Are you sure you want to delete the profile '{profileName}'?\n\nThis action cannot be undone.",
                 "Confirm Delete", MessageBoxButton.YesNo, MessageBoxImage.Question);
 
             if (result == MessageBoxResult.Yes)
@@ -277,7 +280,8 @@ namespace DisplayProfileManager
                 try
                 {
                     await _profileManager.DeleteProfileAsync(_selectedProfile.Id);
-                    StatusTextBlock.Text = $"Profile '{_selectedProfile.Name}' deleted";
+                    // Use the stored profile name instead of _selectedProfile.Name
+                    StatusTextBlock.Text = $"Profile '{profileName}' deleted";
                 }
                 catch (Exception ex)
                 {
