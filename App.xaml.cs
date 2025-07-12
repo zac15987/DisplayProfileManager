@@ -5,6 +5,7 @@ using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Runtime.InteropServices;
 
 namespace DisplayProfileManager
 {
@@ -15,12 +16,27 @@ namespace DisplayProfileManager
         private ProfileManager _profileManager;
         private SettingsManager _settingsManager;
 
+        [DllImport("user32.dll")]
+        private static extern bool SetProcessDpiAwarenessContext(IntPtr dpiContext);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetProcessDpiAwarenessContext();
+
+        [DllImport("user32.dll")]
+        private static extern bool AreDpiAwarenessContextsEqual(IntPtr dpiContextA, IntPtr dpiContextB);
+
+        private static readonly IntPtr DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = new IntPtr(-4);
+        private static readonly IntPtr DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE = new IntPtr(-3);
+        private static readonly IntPtr DPI_AWARENESS_CONTEXT_SYSTEM_AWARE = new IntPtr(-2);
+        private static readonly IntPtr DPI_AWARENESS_CONTEXT_UNAWARE = new IntPtr(-1);
+
         protected override async void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
 
             try
             {
+                SetDpiAwareness();
                 await InitializeApplicationAsync();
                 SetupTrayIcon();
                 await HandleStartupProfileAsync();
@@ -40,6 +56,31 @@ namespace DisplayProfileManager
                 MessageBox.Show($"Failed to start application: {ex.Message}", "Startup Error", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
                 Shutdown();
+            }
+        }
+
+        private void SetDpiAwareness()
+        {
+            try
+            {
+                var currentContext = GetProcessDpiAwarenessContext();
+                
+                if (!AreDpiAwarenessContextsEqual(currentContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2))
+                {
+                    if (!SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2))
+                    {
+                        System.Diagnostics.Debug.WriteLine("Failed to set DPI awareness to PerMonitorV2, trying PerMonitor");
+                        
+                        if (!SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE))
+                        {
+                            System.Diagnostics.Debug.WriteLine("Failed to set DPI awareness to PerMonitor");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error setting DPI awareness: {ex.Message}");
             }
         }
 
