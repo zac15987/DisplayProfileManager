@@ -310,6 +310,7 @@ namespace DisplayProfileManager.UI.Windows
         private DisplaySetting _setting;
         private TextBox _deviceNameTextBox;
         private ComboBox _resolutionComboBox;
+        private ComboBox _refreshRateComboBox;
         private ComboBox _dpiComboBox;
         private CheckBox _primaryCheckBox;
         private Button _removeButton;
@@ -360,6 +361,8 @@ namespace DisplayProfileManager.UI.Windows
             contentGrid.ColumnDefinitions.Add(new ColumnDefinition());
             contentGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
             contentGrid.ColumnDefinitions.Add(new ColumnDefinition());
+            contentGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
+            contentGrid.ColumnDefinitions.Add(new ColumnDefinition());
             contentGrid.RowDefinitions.Add(new RowDefinition());
             contentGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(8) });
             contentGrid.RowDefinitions.Add(new RowDefinition());
@@ -386,11 +389,26 @@ namespace DisplayProfileManager.UI.Windows
                 BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E1DFDD")),
                 BorderThickness = new Thickness(1)
             };
+            _resolutionComboBox.SelectionChanged += ResolutionComboBox_SelectionChanged;
             PopulateResolutionComboBox();
             resolutionPanel.Children.Add(_resolutionComboBox);
             Grid.SetColumn(resolutionPanel, 2);
             Grid.SetRow(resolutionPanel, 0);
             contentGrid.Children.Add(resolutionPanel);
+
+            var refreshRatePanel = new StackPanel();
+            refreshRatePanel.Children.Add(new TextBlock { Text = "Refresh Rate", FontWeight = FontWeights.Medium, Margin = new Thickness(0, 0, 0, 4) });
+            _refreshRateComboBox = new ComboBox
+            {
+                Padding = new Thickness(8),
+                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E1DFDD")),
+                BorderThickness = new Thickness(1)
+            };
+            PopulateRefreshRateComboBox();
+            refreshRatePanel.Children.Add(_refreshRateComboBox);
+            Grid.SetColumn(refreshRatePanel, 4);
+            Grid.SetRow(refreshRatePanel, 0);
+            contentGrid.Children.Add(refreshRatePanel);
 
             var dpiPanel = new StackPanel();
             dpiPanel.Children.Add(new TextBlock { Text = "DPI Scaling", FontWeight = FontWeights.Medium, Margin = new Thickness(0, 0, 0, 4) });
@@ -402,7 +420,7 @@ namespace DisplayProfileManager.UI.Windows
             };
             PopulateDpiComboBox();
             dpiPanel.Children.Add(_dpiComboBox);
-            Grid.SetColumn(dpiPanel, 0);
+            Grid.SetColumn(dpiPanel, 2);
             Grid.SetRow(dpiPanel, 2);
             contentGrid.Children.Add(dpiPanel);
 
@@ -414,7 +432,7 @@ namespace DisplayProfileManager.UI.Windows
                 FontSize = 14
             };
             primaryPanel.Children.Add(_primaryCheckBox);
-            Grid.SetColumn(primaryPanel, 2);
+            Grid.SetColumn(primaryPanel, 4);
             Grid.SetRow(primaryPanel, 2);
             contentGrid.Children.Add(primaryPanel);
 
@@ -476,13 +494,79 @@ namespace DisplayProfileManager.UI.Windows
             }
         }
 
+        private void PopulateRefreshRateComboBox()
+        {
+            _refreshRateComboBox.Items.Clear();
+
+            // Get available refresh rates for the current resolution
+            var refreshRates = DisplayHelper.GetAvailableRefreshRates(_setting.DeviceName, _setting.Width, _setting.Height);
+
+            foreach (var rate in refreshRates)
+            {
+                _refreshRateComboBox.Items.Add($"{rate}Hz");
+            }
+
+            // Try to select the current refresh rate
+            var currentRefreshRate = $"{_setting.Frequency}Hz";
+            if (_refreshRateComboBox.Items.Contains(currentRefreshRate))
+            {
+                _refreshRateComboBox.SelectedItem = currentRefreshRate;
+            }
+            else if (_refreshRateComboBox.Items.Count > 0)
+            {
+                // If current refresh rate is not in supported list, add it and select it
+                _refreshRateComboBox.Items.Insert(0, currentRefreshRate);
+                _refreshRateComboBox.SelectedIndex = 0;
+            }
+            else
+            {
+                // Fallback if no refresh rates found
+                _refreshRateComboBox.Items.Add("60Hz");
+                _refreshRateComboBox.SelectedIndex = 0;
+            }
+        }
+
+        private void ResolutionComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_resolutionComboBox.SelectedItem == null || _refreshRateComboBox == null)
+                return;
+
+            var resolutionText = _resolutionComboBox.SelectedItem.ToString();
+            var resolutionParts = resolutionText.Split('x');
+            
+            if (resolutionParts.Length >= 2 && 
+                int.TryParse(resolutionParts[0], out int width) && 
+                int.TryParse(resolutionParts[1], out int height))
+            {
+                // Get available refresh rates for the selected resolution
+                var refreshRates = DisplayHelper.GetAvailableRefreshRates(_setting.DeviceName, width, height);
+                
+                _refreshRateComboBox.Items.Clear();
+                foreach (var rate in refreshRates)
+                {
+                    _refreshRateComboBox.Items.Add($"{rate}Hz");
+                }
+
+                // Select the highest refresh rate by default, or 60Hz if available
+                if (_refreshRateComboBox.Items.Contains("60Hz"))
+                {
+                    _refreshRateComboBox.SelectedItem = "60Hz";
+                }
+                else if (_refreshRateComboBox.Items.Count > 0)
+                {
+                    _refreshRateComboBox.SelectedIndex = 0; // Select the highest (first) rate
+                }
+            }
+        }
+
         public DisplaySetting GetDisplaySetting()
         {
-            if (_resolutionComboBox.SelectedItem == null || _dpiComboBox.SelectedItem == null)
+            if (_resolutionComboBox.SelectedItem == null || _dpiComboBox.SelectedItem == null || _refreshRateComboBox.SelectedItem == null)
                 return null;
 
             var resolutionText = _resolutionComboBox.SelectedItem.ToString();
             var dpiText = _dpiComboBox.SelectedItem.ToString();
+            var refreshRateText = _refreshRateComboBox.SelectedItem.ToString();
 
             // Handle both old format (with @ and Hz) and new format (just WIDTHxHEIGHT)
             var resolutionParts = resolutionText.Split('x');
@@ -504,8 +588,9 @@ namespace DisplayProfileManager.UI.Windows
             if (!uint.TryParse(dpiText.Replace("%", ""), out uint dpiScaling))
                 return null;
 
-            // Set default frequency to 60Hz since we're not configuring refresh rates
-            int frequency = 60;
+            // Extract frequency from refresh rate text (remove Hz suffix)
+            if (!int.TryParse(refreshRateText.Replace("Hz", ""), out int frequency))
+                frequency = 60; // Fallback to 60Hz
 
             return new DisplaySetting
             {
@@ -536,6 +621,14 @@ namespace DisplayProfileManager.UI.Windows
                 MessageBox.Show("Please select a resolution for all displays.", "Validation Error", 
                     MessageBoxButton.OK, MessageBoxImage.Warning);
                 _resolutionComboBox.Focus();
+                return false;
+            }
+
+            if (_refreshRateComboBox.SelectedItem == null)
+            {
+                MessageBox.Show("Please select a refresh rate for all displays.", "Validation Error", 
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                _refreshRateComboBox.Focus();
                 return false;
             }
 

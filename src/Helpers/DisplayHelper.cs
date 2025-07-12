@@ -333,6 +333,38 @@ namespace DisplayProfileManager.Helpers
             return resolutionList.Select(r => r.text).ToList();
         }
 
+        public static List<int> GetAvailableRefreshRates(string deviceName, int width, int height)
+        {
+            if (string.IsNullOrEmpty(deviceName))
+            {
+                var primaryDisplay = GetPrimaryDisplay();
+                deviceName = primaryDisplay?.DeviceName ?? "";
+            }
+
+            var refreshRates = new HashSet<int>();
+            var allResolutions = GetAvailableResolutions(deviceName);
+
+            foreach (var resolution in allResolutions)
+            {
+                if (resolution.Width == width && resolution.Height == height)
+                {
+                    refreshRates.Add(resolution.Frequency);
+                }
+            }
+
+            var sortedRates = refreshRates.ToList();
+            sortedRates.Sort((a, b) => b.CompareTo(a)); // Descending order (highest first)
+            
+            // Ensure we have at least 60Hz as a fallback
+            if (!sortedRates.Contains(60))
+            {
+                sortedRates.Add(60);
+                sortedRates.Sort((a, b) => b.CompareTo(a));
+            }
+
+            return sortedRates;
+        }
+
         #endregion
     }
 }
