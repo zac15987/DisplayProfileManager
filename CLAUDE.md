@@ -63,12 +63,29 @@ src/
   - JSON persistence to `%AppData%/DisplayProfileManager/`
   - Profile switching logic with sequential resolution/DPI changes
 
+- **Core/SettingsManager.cs**: Thread-safe singleton for application settings:
+  - Settings persistence to `%AppData%/DisplayProfileManager/settings.json`
+  - Available settings: startup, window behavior, notifications, theme, language
+  - AutoStartHelper integration for Windows registry management
+
 - **Helpers/DisplayHelper.cs & DpiHelper.cs**: P/Invoke wrappers for Windows APIs:
   - Resolution changes via ChangeDisplaySettingsEx
   - DPI scaling via SystemParametersInfo
   - Display device enumeration
 
+- **Helpers/WindowResizeHelper.cs**: Window manipulation utility for custom chrome:
+  - Resize handle detection and cursor management
+  - Mouse-based window resizing for borderless windows
+  - Required for windows with WindowStyle="None"
+
 - **UI/TrayIcon.cs**: System tray implementation with dynamic context menu for profile switching
+
+- **UI Windows Pattern**: All windows follow consistent design:
+  - Custom window chrome with rounded corners (8px radius)
+  - WindowStyle="None", AllowsTransparency="True", Background="Transparent"
+  - Border with CornerRadius="8" and Grid.Clip with RectangleGeometry
+  - Draggable header with double-click maximize/restore
+  - WindowResizeHelper integration for resize functionality
 
 ### Data Flow
 
@@ -87,11 +104,24 @@ src/
 
 - Follow existing async/await patterns for all I/O operations
 - Use ProfileManager singleton for all profile-related operations
+- Use SettingsManager singleton for all application settings
 - P/Invoke declarations should match existing patterns in DisplayHelper/DpiHelper
 - UI follows Windows 11 design style with rounded corners and modern controls
 - All user-facing strings should be localizable (use Resources.resx)
 - Event-driven architecture: Subscribe to ProfileManager events for UI updates
 - Thread-safe singleton pattern with double-checked locking
+
+### UI Style Patterns
+
+All windows use consistent styles defined in Window.Resources:
+- **ModernButtonStyle**: Primary blue buttons (#0078D4)
+- **SecondaryButtonStyle**: Gray buttons for secondary actions
+- **DangerButtonStyle**: Red buttons for destructive actions (#D13438)
+- **ModernTextBoxStyle/ModernComboBoxStyle**: Input controls with consistent styling
+- **ModernCheckBoxStyle/ModernRadioButtonStyle**: Form controls
+- **HeaderTextBlockStyle**: Section headers (20px, SemiBold)
+- **SectionHeaderStyle**: Subsection headers (16px, SemiBold)
+- **ModernTextBlockStyle**: Standard text (14px, Segoe UI)
 
 ## Common Tasks
 
@@ -100,6 +130,22 @@ src/
 2. Update `src/UI/Windows/ProfileEditWindow.xaml` and code-behind for UI controls
 3. Update `src/Core/ProfileManager.cs` ApplyProfile() method for display changes
 4. Handle JSON serialization compatibility in ProfileManager.LoadProfilesAsync()
+
+### Adding a new application setting
+1. Add property to `AppSettings` class in `src/Core/SettingsManager.cs` with JsonProperty attribute
+2. Add getter/setter methods to SettingsManager class
+3. Update `src/UI/Windows/SettingsWindow.xaml` to add UI control
+4. Add event handler in SettingsWindow.xaml.cs for immediate save on change
+5. Set default value and handle it in Window_Loaded method
+
+### Creating a new window with custom chrome
+1. Create XAML with WindowStyle="None", AllowsTransparency="True", Background="Transparent"
+2. Add Border with CornerRadius="8" and Grid.Clip with RectangleGeometry converter
+3. Add WindowResizeHelper field and initialize in constructor and Window_Loaded
+4. Implement MouseMove, MouseLeftButtonDown handlers for resize functionality
+5. Add HeaderBorder_MouseLeftButtonDown for window dragging and double-click maximize
+6. Call _resizeHelper.Cleanup() in OnClosed override
+7. Copy existing window styles from other windows
 
 ### Modifying system tray menu
 1. Edit `src/UI/TrayIcon.cs` BuildContextMenu() method
