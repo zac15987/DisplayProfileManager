@@ -86,6 +86,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="ProfileManager.cs" />
+    <Compile Include="ProfileViewModel.cs" />
     <Compile Include="RectConverter.cs" />
     <Compile Include="SettingsManager.cs" />
     <Compile Include="TrayIcon.cs" />

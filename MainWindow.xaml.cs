@@ -21,6 +21,7 @@ namespace DisplayProfileManager
         private SettingsManager _settingsManager;
         private Profile _selectedProfile;
         private WindowResizeHelper _resizeHelper;
+        private List<ProfileViewModel> _profileViewModels;
 
         public MainWindow()
         {
@@ -63,7 +64,16 @@ namespace DisplayProfileManager
         private void RefreshProfilesList()
         {
             var profiles = _profileManager.GetAllProfiles();
-            ProfilesListBox.ItemsSource = profiles;
+            _profileViewModels = new List<ProfileViewModel>();
+            
+            foreach (var profile in profiles)
+            {
+                var viewModel = new ProfileViewModel(profile);
+                viewModel.IsActive = profile.Id == _profileManager.CurrentProfileId;
+                _profileViewModels.Add(viewModel);
+            }
+            
+            ProfilesListBox.ItemsSource = _profileViewModels;
             
             if (profiles.Count == 0)
             {
@@ -192,7 +202,8 @@ namespace DisplayProfileManager
 
         private void ProfilesListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            _selectedProfile = ProfilesListBox.SelectedItem as Profile;
+            var selectedViewModel = ProfilesListBox.SelectedItem as ProfileViewModel;
+            _selectedProfile = selectedViewModel?.Profile;
             UpdateProfileDetails(_selectedProfile);
         }
 
@@ -205,18 +216,21 @@ namespace DisplayProfileManager
                 ApplyProfileButton.IsEnabled = false;
                 StatusTextBlock.Text = $"Applying profile: {_selectedProfile.Name}...";
 
+                // Store the profile name before applying
+                var profileName = _selectedProfile.Name;
+
                 bool success = await _profileManager.ApplyProfileAsync(_selectedProfile);
                 
                 if (success)
                 {
-                    StatusTextBlock.Text = $"Profile '{_selectedProfile.Name}' applied successfully!";
-                    MessageBox.Show($"Profile '{_selectedProfile.Name}' has been applied successfully!", 
+                    StatusTextBlock.Text = $"Profile '{profileName}' applied successfully!";
+                    MessageBox.Show($"Profile '{profileName}' has been applied successfully!", 
                         "Profile Applied", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 else
                 {
                     StatusTextBlock.Text = "Failed to apply profile";
-                    MessageBox.Show($"Failed to apply profile '{_selectedProfile.Name}'. Some settings may not have been applied correctly.", 
+                    MessageBox.Show($"Failed to apply profile '{profileName}'. Some settings may not have been applied correctly.", 
                         "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
             }
@@ -422,6 +436,17 @@ namespace DisplayProfileManager
             Dispatcher.Invoke(() =>
             {
                 StatusTextBlock.Text = $"Profile '{profile.Name}' applied successfully";
+                RefreshProfilesList();
+                
+                // Re-select the previously selected profile if it's still available
+                if (_selectedProfile != null)
+                {
+                    var viewModelToSelect = _profileViewModels.FirstOrDefault(vm => vm.Id == _selectedProfile.Id);
+                    if (viewModelToSelect != null)
+                    {
+                        ProfilesListBox.SelectedItem = viewModelToSelect;
+                    }
+                }
             });
         }
     }

@@ -184,10 +184,17 @@
                                             <TextBlock Grid.Column="0" Text="{Binding Name}" 
                                                        FontWeight="Medium" FontSize="14"/>
                                             
-                                            <TextBlock Grid.Column="1" Text="Default" 
-                                                       FontSize="12" Foreground="#0078D4" 
-                                                       FontWeight="Medium" 
-                                                       Visibility="{Binding IsDefault, Converter={x:Static local:BooleanToVisibilityConverter.Instance}}"/>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                <TextBlock Text="Active" 
+                                                           FontSize="12" Foreground="#16C60C" 
+                                                           FontWeight="Medium" 
+                                                           Margin="0,0,8,0"
+                                                           Visibility="{Binding Path=DataContext.IsActive, RelativeSource={RelativeSource AncestorType=ListBoxItem}, Converter={x:Static local:BooleanToVisibilityConverter.Instance}}"/>
+                                                <TextBlock Text="Default" 
+                                                           FontSize="12" Foreground="#0078D4" 
+                                                           FontWeight="Medium" 
+                                                           Visibility="{Binding IsDefault, Converter={x:Static local:BooleanToVisibilityConverter.Instance}}"/>
+                                            </StackPanel>
                                         </Grid>
                                         
                                         <TextBlock Grid.Row="1" Text="{Binding Description}" 
