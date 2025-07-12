@@ -46,6 +46,7 @@ namespace DisplayProfileManager
             _profileManager.ProfileUpdated += OnProfileChanged;
             _profileManager.ProfileDeleted += OnProfileDeleted;
             _profileManager.ProfilesLoaded += OnProfilesLoaded;
+            _profileManager.ProfileApplied += OnProfileApplied;
         }
 
         private Icon CreateTrayIcon()
@@ -96,7 +97,7 @@ namespace DisplayProfileManager
                     profileItem.Tag = profile;
                     profileItem.Click += OnProfileMenuItemClick;
                     
-                    if (profile.IsDefault)
+                    if (profile.Id == _profileManager.CurrentProfileId)
                     {
                         profileItem.Checked = true;
                     }
@@ -238,6 +239,11 @@ namespace DisplayProfileManager
             BuildContextMenu();
         }
 
+        private void OnProfileApplied(object sender, Profile e)
+        {
+            BuildContextMenu();
+        }
+
         public void ShowNotification(string title, string message, ToolTipIcon icon = ToolTipIcon.Info, int timeout = 3000)
         {
             _notifyIcon.ShowBalloonTip(timeout, title, message, icon);
@@ -276,6 +282,7 @@ namespace DisplayProfileManager
                         _profileManager.ProfileUpdated -= OnProfileChanged;
                         _profileManager.ProfileDeleted -= OnProfileDeleted;
                         _profileManager.ProfilesLoaded -= OnProfilesLoaded;
+                        _profileManager.ProfileApplied -= OnProfileApplied;
                     }
 
                     _contextMenu?.Dispose();

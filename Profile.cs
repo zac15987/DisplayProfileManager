@@ -131,6 +131,9 @@ namespace DisplayProfileManager
         [JsonProperty("lastUpdated")]
         public DateTime LastUpdated { get; set; } = DateTime.Now;
 
+        [JsonProperty("currentProfileId")]
+        public string CurrentProfileId { get; set; }
+
         public ProfileCollection()
         {
         }

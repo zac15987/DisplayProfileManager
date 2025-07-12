@@ -38,6 +38,8 @@ namespace DisplayProfileManager
         public event EventHandler<Profile> ProfileApplied;
         public event EventHandler ProfilesLoaded;
 
+        public string CurrentProfileId => _profileCollection?.CurrentProfileId;
+
         private ProfileManager()
         {
             _appDataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DisplayProfileManager");
@@ -107,6 +109,7 @@ namespace DisplayProfileManager
                 defaultProfile.DisplaySettings.AddRange(currentSettings);
 
                 AddProfile(defaultProfile);
+                _profileCollection.CurrentProfileId = defaultProfile.Id;
                 await SaveProfilesAsync();
                 return defaultProfile;
             }
@@ -209,6 +212,8 @@ namespace DisplayProfileManager
 
                 if (success)
                 {
+                    _profileCollection.CurrentProfileId = profile.Id;
+                    await SaveProfilesAsync();
                     ProfileApplied?.Invoke(this, profile);
                 }
 
