@@ -25,6 +25,7 @@ namespace DisplayProfileManager.UI.Windows
         private Profile _selectedProfile;
         private WindowResizeHelper _resizeHelper;
         private List<ProfileViewModel> _profileViewModels;
+        private bool _shouldMinimizeToTaskbar;
 
         public MainWindow()
         {
@@ -333,14 +334,13 @@ namespace DisplayProfileManager.UI.Windows
 
         private void MinimizeButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_settingsManager.ShouldMinimizeToTray())
-            {
-                Hide();
-            }
-            else
-            {
-                WindowState = WindowState.Minimized;
-            }
+            _shouldMinimizeToTaskbar = true;
+            WindowState = WindowState.Minimized;
+        }
+
+        private void ToTrayButton_Click(object sender, RoutedEventArgs e)
+        {
+            Hide();
         }
 
         private async void CloseButton_Click(object sender, RoutedEventArgs e)
@@ -426,10 +426,17 @@ namespace DisplayProfileManager.UI.Windows
 
         protected override void OnStateChanged(EventArgs e)
         {
-            if (WindowState == WindowState.Minimized && _settingsManager.ShouldMinimizeToTray())
+            if (WindowState == WindowState.Minimized && !_shouldMinimizeToTaskbar && _settingsManager.ShouldMinimizeToTray())
             {
                 Hide();
             }
+            
+            // Reset the flag after handling
+            if (WindowState == WindowState.Minimized)
+            {
+                _shouldMinimizeToTaskbar = false;
+            }
+            
             base.OnStateChanged(e);
         }
 

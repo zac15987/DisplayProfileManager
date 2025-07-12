@@ -117,6 +117,10 @@
                             Style="{StaticResource SecondaryButtonStyle}" 
                             Width="32" Height="32" Padding="0" 
                             Margin="0,0,8,0" Click="MinimizeButton_Click"/>
+                    <Button Name="ToTrayButton" Content="⬇️" 
+                            Style="{StaticResource SecondaryButtonStyle}" 
+                            Width="32" Height="32" Padding="0" 
+                            Margin="0,0,8,0" Click="ToTrayButton_Click"/>
                     <Button Name="CloseButton" Content="✕" 
                             Style="{StaticResource SecondaryButtonStyle}" 
                             Width="32" Height="32" Padding="0" 
