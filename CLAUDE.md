@@ -71,7 +71,9 @@ src/
 - **Helpers/DisplayHelper.cs & DpiHelper.cs**: P/Invoke wrappers for Windows APIs:
   - Resolution changes via ChangeDisplaySettingsEx
   - DPI scaling via SystemParametersInfo
-  - Display device enumeration
+  - Display device enumeration via EnumDisplayDevices/EnumDisplaySettings
+  - Monitor-specific resolution detection with `GetSupportedResolutionsOnly()`
+  - Comprehensive resolution enumeration with `GetAvailableResolutions()`
 
 - **Helpers/WindowResizeHelper.cs**: Window manipulation utility for custom chrome:
   - Resize handle detection and cursor management
@@ -93,6 +95,7 @@ src/
 2. Profile data stored as JSON in `%AppData%/DisplayProfileManager/profiles.json`
 3. Settings stored in `%AppData%/DisplayProfileManager/settings.json`
 4. Profile switching applies both resolution and DPI changes sequentially
+5. Resolution dropdowns dynamically populate with monitor-supported resolutions via Windows API enumeration
 
 ## Dependencies
 
@@ -110,6 +113,8 @@ src/
 - All user-facing strings should be localizable (use Resources.resx)
 - Event-driven architecture: Subscribe to ProfileManager events for UI updates
 - Thread-safe singleton pattern with double-checked locking
+- Resolution UI controls use monitor-specific enumeration for accurate supported resolutions
+- Refresh rates default to 60Hz unless explicitly configured (resolution and refresh rate are handled separately)
 
 ### UI Style Patterns
 
@@ -157,8 +162,16 @@ All windows use consistent styles defined in Window.Resources:
 2. Follow existing patterns for error handling and return value checking
 3. Match DEVMODE and other structure definitions to Windows SDK
 
+### Working with display resolution detection
+- Use `DisplayHelper.GetSupportedResolutionsOnly()` for UI dropdowns (returns resolution strings without refresh rates)
+- Use `DisplayHelper.GetAvailableResolutions()` for comprehensive mode enumeration (includes refresh rates and detailed info)
+- Resolution dropdowns automatically detect and populate monitor-specific supported resolutions
+- Existing profiles with refresh rate data remain backward compatible
+- Default refresh rate is set to 60Hz when not explicitly configured
+
 ### Debugging display changes
 - Check Windows Event Log for display driver errors
-- Use DisplayHelper.GetDisplayDevices() to enumerate available displays
+- Use DisplayHelper.GetDisplays() to enumerate available displays
+- Use DisplayHelper.GetSupportedResolutionsOnly() to test resolution detection for specific monitors
 - Verify DEVMODE structure matches Windows SDK documentation
 - Test DPI awareness with SetProcessDpiAwarenessContext calls in App.xaml.cs
