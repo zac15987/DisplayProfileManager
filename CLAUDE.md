@@ -13,6 +13,10 @@ Display Profile Manager is a Windows desktop application for managing display pr
 cmd.exe /c "msbuild DisplayProfileManager.sln /p:Configuration=Debug"
 cmd.exe /c "msbuild DisplayProfileManager.sln /p:Configuration=Release"
 
+# Clean and rebuild
+cmd.exe /c "msbuild DisplayProfileManager.sln /t:Clean /p:Configuration=Debug"
+cmd.exe /c "msbuild DisplayProfileManager.sln /t:Rebuild /p:Configuration=Debug"
+
 # Run
 ./bin/Debug/DisplayProfileManager.exe
 ./bin/Release/DisplayProfileManager.exe
@@ -21,17 +25,20 @@ cmd.exe /c "msbuild DisplayProfileManager.sln /p:Configuration=Release"
 ## Architecture
 
 ### Core Patterns
-- **Singletons**: ProfileManager and SettingsManager for global state
-- **Async/Await**: All file I/O operations
-- **Event-Driven**: System tray ↔ main app communication
-- **P/Invoke**: Windows display/DPI APIs via Helper classes
+- **Singletons**: ProfileManager and SettingsManager for global state (thread-safe double-checked locking)
+- **Async/Await**: All file I/O operations with proper exception handling
+- **Event-Driven**: System tray ↔ main app communication via .NET events
+- **P/Invoke**: Windows display/DPI APIs via Helper classes (ChangeDisplaySettingsEx, SystemParametersInfo)
+- **MVVM**: ViewModels for complex UI state management
+- **Error Handling**: Try-catch with `Debug.WriteLine()` logging and graceful degradation
 
 ### Key Components
 - **ProfileManager**: Thread-safe singleton for profile CRUD, JSON persistence to `%AppData%/DisplayProfileManager/`, sequential resolution/refresh rate/DPI changes
 - **SettingsManager**: Thread-safe singleton for app settings, Windows startup integration
 - **DisplayHelper/DpiHelper**: P/Invoke wrappers for Windows APIs (ChangeDisplaySettingsEx, SystemParametersInfo, display enumeration)
-- **WindowResizeHelper**: Custom window chrome support for borderless windows
-- **TrayIcon**: Dynamic context menu for profile switching
+- **TrayIcon**: Dynamic context menu for profile switching, handles system tray lifecycle
+- **ProfileViewModel**: MVVM pattern for UI data binding and validation
+- **Custom Windows**: Native-style borderless windows with manual window chrome
 
 ### Data Flow
 1. Startup: Read current display settings → save as default profile
@@ -41,10 +48,22 @@ cmd.exe /c "msbuild DisplayProfileManager.sln /p:Configuration=Release"
 5. Resolution dropdowns: Monitor-specific via `GetSupportedResolutionsOnly()`
 6. Refresh rate dropdowns: Auto-update via `GetAvailableRefreshRates()`
 
+### Application Lifecycle
+- **DPI Awareness**: Per-monitor V2 via app.manifest for proper high-DPI display handling
+- **System Tray**: Runs minimized to tray, no taskbar presence when minimized
+- **Auto-startup**: Windows startup integration via registry (AutoStartHelper)
+- **Graceful Shutdown**: Proper resource disposal and settings persistence
+
 ## Dependencies
-- **.NET Framework 4.8**: WPF support
-- **Newtonsoft.Json 13.0.3**: Profile persistence
-- **System.Windows.Forms**: System tray functionality
+- **.NET Framework 4.8**: WPF support (Windows 7+ compatibility)
+- **Newtonsoft.Json 13.0.3**: Profile persistence and serialization
+- **System.Windows.Forms**: System tray functionality and native dialogs
+- **Windows APIs**: P/Invoke for display configuration (user32.dll, gdi32.dll)
+
+## Platform Requirements
+- **Windows**: Vista+ (manifest declares compatibility through Windows 10+)
+- **DPI Awareness**: Per-monitor V2 awareness configured in app.manifest
+- **Privileges**: Standard user (no admin required for display changes)
 
 ## Development Guidelines
 
@@ -52,14 +71,20 @@ cmd.exe /c "msbuild DisplayProfileManager.sln /p:Configuration=Release"
 - Use ProfileManager/SettingsManager singletons for state management
 - Follow async/await patterns for I/O operations
 - Subscribe to ProfileManager events for UI updates
-- Match existing P/Invoke patterns in Helper classes
+- Match existing P/Invoke patterns in Helper classes (return boolean success, use Debug.WriteLine for errors)
 - Use Resources.resx for localizable strings
 
+### Error Handling Patterns
+- **Exception Handling**: Try-catch blocks with `System.Diagnostics.Debug.WriteLine()` for logging
+- **Graceful Degradation**: Return false/empty collections on failure, don't crash
+- **User Validation**: `MessageBox.Show()` for validation errors with input focus management
+- **Boolean Returns**: Most methods return success/failure indicators
+
 ### UI Patterns
-- **Custom Chrome**: WindowStyle="None", AllowsTransparency="True", CornerRadius="8"
-- **WindowResizeHelper**: Required for borderless window resizing
-- **Draggable Headers**: MouseLeftButtonDown for window dragging
 - **Modern Styles**: Consistent button/control styling across windows
+- **MVVM**: ViewModels for complex state, direct code-behind for simple interactions
+- **Custom Chrome**: Borderless windows with manual title bar and window controls
+- **Validation**: Comprehensive input validation before save operations
 
 ### Display API Usage
 - `GetSupportedResolutionsOnly()`: Resolution dropdowns (no refresh rates)
@@ -67,3 +92,9 @@ cmd.exe /c "msbuild DisplayProfileManager.sln /p:Configuration=Release"
 - `GetAvailableRefreshRates(device, width, height)`: Refresh rate dropdowns
 - Resolution changes trigger refresh rate dropdown updates
 - Monitor-specific detection for accurate supported modes
+
+### Development Workflow
+- **No Testing Framework**: Project currently has no unit tests or test projects
+- **Debugging**: Use Debug.WriteLine() output for troubleshooting
+- **File Structure**: Core business logic in `/src/Core/`, UI in `/src/UI/`, P/Invoke helpers in `/src/Helpers/`
+- **Resource Management**: Use `using` statements and IDisposable pattern for proper cleanup
