@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Runtime.InteropServices;
+using System.Threading;
 using DisplayProfileManager.Core;
 using DisplayProfileManager.UI;
 using DisplayProfileManager.UI.Windows;
@@ -19,6 +20,7 @@ namespace DisplayProfileManager
         private MainWindow _mainWindow;
         private ProfileManager _profileManager;
         private SettingsManager _settingsManager;
+        private Mutex _instanceMutex;
 
         [DllImport("user32.dll")]
         private static extern bool SetProcessDpiAwarenessContext(IntPtr dpiContext);
@@ -29,6 +31,21 @@ namespace DisplayProfileManager
         [DllImport("user32.dll")]
         private static extern bool AreDpiAwarenessContextsEqual(IntPtr dpiContextA, IntPtr dpiContextB);
 
+        [DllImport("user32.dll")]
+        private static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
+
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        [DllImport("user32.dll")]
+        private static extern bool IsIconic(IntPtr hWnd);
+
+        private const int SW_RESTORE = 9;
+        private const string MUTEX_NAME = "DisplayProfileManager_SingleInstance";
+
         private static readonly IntPtr DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = new IntPtr(-4);
         private static readonly IntPtr DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE = new IntPtr(-3);
         private static readonly IntPtr DPI_AWARENESS_CONTEXT_SYSTEM_AWARE = new IntPtr(-2);
@@ -37,6 +54,12 @@ namespace DisplayProfileManager
         protected override async void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
+
+            if (!CheckSingleInstance())
+            {
+                Shutdown();
+                return;
+            }
 
             try
             {
@@ -57,6 +80,41 @@ namespace DisplayProfileManager
                 MessageBox.Show($"Failed to start application: {ex.Message}", "Startup Error", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
                 Shutdown();
+            }
+        }
+
+        private bool CheckSingleInstance()
+        {
+            bool isNewInstance;
+            _instanceMutex = new Mutex(true, MUTEX_NAME, out isNewInstance);
+
+            if (!isNewInstance)
+            {
+                BringExistingInstanceToFront();
+                return false;
+            }
+
+            return true;
+        }
+
+        private void BringExistingInstanceToFront()
+        {
+            try
+            {
+                IntPtr hWnd = FindWindow(null, "Display Profile Manager");
+                
+                if (hWnd != IntPtr.Zero)
+                {
+                    if (IsIconic(hWnd))
+                    {
+                        ShowWindow(hWnd, SW_RESTORE);
+                    }
+                    SetForegroundWindow(hWnd);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error bringing existing instance to front: {ex.Message}");
             }
         }
 
@@ -166,6 +224,9 @@ namespace DisplayProfileManager
         {
             try
             {
+                _instanceMutex?.ReleaseMutex();
+                _instanceMutex?.Dispose();
+                
                 _trayIcon?.Dispose();
                 
                 if (_profileManager != null)
