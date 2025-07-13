@@ -21,6 +21,8 @@ namespace DisplayProfileManager
         private ProfileManager _profileManager;
         private SettingsManager _settingsManager;
         private Mutex _instanceMutex;
+        private EventWaitHandle _showWindowEvent;
+        private CancellationTokenSource _cancellationTokenSource;
 
         [DllImport("user32.dll")]
         private static extern bool SetProcessDpiAwarenessContext(IntPtr dpiContext);
@@ -43,8 +45,25 @@ namespace DisplayProfileManager
         [DllImport("user32.dll")]
         private static extern bool IsIconic(IntPtr hWnd);
 
+        [DllImport("user32.dll")]
+        private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+
+        [DllImport("user32.dll")]
+        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
+        [DllImport("user32.dll")]
+        private static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+
+        [DllImport("kernel32.dll")]
+        private static extern uint GetCurrentThreadId();
+
         private const int SW_RESTORE = 9;
+        private const uint SWP_NOMOVE = 0x0002;
+        private const uint SWP_NOSIZE = 0x0001;
+        private const uint SWP_SHOWWINDOW = 0x0040;
+        private static readonly IntPtr HWND_TOP = IntPtr.Zero;
         private const string MUTEX_NAME = "DisplayProfileManager_SingleInstance";
+        private const string SHOW_WINDOW_EVENT_NAME = "DisplayProfileManager_ShowWindow";
 
         private static readonly IntPtr DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = new IntPtr(-4);
         private static readonly IntPtr DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE = new IntPtr(-3);
@@ -94,27 +113,128 @@ namespace DisplayProfileManager
                 return false;
             }
 
+            try
+            {
+                _showWindowEvent = new EventWaitHandle(false, EventResetMode.ManualReset, SHOW_WINDOW_EVENT_NAME);
+                _cancellationTokenSource = new CancellationTokenSource();
+                StartShowWindowListener();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error setting up show window event: {ex.Message}");
+            }
+
             return true;
+        }
+
+        private void StartShowWindowListener()
+        {
+            Task.Run(async () =>
+            {
+                try
+                {
+                    while (!_cancellationTokenSource.Token.IsCancellationRequested)
+                    {
+                        if (_showWindowEvent.WaitOne(1000))
+                        {
+                            _showWindowEvent.Reset();
+                            
+                            await Dispatcher.InvokeAsync(() =>
+                            {
+                                try
+                                {
+                                    ShowMainWindow();
+                                }
+                                catch (Exception ex)
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"Error showing main window from listener: {ex.Message}");
+                                }
+                            });
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error in show window listener: {ex.Message}");
+                }
+            }, _cancellationTokenSource.Token);
         }
 
         private void BringExistingInstanceToFront()
         {
             try
             {
+                // Try to find the window first
                 IntPtr hWnd = FindWindow(null, "Display Profile Manager");
                 
                 if (hWnd != IntPtr.Zero)
                 {
-                    if (IsIconic(hWnd))
+                    // Window found, try to activate it
+                    ActivateWindow(hWnd);
+                }
+                
+                // Always try to signal the event (even if window was found)
+                // This ensures the app shows even if it's in the tray
+                try
+                {
+                    // Wait a moment to ensure the first instance has set up the listener
+                    System.Threading.Thread.Sleep(100);
+                    
+                    using (var showEvent = EventWaitHandle.OpenExisting(SHOW_WINDOW_EVENT_NAME))
                     {
-                        ShowWindow(hWnd, SW_RESTORE);
+                        showEvent.Set();
                     }
-                    SetForegroundWindow(hWnd);
+                }
+                catch (Exception eventEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error signaling show window event: {eventEx.Message}");
                 }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error bringing existing instance to front: {ex.Message}");
+            }
+        }
+
+        private void ActivateWindow(IntPtr hWnd)
+        {
+            try
+            {
+                // Get thread IDs
+                uint currentThreadId = GetCurrentThreadId();
+                uint windowThreadId = GetWindowThreadProcessId(hWnd, out _);
+                
+                // Attach thread input to bypass focus stealing prevention
+                bool attached = false;
+                if (currentThreadId != windowThreadId)
+                {
+                    attached = AttachThreadInput(currentThreadId, windowThreadId, true);
+                }
+                
+                try
+                {
+                    // Restore if minimized
+                    if (IsIconic(hWnd))
+                    {
+                        ShowWindow(hWnd, SW_RESTORE);
+                    }
+                    
+                    // Bring to top
+                    SetWindowPos(hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+                    SetForegroundWindow(hWnd);
+                }
+                finally
+                {
+                    // Detach thread input
+                    if (attached)
+                    {
+                        AttachThreadInput(currentThreadId, windowThreadId, false);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error activating window: {ex.Message}");
             }
         }
 
@@ -196,17 +316,20 @@ namespace DisplayProfileManager
                 _mainWindow.Closed += OnMainWindowClosed;
             }
 
-            if (!_mainWindow.IsVisible)
-            {
-                _mainWindow.Show();
-            }
-
+            // Ensure window is shown even if it was hidden
+            _mainWindow.Show();
+            
+            // Restore window state if minimized
             if (_mainWindow.WindowState == WindowState.Minimized)
             {
                 _mainWindow.WindowState = WindowState.Normal;
             }
 
+            // Bring window to foreground
+            _mainWindow.Topmost = true;
             _mainWindow.Activate();
+            _mainWindow.Topmost = false;
+            _mainWindow.Focus();
         }
 
         private void OnMainWindowClosed(object sender, EventArgs e)
@@ -224,6 +347,11 @@ namespace DisplayProfileManager
         {
             try
             {
+                _cancellationTokenSource?.Cancel();
+                _cancellationTokenSource?.Dispose();
+                
+                _showWindowEvent?.Dispose();
+                
                 _instanceMutex?.ReleaseMutex();
                 _instanceMutex?.Dispose();
                 
