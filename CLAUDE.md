@@ -8,6 +8,7 @@ Display Profile Manager is a Windows desktop application for managing display pr
 
 ## Build and Run Commands
 
+### Command Line
 ```bash
 # Build
 cmd.exe /c "msbuild DisplayProfileManager.sln /p:Configuration=Debug"
@@ -21,6 +22,12 @@ cmd.exe /c "msbuild DisplayProfileManager.sln /t:Rebuild /p:Configuration=Debug"
 ./bin/Debug/DisplayProfileManager.exe
 ./bin/Release/DisplayProfileManager.exe
 ```
+
+### VS Code
+The project includes VS Code tasks configuration (`.vscode/tasks.json`) for building:
+- **Ctrl+Shift+B**: Build Debug configuration (default)
+- **Task: build-release**: Build Release configuration
+- Uses native MSBuild integration with problem matching
 
 ## Architecture
 
@@ -56,9 +63,14 @@ cmd.exe /c "msbuild DisplayProfileManager.sln /t:Rebuild /p:Configuration=Debug"
 
 ## Dependencies
 - **.NET Framework 4.8**: WPF support (Windows 7+ compatibility)
-- **Newtonsoft.Json 13.0.3**: Profile persistence and serialization
+- **Newtonsoft.Json 13.0.3**: Profile persistence and serialization (via packages.config)
 - **System.Windows.Forms**: System tray functionality and native dialogs
 - **Windows APIs**: P/Invoke for display configuration (user32.dll, gdi32.dll)
+
+### Package Management
+- Uses traditional `packages.config` approach (not PackageReference)
+- NuGet packages stored in `packages/` folder with explicit HintPath in .csproj
+- Restore packages before building: `nuget restore` or MSBuild auto-restore
 
 ## Platform Requirements
 - **Windows**: Vista+ (manifest declares compatibility through Windows 10+)
