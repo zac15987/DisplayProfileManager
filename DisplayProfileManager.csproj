@@ -109,7 +109,6 @@
     <Compile Include="src\UI\Converters\RectConverter.cs" />
     <Compile Include="src\Core\SettingsManager.cs" />
     <Compile Include="src\UI\TrayIcon.cs" />
-    <Compile Include="src\Helpers\WindowResizeHelper.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs">
