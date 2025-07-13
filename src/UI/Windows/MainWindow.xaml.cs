@@ -12,6 +12,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using System.Windows.Shell;
 using DisplayProfileManager.Core;
 using DisplayProfileManager.UI.ViewModels;
 using DisplayProfileManager.Helpers;
@@ -421,6 +422,8 @@ namespace DisplayProfileManager.UI.Windows
         {
             // Initialize maximize/restore button state
             UpdateMaximizeRestoreButton();
+            // Initialize title bar margin state
+            UpdateTitleBarMargin();
         }
 
 
@@ -446,6 +449,9 @@ namespace DisplayProfileManager.UI.Windows
             // Update maximize/restore button icon based on window state
             UpdateMaximizeRestoreButton();
             
+            // Adjust title bar margin for maximized state
+            UpdateTitleBarMargin();
+            
             base.OnStateChanged(e);
         }
 
@@ -463,6 +469,43 @@ namespace DisplayProfileManager.UI.Windows
                     MaximizeRestoreButton.Content = "\xE922"; // Maximize icon
                     MaximizeRestoreButton.ToolTip = "Maximize";
                 }
+            }
+        }
+
+        private void UpdateTitleBarMargin()
+        {
+            if (TitleBarGrid != null)
+            {
+                if (WindowState == WindowState.Maximized)
+                {
+                    // Add top margin when maximized to compensate for upshift
+                    TitleBarGrid.Margin = new Thickness(8, 8, 6, 0);
+                    // Increase title bar height when maximized
+                    UpdateTitleBarHeight(40);
+                }
+                else
+                {
+                    // Reset margin for normal state
+                    TitleBarGrid.Margin = new Thickness(0, 0, 0, 0);
+                    // Reset title bar height for normal state
+                    UpdateTitleBarHeight(32);
+                }
+            }
+        }
+
+        private void UpdateTitleBarHeight(double height)
+        {
+            // Update RowDefinition height
+            if (TitleBarRowDefinition != null)
+            {
+                TitleBarRowDefinition.Height = new GridLength(height);
+            }
+            
+            // Update WindowChrome CaptionHeight
+            var windowChrome = WindowChrome.GetWindowChrome(this);
+            if (windowChrome != null)
+            {
+                windowChrome.CaptionHeight = height;
             }
         }
 

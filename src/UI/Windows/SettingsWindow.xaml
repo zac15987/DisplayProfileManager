@@ -14,7 +14,7 @@
     <WindowChrome.WindowChrome>
         <WindowChrome 
             CaptionHeight="32"
-            ResizeBorderThickness="7"
+            ResizeBorderThickness="0"
             CornerRadius="0"
             GlassFrameThickness="0,32,0,0"
             UseAeroCaptionButtons="True" />
@@ -178,8 +178,8 @@
 
     <Grid Background="#F3F3F3">
         <Grid.RowDefinitions>
-            <!-- Title bar area (32px) -->
-            <RowDefinition Height="32"/>
+            <!-- Title bar area (32px normal, 40px maximized) -->
+            <RowDefinition Name="TitleBarRowDefinition" Height="32"/>
             <!-- Main content area -->
             <RowDefinition Height="*"/>
             <!-- Footer area -->
@@ -187,7 +187,7 @@
         </Grid.RowDefinitions>
 
         <!-- Title Bar Area -->
-        <Grid Grid.Row="0" Background="White">
+        <Grid Grid.Row="0" Name="TitleBarGrid" Background="White">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>

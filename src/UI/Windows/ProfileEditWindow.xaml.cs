@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Shell;
 using DisplayProfileManager.Core;
 using DisplayProfileManager.Helpers;
 
@@ -263,7 +264,8 @@ namespace DisplayProfileManager.UI.Windows
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            // No longer need to initialize resize helper
+            // Initialize title bar margin state
+            UpdateTitleBarMargin();
         }
 
         private void MinimizeButton_Click(object sender, RoutedEventArgs e)
@@ -274,6 +276,49 @@ namespace DisplayProfileManager.UI.Windows
         private void CloseButton_Click(object sender, RoutedEventArgs e)
         {
             Close();
+        }
+
+        protected override void OnStateChanged(EventArgs e)
+        {
+            UpdateTitleBarMargin();
+            base.OnStateChanged(e);
+        }
+
+        private void UpdateTitleBarMargin()
+        {
+            if (TitleBarGrid != null)
+            {
+                if (WindowState == WindowState.Maximized)
+                {
+                    // Add top margin when maximized to compensate for upshift
+                    TitleBarGrid.Margin = new Thickness(8, 8, 6, 0);
+                    // Increase title bar height when maximized
+                    UpdateTitleBarHeight(40);
+                }
+                else
+                {
+                    // Reset margin for normal state
+                    TitleBarGrid.Margin = new Thickness(0, 0, 0, 0);
+                    // Reset title bar height for normal state
+                    UpdateTitleBarHeight(32);
+                }
+            }
+        }
+
+        private void UpdateTitleBarHeight(double height)
+        {
+            // Update RowDefinition height
+            if (TitleBarRowDefinition != null)
+            {
+                TitleBarRowDefinition.Height = new GridLength(height);
+            }
+            
+            // Update WindowChrome CaptionHeight
+            var windowChrome = WindowChrome.GetWindowChrome(this);
+            if (windowChrome != null)
+            {
+                windowChrome.CaptionHeight = height;
+            }
         }
 
         protected override void OnClosed(EventArgs e)
