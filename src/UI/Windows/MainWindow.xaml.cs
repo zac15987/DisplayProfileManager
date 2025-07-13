@@ -29,6 +29,11 @@ namespace DisplayProfileManager.UI.Windows
         private List<ProfileViewModel> _profileViewModels;
         private bool _shouldMinimizeToTaskbar;
         private HwndSource _hwndSource;
+        
+        // Snap Layouts hover state management
+        private bool _isHoveringMaxButton = false;
+        private DateTime _hoverStartTime;
+        private System.Windows.Threading.DispatcherTimer _snapLayoutsTimer;
 
         public MainWindow()
         {
@@ -39,6 +44,7 @@ namespace DisplayProfileManager.UI.Windows
             
             SetupEventHandlers();
             LoadProfiles();
+            InitializeSnapLayoutsTimer();
             
             // Handle window closing event for native close button
             Closing += MainWindow_Closing;
@@ -438,8 +444,25 @@ namespace DisplayProfileManager.UI.Windows
             _hwndSource?.AddHook(WndProc);
         }
 
+        private void InitializeSnapLayoutsTimer()
+        {
+            _snapLayoutsTimer = new System.Windows.Threading.DispatcherTimer();
+            _snapLayoutsTimer.Interval = TimeSpan.FromMilliseconds(150); // 150ms delay
+            _snapLayoutsTimer.Tick += (s, e) =>
+            {
+                _snapLayoutsTimer.Stop();
+                // Force a mouse position check to trigger HTMAXBUTTON if still hovering
+                if (_isHoveringMaxButton)
+                {
+                    var pos = System.Windows.Forms.Cursor.Position;
+                    SetCursorPos(pos.X, pos.Y); // Trigger a new WM_NCHITTEST
+                }
+            };
+        }
+
         protected override void OnClosed(EventArgs e)
         {
+            _snapLayoutsTimer?.Stop();
             _hwndSource?.RemoveHook(WndProc);
             _hwndSource?.Dispose();
             base.OnClosed(e);
@@ -599,28 +622,69 @@ namespace DisplayProfileManager.UI.Windows
         [DllImport("user32.dll")]
         public static extern bool PtInRect([In] ref RECT lprc, POINT pt);
 
+        [DllImport("user32.dll")]
+        public static extern bool SetCursorPos(int x, int y);
+
         private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
             const int WM_NCHITTEST = 0x0084;
+            const int WM_MOUSEMOVE = 0x0200;
+            const int WM_MOUSELEAVE = 0x02A3;
             const int HTMAXBUTTON = 9;
 
-            if (msg == WM_NCHITTEST)
+            switch (msg)
             {
-                int x = (short)((int)lParam & 0xFFFF);
-                int y = (short)(((int)lParam >> 16) & 0xFFFF);
+                case WM_NCHITTEST:
+                    int x = (short)((int)lParam & 0xFFFF);
+                    int y = (short)(((int)lParam >> 16) & 0xFFFF);
 
-                // Convert screen point to client point
-                POINT pt = new POINT { X = x, Y = y };
-                ScreenToClient(hwnd, ref pt);
+                    // Convert screen point to client point
+                    POINT pt = new POINT { X = x, Y = y };
+                    ScreenToClient(hwnd, ref pt);
 
-                // Check if point is in the maximize button area
-                var buttonRect = GetMaximizeButtonRect();
+                    // Check if point is in the maximize button area
+                    var buttonRect = GetMaximizeButtonRect();
 
-                if (PtInRect(ref buttonRect, pt))
-                {
-                    handled = true;
-                    return new IntPtr(HTMAXBUTTON);
-                }
+                    if (PtInRect(ref buttonRect, pt))
+                    {
+                        if (!_isHoveringMaxButton)
+                        {
+                            // Start hover tracking
+                            _isHoveringMaxButton = true;
+                            _hoverStartTime = DateTime.Now;
+                            _snapLayoutsTimer.Start();
+                        }
+                        else
+                        {
+                            // Check if enough time has passed to show Snap Layouts
+                            var hoverDuration = DateTime.Now - _hoverStartTime;
+                            if (hoverDuration.TotalMilliseconds >= 150)
+                            {
+                                handled = true;
+                                return new IntPtr(HTMAXBUTTON);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Mouse is not over maximize button
+                        if (_isHoveringMaxButton)
+                        {
+                            _isHoveringMaxButton = false;
+                            _snapLayoutsTimer.Stop();
+                        }
+                    }
+                    break;
+
+                case WM_MOUSEMOVE:
+                    // Additional mouse move tracking if needed
+                    break;
+
+                case WM_MOUSELEAVE:
+                    // Reset hover state when mouse leaves window
+                    _isHoveringMaxButton = false;
+                    _snapLayoutsTimer.Stop();
+                    break;
             }
 
             return IntPtr.Zero;
