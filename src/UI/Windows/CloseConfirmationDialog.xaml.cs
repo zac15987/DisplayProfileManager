@@ -48,6 +48,12 @@ namespace DisplayProfileManager.UI.Windows
             Close();
         }
 
+        private void TitleBarCloseButton_Click(object sender, RoutedEventArgs e)
+        {
+            DialogResult = false;
+            Close();
+        }
+
 
 
 

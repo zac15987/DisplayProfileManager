@@ -15,7 +15,7 @@
             CaptionHeight="32"
             ResizeBorderThickness="0"
             CornerRadius="0"
-            GlassFrameThickness="1"
+            GlassFrameThickness="0,32,0,0"
             UseAeroCaptionButtons="True" />
     </WindowChrome.WindowChrome>
     
@@ -89,6 +89,35 @@
             <Setter Property="Foreground" Value="#323130"/>
             <Setter Property="Padding" Value="8,4"/>
         </Style>
+
+        <Style x:Key="WindowCloseButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Width" Value="46"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Foreground" Value="#323130"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#E81123"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#C50E1F"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid Background="#F3F3F3">
@@ -103,13 +132,26 @@
 
         <!-- Title Bar Area -->
         <Grid Grid.Row="0" Background="White">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            
             <!-- Dialog title -->
-            <TextBlock Text="Close Application" 
+            <TextBlock Grid.Column="0" Text="Close Application" 
                        VerticalAlignment="Center" 
                        Margin="12,0,0,0"
                        FontFamily="Segoe UI" 
                        FontSize="12" 
                        Foreground="#323130"/>
+            
+            <!-- Close Button -->
+            <Button Grid.Column="1" Name="TitleBarCloseButton" 
+                    Content="&#xE8BB;" 
+                    Style="{StaticResource WindowCloseButtonStyle}"
+                    Click="TitleBarCloseButton_Click"
+                    WindowChrome.IsHitTestVisibleInChrome="True"
+                    ToolTip="Close"/>
         </Grid>
 
         <!-- Content -->

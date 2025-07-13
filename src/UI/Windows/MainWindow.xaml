@@ -16,7 +16,7 @@
             CaptionHeight="32"
             ResizeBorderThickness="7"
             CornerRadius="0"
-            GlassFrameThickness="1"
+            GlassFrameThickness="0,32,0,0"
             UseAeroCaptionButtons="True" />
     </WindowChrome.WindowChrome>
     
@@ -111,6 +111,46 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <Style x:Key="WindowControlButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Width" Value="46"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Foreground" Value="#323130"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#E5E5E5"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#CCCCCC"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="WindowCloseButtonStyle" TargetType="Button" BasedOn="{StaticResource WindowControlButtonStyle}">
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#E81123"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#C50E1F"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
 
     <Grid Background="#F3F3F3">
@@ -138,14 +178,40 @@
                        FontSize="12" 
                        Foreground="#323130"/>
             
-            <!-- Custom ToTray Button (positioned to avoid native buttons) -->
-            <Button Grid.Column="1" Name="ToTrayButton" 
-                    Content="⬇️" 
-                    Style="{StaticResource TitleBarButtonStyle}"
-                    Margin="0,0,140,0"
-                    Click="ToTrayButton_Click"
-                    WindowChrome.IsHitTestVisibleInChrome="True"
-                    ToolTip="Minimize to Tray"/>
+            <!-- Window Control Buttons -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <!-- Custom ToTray Button -->
+                <Button Name="ToTrayButton" 
+                        Content="⬇️" 
+                        Style="{StaticResource TitleBarButtonStyle}"
+                        Click="ToTrayButton_Click"
+                        WindowChrome.IsHitTestVisibleInChrome="True"
+                        ToolTip="Minimize to Tray"/>
+                
+                <!-- Minimize Button -->
+                <Button Name="MinimizeButton" 
+                        Content="&#xE921;" 
+                        Style="{StaticResource WindowControlButtonStyle}"
+                        Click="MinimizeButton_Click"
+                        WindowChrome.IsHitTestVisibleInChrome="True"
+                        ToolTip="Minimize"/>
+                
+                <!-- Maximize/Restore Button -->
+                <Button Name="MaximizeRestoreButton" 
+                        Content="&#xE922;" 
+                        Style="{StaticResource WindowControlButtonStyle}"
+                        Click="MaximizeRestoreButton_Click"
+                        WindowChrome.IsHitTestVisibleInChrome="True"
+                        ToolTip="Maximize"/>
+                
+                <!-- Close Button -->
+                <Button Name="CloseButton" 
+                        Content="&#xE8BB;" 
+                        Style="{StaticResource WindowCloseButtonStyle}"
+                        Click="CloseButton_Click"
+                        WindowChrome.IsHitTestVisibleInChrome="True"
+                        ToolTip="Close"/>
+            </StackPanel>
         </Grid>
 
         <!-- Main Content Area -->

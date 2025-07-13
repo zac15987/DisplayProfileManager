@@ -266,7 +266,15 @@ namespace DisplayProfileManager.UI.Windows
             // No longer need to initialize resize helper
         }
 
+        private void MinimizeButton_Click(object sender, RoutedEventArgs e)
+        {
+            WindowState = WindowState.Minimized;
+        }
 
+        private void CloseButton_Click(object sender, RoutedEventArgs e)
+        {
+            Close();
+        }
 
         protected override void OnClosed(EventArgs e)
         {

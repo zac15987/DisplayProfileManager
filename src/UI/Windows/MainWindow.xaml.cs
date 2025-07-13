@@ -340,6 +340,33 @@ namespace DisplayProfileManager.UI.Windows
             Hide();
         }
 
+        private void MinimizeButton_Click(object sender, RoutedEventArgs e)
+        {
+            _shouldMinimizeToTaskbar = true;
+            WindowState = WindowState.Minimized;
+        }
+
+        private void MaximizeRestoreButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (WindowState == WindowState.Maximized)
+            {
+                WindowState = WindowState.Normal;
+                MaximizeRestoreButton.Content = "\xE922"; // Maximize icon
+                MaximizeRestoreButton.ToolTip = "Maximize";
+            }
+            else
+            {
+                WindowState = WindowState.Maximized;
+                MaximizeRestoreButton.Content = "\xE923"; // Restore icon
+                MaximizeRestoreButton.ToolTip = "Restore Down";
+            }
+        }
+
+        private void CloseButton_Click(object sender, RoutedEventArgs e)
+        {
+            Close();
+        }
+
         private async void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             // Check if user has already made a choice and wants to remember it
@@ -392,7 +419,8 @@ namespace DisplayProfileManager.UI.Windows
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            // No longer need to initialize resize helper
+            // Initialize maximize/restore button state
+            UpdateMaximizeRestoreButton();
         }
 
 
@@ -414,8 +442,28 @@ namespace DisplayProfileManager.UI.Windows
             {
                 _shouldMinimizeToTaskbar = false;
             }
+
+            // Update maximize/restore button icon based on window state
+            UpdateMaximizeRestoreButton();
             
             base.OnStateChanged(e);
+        }
+
+        private void UpdateMaximizeRestoreButton()
+        {
+            if (MaximizeRestoreButton != null)
+            {
+                if (WindowState == WindowState.Maximized)
+                {
+                    MaximizeRestoreButton.Content = "\xE923"; // Restore icon
+                    MaximizeRestoreButton.ToolTip = "Restore Down";
+                }
+                else
+                {
+                    MaximizeRestoreButton.Content = "\xE922"; // Maximize icon
+                    MaximizeRestoreButton.ToolTip = "Maximize";
+                }
+            }
         }
 
         private void OnProfileChanged(object sender, Profile profile)
