@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
@@ -8,6 +9,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
@@ -26,6 +28,7 @@ namespace DisplayProfileManager.UI.Windows
         private Profile _selectedProfile;
         private List<ProfileViewModel> _profileViewModels;
         private bool _shouldMinimizeToTaskbar;
+        private HwndSource _hwndSource;
 
         public MainWindow()
         {
@@ -428,8 +431,17 @@ namespace DisplayProfileManager.UI.Windows
 
 
 
+        protected override void OnSourceInitialized(EventArgs e)
+        {
+            base.OnSourceInitialized(e);
+            _hwndSource = (HwndSource)PresentationSource.FromVisual(this);
+            _hwndSource?.AddHook(WndProc);
+        }
+
         protected override void OnClosed(EventArgs e)
         {
+            _hwndSource?.RemoveHook(WndProc);
+            _hwndSource?.Dispose();
             base.OnClosed(e);
         }
 
@@ -562,5 +574,76 @@ namespace DisplayProfileManager.UI.Windows
                 }
             });
         }
+
+        #region Windows Message Handling for Snap Layouts
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct POINT
+        {
+            public int X;
+            public int Y;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct RECT
+        {
+            public int left;
+            public int top;
+            public int right;
+            public int bottom;
+        }
+
+        [DllImport("user32.dll")]
+        public static extern bool ScreenToClient(IntPtr hWnd, ref POINT lpPoint);
+
+        [DllImport("user32.dll")]
+        public static extern bool PtInRect([In] ref RECT lprc, POINT pt);
+
+        private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            const int WM_NCHITTEST = 0x0084;
+            const int HTMAXBUTTON = 9;
+
+            if (msg == WM_NCHITTEST)
+            {
+                int x = (short)((int)lParam & 0xFFFF);
+                int y = (short)(((int)lParam >> 16) & 0xFFFF);
+
+                // Convert screen point to client point
+                POINT pt = new POINT { X = x, Y = y };
+                ScreenToClient(hwnd, ref pt);
+
+                // Check if point is in the maximize button area
+                var buttonRect = GetMaximizeButtonRect();
+
+                if (PtInRect(ref buttonRect, pt))
+                {
+                    handled = true;
+                    return new IntPtr(HTMAXBUTTON);
+                }
+            }
+
+            return IntPtr.Zero;
+        }
+
+        private RECT GetMaximizeButtonRect()
+        {
+            // Calculate the maximize button rectangle based on window layout
+            // Button order: ToTray, Minimize, Maximize, Close
+            // Each button is 46px wide, maximize is the 3rd button from right
+            int windowWidth = (int)this.ActualWidth;
+            int buttonWidth = 46;
+            int titleBarHeight = 32;
+            
+            return new RECT
+            {
+                left = windowWidth - (buttonWidth * 2), // 2 buttons from right (Close, then Maximize)
+                top = 0,
+                right = windowWidth - buttonWidth,       // 1 button from right (Close)
+                bottom = titleBarHeight
+            };
+        }
+
+        #endregion
     }
 }
