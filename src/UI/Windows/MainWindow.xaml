@@ -8,9 +8,17 @@
         mc:Ignorable="d"
         Title="Display Profile Manager" Height="600" Width="900" MinHeight="500" MinWidth="700"
         WindowStartupLocation="CenterScreen" ResizeMode="CanResize"
-        Background="Transparent" WindowStyle="None" AllowsTransparency="True"
-        MouseMove="Window_MouseMove" MouseLeftButtonDown="Window_MouseLeftButtonDown"
+        WindowStyle="SingleBorderWindow" 
         Loaded="Window_Loaded">
+    
+    <WindowChrome.WindowChrome>
+        <WindowChrome 
+            CaptionHeight="32"
+            ResizeBorderThickness="7"
+            CornerRadius="0"
+            GlassFrameThickness="1"
+            UseAeroCaptionButtons="True" />
+    </WindowChrome.WindowChrome>
     
     <Window.Resources>
         <Style x:Key="ModernButtonStyle" TargetType="Button">
@@ -76,67 +84,96 @@
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="#201F1E"/>
         </Style>
+
+        <Style x:Key="TitleBarButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#323130"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#E5E5E5"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#CCCCCC"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
-    <Border BorderBrush="#8A8A8A" BorderThickness="1" CornerRadius="8" Background="#F3F3F3">
-        <Grid>
-            <Grid.Clip>
-                <RectangleGeometry RadiusX="8" RadiusY="8">
-                    <RectangleGeometry.Rect>
-                        <MultiBinding Converter="{x:Static converters:RectConverter.Instance}">
-                            <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Grid}"/>
-                            <Binding Path="ActualHeight" RelativeSource="{RelativeSource AncestorType=Grid}"/>
-                        </MultiBinding>
-                    </RectangleGeometry.Rect>
-                </RectangleGeometry>
-            </Grid.Clip>
+    <Grid Background="#F3F3F3">
+        <Grid.RowDefinitions>
+            <!-- Title bar area (32px) -->
+            <RowDefinition Height="32"/>
+            <!-- Main content area -->
+            <RowDefinition Height="*"/>
+            <!-- Status bar -->
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Title Bar Area -->
+        <Grid Grid.Row="0" Background="White">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            
+            <!-- App Title -->
+            <TextBlock Grid.Column="0" Text="Display Profile Manager" 
+                       VerticalAlignment="Center" 
+                       Margin="12,0,0,0"
+                       FontFamily="Segoe UI" 
+                       FontSize="12" 
+                       Foreground="#323130"/>
+            
+            <!-- Custom ToTray Button (positioned to avoid native buttons) -->
+            <Button Grid.Column="1" Name="ToTrayButton" 
+                    Content="⬇️" 
+                    Style="{StaticResource TitleBarButtonStyle}"
+                    Margin="0,0,140,0"
+                    Click="ToTrayButton_Click"
+                    WindowChrome.IsHitTestVisibleInChrome="True"
+                    ToolTip="Minimize to Tray"/>
+        </Grid>
+
+        <!-- Main Content Area -->
+        <Grid Grid.Row="1" Margin="16">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
-
-            <Border Grid.Row="0" Background="White" BorderBrush="#E1DFDD" BorderThickness="0,0,0,1" Padding="24,16"
-                    CornerRadius="8,8,0,0"
-                    MouseLeftButtonDown="HeaderBorder_MouseLeftButtonDown">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                
-                <StackPanel Grid.Column="0">
+            
+            <!-- Content Header -->
+            <Border Grid.Row="0" Background="White" BorderBrush="#E1DFDD" BorderThickness="1" CornerRadius="4,4,0,0" Padding="24,16" Margin="0,0,0,0">
+                <StackPanel>
                     <TextBlock Text="Display Profile Manager" Style="{StaticResource HeaderTextBlockStyle}"/>
                     <TextBlock Text="Manage display resolution and DPI scaling profiles" 
                                Style="{StaticResource ModernTextBlockStyle}" 
                                Opacity="0.8" Margin="0,2,0,0"/>
                 </StackPanel>
-
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button Name="MinimizeButton" Content="🗕" 
-                            Style="{StaticResource SecondaryButtonStyle}" 
-                            Width="32" Height="32" Padding="0" 
-                            Margin="0,0,8,0" Click="MinimizeButton_Click"/>
-                    <Button Name="ToTrayButton" Content="⬇️" 
-                            Style="{StaticResource SecondaryButtonStyle}" 
-                            Width="32" Height="32" Padding="0" 
-                            Margin="0,0,8,0" Click="ToTrayButton_Click"/>
-                    <Button Name="CloseButton" Content="✕" 
-                            Style="{StaticResource SecondaryButtonStyle}" 
-                            Width="32" Height="32" Padding="0" 
-                            Click="CloseButton_Click"/>
-                </StackPanel>
-            </Grid>
-        </Border>
-
-        <Grid Grid.Row="1" Margin="24">
+            </Border>
+            
+            <!-- Main Content Grid -->
+            <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="16"/>
                 <ColumnDefinition Width="300"/>
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0" Background="White" BorderBrush="#E1DFDD" BorderThickness="1" CornerRadius="4">
+            <Border Grid.Column="0" Background="White" BorderBrush="#E1DFDD" BorderThickness="1,0,1,1" CornerRadius="0,0,4,4">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -272,8 +309,10 @@
                     </Border>
                 </Grid>
             </Border>
+            </Grid>
         </Grid>
 
+        <!-- Status Bar -->
         <Border Grid.Row="2" Background="White" BorderBrush="#E1DFDD" BorderThickness="0,1,0,0" Padding="24,12">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -293,5 +332,4 @@
             </Grid>
         </Border>
     </Grid>
-    </Border>
 </Window>

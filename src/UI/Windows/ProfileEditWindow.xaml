@@ -8,9 +8,17 @@
         mc:Ignorable="d"
         Title="Profile Editor" Height="500" Width="600" 
         WindowStartupLocation="CenterOwner" ResizeMode="CanResize"
-        Background="Transparent" WindowStyle="None" AllowsTransparency="True"
-        MouseMove="Window_MouseMove" MouseLeftButtonDown="Window_MouseLeftButtonDown"
+        WindowStyle="SingleBorderWindow"
         Loaded="Window_Loaded">
+    
+    <WindowChrome.WindowChrome>
+        <WindowChrome 
+            CaptionHeight="32"
+            ResizeBorderThickness="7"
+            CornerRadius="0"
+            GlassFrameThickness="1"
+            UseAeroCaptionButtons="True" />
+    </WindowChrome.WindowChrome>
     
     <Window.Resources>
         <Style x:Key="ModernButtonStyle" TargetType="Button">
@@ -87,33 +95,29 @@
         </Style>
     </Window.Resources>
 
-    <Border BorderBrush="#8A8A8A" BorderThickness="1" CornerRadius="8" Background="#F3F3F3">
-        <Grid>
-            <Grid.Clip>
-                <RectangleGeometry RadiusX="8" RadiusY="8">
-                    <RectangleGeometry.Rect>
-                        <MultiBinding Converter="{x:Static converters:RectConverter.Instance}">
-                            <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Grid}"/>
-                            <Binding Path="ActualHeight" RelativeSource="{RelativeSource AncestorType=Grid}"/>
-                        </MultiBinding>
-                    </RectangleGeometry.Rect>
-                </RectangleGeometry>
-            </Grid.Clip>
+    <Grid Background="#F3F3F3">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
+            <!-- Title bar area (32px) -->
+            <RowDefinition Height="32"/>
+            <!-- Main content area -->
             <RowDefinition Height="*"/>
+            <!-- Footer area -->
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Background="White" BorderBrush="#E1DFDD" BorderThickness="0,0,0,1" Padding="24,16"
-                CornerRadius="8,8,0,0">
-            <TextBlock Name="HeaderTextBlock" Text="Create New Profile" 
-                       FontSize="20" FontWeight="SemiBold" 
-                       Style="{StaticResource ModernTextBlockStyle}"
-                       MouseLeftButtonDown="HeaderBorder_MouseLeftButtonDown"/>
-        </Border>
+        <!-- Title Bar Area -->
+        <Grid Grid.Row="0" Background="White">
+            <!-- Dynamic title based on edit mode -->
+            <TextBlock Name="TitleBarTextBlock" Text="Profile Editor" 
+                       VerticalAlignment="Center" 
+                       Margin="12,0,0,0"
+                       FontFamily="Segoe UI" 
+                       FontSize="12" 
+                       Foreground="#323130"/>
+        </Grid>
 
-        <ScrollViewer Grid.Row="1" Padding="24" VerticalScrollBarVisibility="Auto">
+        <!-- Main Content Area -->
+        <ScrollViewer Grid.Row="1" Padding="16" VerticalScrollBarVisibility="Auto" Margin="16,16,16,0">
             <StackPanel>
                 <TextBlock Text="Profile Information" 
                            Style="{StaticResource LabelTextBlockStyle}" 
@@ -209,6 +213,5 @@
                 </StackPanel>
             </Grid>
         </Border>
-        </Grid>
-    </Border>
+    </Grid>
 </Window>

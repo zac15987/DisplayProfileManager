@@ -14,7 +14,6 @@ namespace DisplayProfileManager.UI.Windows
         private readonly ProfileManager _profileManager;
         private readonly AutoStartHelper _autoStartHelper;
         private bool _isLoadingSettings;
-        private WindowResizeHelper _resizeHelper;
 
         public SettingsWindow()
         {
@@ -22,7 +21,6 @@ namespace DisplayProfileManager.UI.Windows
             _settingsManager = SettingsManager.Instance;
             _profileManager = ProfileManager.Instance;
             _autoStartHelper = new AutoStartHelper();
-            _resizeHelper = new WindowResizeHelper(this);
         }
 
         private async void Window_Loaded(object sender, RoutedEventArgs e)
@@ -31,7 +29,7 @@ namespace DisplayProfileManager.UI.Windows
             
             try
             {
-                _resizeHelper.Initialize();
+                // No longer need to initialize resize helper
 
                 // Load current settings
                 var settings = _settingsManager.Settings;
@@ -256,45 +254,12 @@ namespace DisplayProfileManager.UI.Windows
             }
         }
 
-        private void CloseButton_Click(object sender, RoutedEventArgs e)
-        {
-            Close();
-        }
 
-        private void Window_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (WindowState == WindowState.Normal)
-            {
-                _resizeHelper.HandleMouseMove(e.GetPosition(this));
-            }
-        }
 
-        private void HeaderBorder_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ClickCount == 2)
-            {
-                if (WindowState == WindowState.Normal)
-                    WindowState = WindowState.Maximized;
-                else
-                    WindowState = WindowState.Normal;
-            }
-            else
-            {
-                DragMove();
-            }
-        }
 
-        private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (WindowState == WindowState.Normal)
-            {
-                _resizeHelper.StartResize(e);
-            }
-        }
 
         protected override void OnClosed(EventArgs e)
         {
-            _resizeHelper.Cleanup();
             base.OnClosed(e);
         }
     }

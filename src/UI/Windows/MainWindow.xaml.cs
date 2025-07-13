@@ -23,7 +23,6 @@ namespace DisplayProfileManager.UI.Windows
         private ProfileManager _profileManager;
         private SettingsManager _settingsManager;
         private Profile _selectedProfile;
-        private WindowResizeHelper _resizeHelper;
         private List<ProfileViewModel> _profileViewModels;
         private bool _shouldMinimizeToTaskbar;
 
@@ -33,10 +32,12 @@ namespace DisplayProfileManager.UI.Windows
             
             _profileManager = ProfileManager.Instance;
             _settingsManager = SettingsManager.Instance;
-            _resizeHelper = new WindowResizeHelper(this);
             
             SetupEventHandlers();
             LoadProfiles();
+            
+            // Handle window closing event for native close button
+            Closing += MainWindow_Closing;
         }
 
         private void SetupEventHandlers()
@@ -333,18 +334,13 @@ namespace DisplayProfileManager.UI.Windows
             settingsWindow.ShowDialog();
         }
 
-        private void MinimizeButton_Click(object sender, RoutedEventArgs e)
-        {
-            _shouldMinimizeToTaskbar = true;
-            WindowState = WindowState.Minimized;
-        }
 
         private void ToTrayButton_Click(object sender, RoutedEventArgs e)
         {
             Hide();
         }
 
-        private async void CloseButton_Click(object sender, RoutedEventArgs e)
+        private async void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             // Check if user has already made a choice and wants to remember it
             if (_settingsManager.ShouldRememberCloseChoice())
@@ -352,6 +348,7 @@ namespace DisplayProfileManager.UI.Windows
                 // Use the saved preference
                 if (_settingsManager.ShouldCloseToTray())
                 {
+                    e.Cancel = true;
                     Hide();
                 }
                 else
@@ -362,6 +359,7 @@ namespace DisplayProfileManager.UI.Windows
             }
 
             // Show confirmation dialog
+            e.Cancel = true; // Cancel the close initially
             var dialog = new CloseConfirmationDialog();
             dialog.Owner = this;
             
@@ -387,48 +385,20 @@ namespace DisplayProfileManager.UI.Windows
                     Application.Current.Shutdown();
                 }
             }
-            // If result is false (Cancel or X button), do nothing
+            // If result is false (Cancel or X button), do nothing - window stays open
         }
 
-        private void HeaderBorder_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ClickCount == 2)
-            {
-                if (WindowState == WindowState.Normal)
-                    WindowState = WindowState.Maximized;
-                else
-                    WindowState = WindowState.Normal;
-            }
-            else
-            {
-                DragMove();
-            }
-        }
+
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            _resizeHelper.Initialize();
+            // No longer need to initialize resize helper
         }
 
-        private void Window_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (WindowState == WindowState.Normal)
-            {
-                _resizeHelper.HandleMouseMove(e.GetPosition(this));
-            }
-        }
 
-        private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (WindowState == WindowState.Normal)
-            {
-                _resizeHelper.StartResize(e);
-            }
-        }
 
         protected override void OnClosed(EventArgs e)
         {
-            _resizeHelper.Cleanup();
             base.OnClosed(e);
         }
 

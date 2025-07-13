@@ -17,7 +17,6 @@ namespace DisplayProfileManager.UI.Windows
         private Profile _profile;
         private bool _isEditMode;
         private List<DisplaySettingControl> _displayControls;
-        private WindowResizeHelper _resizeHelper;
 
         public ProfileEditWindow(Profile profileToEdit = null)
         {
@@ -27,7 +26,6 @@ namespace DisplayProfileManager.UI.Windows
             _displayControls = new List<DisplaySettingControl>();
             _isEditMode = profileToEdit != null;
             _profile = profileToEdit ?? new Profile();
-            _resizeHelper = new WindowResizeHelper(this);
 
             InitializeWindow();
         }
@@ -36,13 +34,13 @@ namespace DisplayProfileManager.UI.Windows
         {
             if (_isEditMode)
             {
-                HeaderTextBlock.Text = "Edit Profile";
+                TitleBarTextBlock.Text = "Edit Profile";
                 Title = "Edit Profile";
                 PopulateFields();
             }
             else
             {
-                HeaderTextBlock.Text = "Create New Profile";
+                TitleBarTextBlock.Text = "Create New Profile";
                 Title = "Create New Profile";
             }
         }
@@ -262,45 +260,16 @@ namespace DisplayProfileManager.UI.Windows
             Close();
         }
 
-        private void HeaderBorder_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ClickCount == 2)
-            {
-                if (WindowState == WindowState.Normal)
-                    WindowState = WindowState.Maximized;
-                else
-                    WindowState = WindowState.Normal;
-            }
-            else
-            {
-                DragMove();
-            }
-        }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            _resizeHelper.Initialize();
+            // No longer need to initialize resize helper
         }
 
-        private void Window_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (WindowState == WindowState.Normal)
-            {
-                _resizeHelper.HandleMouseMove(e.GetPosition(this));
-            }
-        }
 
-        private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (WindowState == WindowState.Normal)
-            {
-                _resizeHelper.StartResize(e);
-            }
-        }
 
         protected override void OnClosed(EventArgs e)
         {
-            _resizeHelper.Cleanup();
             base.OnClosed(e);
         }
     }
