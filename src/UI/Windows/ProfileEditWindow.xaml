@@ -205,7 +205,8 @@
                         <TextBlock Text="Set as Default" Style="{StaticResource LabelTextBlockStyle}"/>
                         <CheckBox Name="DefaultProfileCheckBox" 
                                   Content="Make this the default profile" 
-                                  FontSize="14" VerticalAlignment="Center"/>
+                                  FontSize="14" VerticalAlignment="Center"
+                                  Foreground="{DynamicResource PrimaryTextBrush}"/>
                     </StackPanel>
                 </Grid>
 

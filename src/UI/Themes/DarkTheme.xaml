@@ -8,8 +8,8 @@
     
     <!-- Text Colors -->
     <SolidColorBrush x:Key="PrimaryTextBrush" Color="#F1F1F1"/>
-    <SolidColorBrush x:Key="SecondaryTextBrush" Color="#C8C8C8"/>
-    <SolidColorBrush x:Key="TertiaryTextBrush" Color="#999999"/>
+    <SolidColorBrush x:Key="SecondaryTextBrush" Color="#E0E0E0"/>
+    <SolidColorBrush x:Key="TertiaryTextBrush" Color="#B0B0B0"/>
     
     <!-- Border Colors -->
     <SolidColorBrush x:Key="BorderBrush" Color="#3F3F46"/>

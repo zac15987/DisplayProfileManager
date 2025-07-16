@@ -105,7 +105,7 @@ namespace DisplayProfileManager.UI.Windows
                 {
                     Text = "Select a profile to view details",
                     Style = (Style)FindResource("ModernTextBlockStyle"),
-                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#8A8886")),
+                    Foreground = (SolidColorBrush)FindResource("TertiaryTextBrush"),
                     HorizontalAlignment = HorizontalAlignment.Center,
                     TextAlignment = TextAlignment.Center,
                     Margin = new Thickness(0, 32, 0, 0)
@@ -136,7 +136,7 @@ namespace DisplayProfileManager.UI.Windows
                     Text = profile.Description,
                     Style = (Style)FindResource("ModernTextBlockStyle"),
                     TextWrapping = TextWrapping.Wrap,
-                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#605E5C")),
+                    Foreground = (SolidColorBrush)FindResource("SecondaryTextBrush"),
                     Margin = new Thickness(0, 0, 0, 16)
                 };
                 ProfileDetailsPanel.Children.Add(descBlock);
@@ -170,7 +170,7 @@ namespace DisplayProfileManager.UI.Windows
                         Text = $"Resolution: {setting.GetResolutionString()}",
                         Style = (Style)FindResource("ModernTextBlockStyle"),
                         FontSize = 12,
-                        Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#605E5C"))
+                        Foreground = (SolidColorBrush)FindResource("SecondaryTextBrush")
                     };
                     settingPanel.Children.Add(resolution);
 
@@ -179,7 +179,7 @@ namespace DisplayProfileManager.UI.Windows
                         Text = $"DPI Scaling: {setting.GetDpiString()}",
                         Style = (Style)FindResource("ModernTextBlockStyle"),
                         FontSize = 12,
-                        Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#605E5C"))
+                        Foreground = (SolidColorBrush)FindResource("SecondaryTextBrush")
                     };
                     settingPanel.Children.Add(dpi);
 
@@ -190,7 +190,7 @@ namespace DisplayProfileManager.UI.Windows
                             Text = "Primary Display",
                             Style = (Style)FindResource("ModernTextBlockStyle"),
                             FontSize = 11,
-                            Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0078D4")),
+                            Foreground = (SolidColorBrush)FindResource("ButtonBackgroundBrush"),
                             FontWeight = FontWeights.Medium
                         };
                         settingPanel.Children.Add(primary);
@@ -205,7 +205,7 @@ namespace DisplayProfileManager.UI.Windows
                 Text = $"Created: {profile.CreatedDate:MMM d, yyyy 'at' h:mm tt}\nLast Modified: {profile.LastModifiedDate:MMM d, yyyy 'at' h:mm tt}",
                 Style = (Style)FindResource("ModernTextBlockStyle"),
                 FontSize = 11,
-                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#8A8886")),
+                Foreground = (SolidColorBrush)FindResource("TertiaryTextBrush"),
                 Margin = new Thickness(0, 16, 0, 0)
             };
             ProfileDetailsPanel.Children.Add(metaInfo);

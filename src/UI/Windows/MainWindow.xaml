@@ -290,7 +290,8 @@
                                             </Grid.ColumnDefinitions>
                                             
                                             <TextBlock Grid.Column="0" Text="{Binding Name}" 
-                                                       FontWeight="Medium" FontSize="14"/>
+                                                       FontWeight="Medium" FontSize="14"
+                                                       Foreground="{DynamicResource PrimaryTextBrush}"/>
                                             
                                             <StackPanel Grid.Column="1" Orientation="Horizontal">
                                                 <TextBlock Text="Active" 
