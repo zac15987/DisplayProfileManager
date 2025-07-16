@@ -60,7 +60,7 @@
                     <Setter Property="Background" Value="{DynamicResource SecondaryButtonHoverBackgroundBrush}"/>
                 </Trigger>
                 <Trigger Property="IsPressed" Value="True">
-                    <Setter Property="Background" Value="{DynamicResource ControlPressedBackgroundBrush}"/>
+                    <Setter Property="Background" Value="{DynamicResource SecondaryButtonPressedBackgroundBrush}"/>
                 </Trigger>
             </Style.Triggers>
         </Style>

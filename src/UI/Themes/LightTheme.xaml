@@ -29,9 +29,10 @@
     <SolidColorBrush x:Key="ButtonBorderBrush" Color="#0078D4"/>
     
     <!-- Secondary Button Colors -->
-    <SolidColorBrush x:Key="SecondaryButtonBackgroundBrush" Color="White"/>
+    <SolidColorBrush x:Key="SecondaryButtonBackgroundBrush" Color="#E5E5E5"/>
     <SolidColorBrush x:Key="SecondaryButtonForegroundBrush" Color="#323130"/>
-    <SolidColorBrush x:Key="SecondaryButtonHoverBackgroundBrush" Color="#F3F2F1"/>
+    <SolidColorBrush x:Key="SecondaryButtonHoverBackgroundBrush" Color="#D2D0CE"/>
+    <SolidColorBrush x:Key="SecondaryButtonPressedBackgroundBrush" Color="#C8C6C4"/>
     <SolidColorBrush x:Key="SecondaryButtonBorderBrush" Color="#8A8886"/>
     
     <!-- Danger/Delete Button Colors -->
