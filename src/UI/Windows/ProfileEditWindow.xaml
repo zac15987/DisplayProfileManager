@@ -198,7 +198,8 @@
                         <TextBlock Text="Profile Name*" Style="{StaticResource LabelTextBlockStyle}"/>
                         <TextBox Name="ProfileNameTextBox" 
                                  Style="{StaticResource ModernTextBoxStyle}" 
-                                 MaxLength="50"/>
+                                 MaxLength="50"
+                                 Foreground="{DynamicResource PrimaryTextBrush}"/>
                     </StackPanel>
 
                     <StackPanel Grid.Column="2">
@@ -216,7 +217,8 @@
                              Style="{StaticResource ModernTextBoxStyle}" 
                              Height="60" TextWrapping="Wrap" 
                              VerticalScrollBarVisibility="Auto" 
-                             AcceptsReturn="True"/>
+                             AcceptsReturn="True"
+                             Foreground="{DynamicResource PrimaryTextBrush}"/>
                 </StackPanel>
 
                 <Grid Margin="0,0,0,16">

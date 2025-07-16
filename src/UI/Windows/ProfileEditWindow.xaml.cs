@@ -136,7 +136,7 @@ namespace DisplayProfileManager.UI.Windows
                     {
                         Text = "No display settings configured. Click 'Detect Current' to auto-configure or 'Add Display' to manually add displays.",
                         Style = (Style)FindResource("ModernTextBlockStyle"),
-                        Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#8A8886")),
+                        Foreground = (Brush)Application.Current.Resources["TertiaryTextBrush"],
                         TextAlignment = TextAlignment.Center,
                         TextWrapping = TextWrapping.Wrap,
                         Margin = new Thickness(32)
@@ -358,7 +358,8 @@ namespace DisplayProfileManager.UI.Windows
                 Text = "Display Configuration",
                 FontWeight = FontWeights.Medium,
                 FontSize = 14,
-                Margin = new Thickness(0, 0, 0, 8)
+                Margin = new Thickness(0, 0, 0, 8),
+                Foreground = (Brush)Application.Current.Resources["PrimaryTextBrush"]
             };
             Grid.SetColumn(headerText, 0);
             headerGrid.Children.Add(headerText);
@@ -368,8 +369,8 @@ namespace DisplayProfileManager.UI.Windows
                 Content = "✕",
                 Width = 24,
                 Height = 24,
-                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E5E5E5")),
-                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#323130")),
+                Background = (Brush)Application.Current.Resources["SecondaryButtonBackgroundBrush"],
+                Foreground = (Brush)Application.Current.Resources["SecondaryButtonForegroundBrush"],
                 BorderThickness = new Thickness(0),
                 Cursor = System.Windows.Input.Cursors.Hand
             };
@@ -390,12 +391,12 @@ namespace DisplayProfileManager.UI.Windows
             contentGrid.RowDefinitions.Add(new RowDefinition());
 
             var devicePanel = new StackPanel();
-            devicePanel.Children.Add(new TextBlock { Text = "Device Name", FontWeight = FontWeights.Medium, Margin = new Thickness(0, 0, 0, 4) });
+            devicePanel.Children.Add(new TextBlock { Text = "Device Name", FontWeight = FontWeights.Medium, Margin = new Thickness(0, 0, 0, 4), Foreground = (Brush)Application.Current.Resources["PrimaryTextBrush"] });
             _deviceNameTextBox = new TextBox
             {
                 Text = _setting.DeviceName,
                 Padding = new Thickness(8),
-                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E1DFDD")),
+                BorderBrush = (Brush)Application.Current.Resources["TextBoxBorderBrush"],
                 BorderThickness = new Thickness(1)
             };
             devicePanel.Children.Add(_deviceNameTextBox);
@@ -404,11 +405,11 @@ namespace DisplayProfileManager.UI.Windows
             contentGrid.Children.Add(devicePanel);
 
             var resolutionPanel = new StackPanel();
-            resolutionPanel.Children.Add(new TextBlock { Text = "Resolution", FontWeight = FontWeights.Medium, Margin = new Thickness(0, 0, 0, 4) });
+            resolutionPanel.Children.Add(new TextBlock { Text = "Resolution", FontWeight = FontWeights.Medium, Margin = new Thickness(0, 0, 0, 4), Foreground = (Brush)Application.Current.Resources["PrimaryTextBrush"] });
             _resolutionComboBox = new ComboBox
             {
                 Padding = new Thickness(8),
-                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E1DFDD")),
+                BorderBrush = (Brush)Application.Current.Resources["ComboBoxBorderBrush"],
                 BorderThickness = new Thickness(1)
             };
             _resolutionComboBox.SelectionChanged += ResolutionComboBox_SelectionChanged;
@@ -419,11 +420,11 @@ namespace DisplayProfileManager.UI.Windows
             contentGrid.Children.Add(resolutionPanel);
 
             var refreshRatePanel = new StackPanel();
-            refreshRatePanel.Children.Add(new TextBlock { Text = "Refresh Rate", FontWeight = FontWeights.Medium, Margin = new Thickness(0, 0, 0, 4) });
+            refreshRatePanel.Children.Add(new TextBlock { Text = "Refresh Rate", FontWeight = FontWeights.Medium, Margin = new Thickness(0, 0, 0, 4), Foreground = (Brush)Application.Current.Resources["PrimaryTextBrush"] });
             _refreshRateComboBox = new ComboBox
             {
                 Padding = new Thickness(8),
-                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E1DFDD")),
+                BorderBrush = (Brush)Application.Current.Resources["ComboBoxBorderBrush"],
                 BorderThickness = new Thickness(1)
             };
             PopulateRefreshRateComboBox();
@@ -433,11 +434,11 @@ namespace DisplayProfileManager.UI.Windows
             contentGrid.Children.Add(refreshRatePanel);
 
             var dpiPanel = new StackPanel();
-            dpiPanel.Children.Add(new TextBlock { Text = "DPI Scaling", FontWeight = FontWeights.Medium, Margin = new Thickness(0, 0, 0, 4) });
+            dpiPanel.Children.Add(new TextBlock { Text = "DPI Scaling", FontWeight = FontWeights.Medium, Margin = new Thickness(0, 0, 0, 4), Foreground = (Brush)Application.Current.Resources["PrimaryTextBrush"] });
             _dpiComboBox = new ComboBox
             {
                 Padding = new Thickness(8),
-                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E1DFDD")),
+                BorderBrush = (Brush)Application.Current.Resources["ComboBoxBorderBrush"],
                 BorderThickness = new Thickness(1)
             };
             PopulateDpiComboBox();
@@ -451,7 +452,8 @@ namespace DisplayProfileManager.UI.Windows
             {
                 Content = "Primary Display",
                 IsChecked = _setting.IsPrimary,
-                FontSize = 14
+                FontSize = 14,
+                Foreground = (Brush)Application.Current.Resources["PrimaryTextBrush"]
             };
             primaryPanel.Children.Add(_primaryCheckBox);
             Grid.SetColumn(primaryPanel, 4);
@@ -463,7 +465,7 @@ namespace DisplayProfileManager.UI.Windows
             var separator = new Border
             {
                 Height = 1,
-                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E1DFDD")),
+                Background = (Brush)Application.Current.Resources["SeparatorBrush"],
                 Margin = new Thickness(0, 8, 0, 0)
             };
             mainPanel.Children.Add(separator);
