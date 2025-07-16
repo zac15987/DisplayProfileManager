@@ -123,7 +123,12 @@ namespace DisplayProfileManager.UI.Windows
             var selectedItem = ThemeComboBox.SelectedItem as ComboBoxItem;
             if (selectedItem != null)
             {
-                await _settingsManager.SetThemeAsync(selectedItem.Tag.ToString());
+                var theme = selectedItem.Tag.ToString();
+                await _settingsManager.SetThemeAsync(theme);
+                
+                // Apply the theme immediately
+                ThemeHelper.ApplyTheme(theme);
+                ThemeHelper.UpdateThemeSubscription(theme);
             }
         }
 

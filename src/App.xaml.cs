@@ -270,6 +270,9 @@ namespace DisplayProfileManager
 
             await _settingsManager.LoadSettingsAsync();
             await _profileManager.LoadProfilesAsync();
+            
+            // Initialize theme system
+            ThemeHelper.InitializeTheme();
         }
 
         private void SetupTrayIcon()
@@ -356,6 +359,9 @@ namespace DisplayProfileManager
                 _instanceMutex?.Dispose();
                 
                 _trayIcon?.Dispose();
+                
+                // Cleanup theme system
+                ThemeHelper.Cleanup();
                 
                 if (_profileManager != null)
                 {

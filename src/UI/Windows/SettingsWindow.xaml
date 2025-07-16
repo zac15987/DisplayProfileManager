@@ -22,8 +22,8 @@
     
     <Window.Resources>
         <Style x:Key="ModernButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#0078D4"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="{DynamicResource ButtonBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ButtonForegroundBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="8,6"/>
             <Setter Property="FontSize" Value="14"/>
@@ -41,10 +41,10 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#106EBE"/>
+                                <Setter Property="Background" Value="{DynamicResource ButtonHoverBackgroundBrush}"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="#005A9E"/>
+                                <Setter Property="Background" Value="{DynamicResource ButtonPressedBackgroundBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -53,34 +53,34 @@
         </Style>
 
         <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource ModernButtonStyle}">
-            <Setter Property="Background" Value="#E5E5E5"/>
-            <Setter Property="Foreground" Value="#323130"/>
+            <Setter Property="Background" Value="{DynamicResource SecondaryButtonBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryButtonForegroundBrush}"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#D2D0CE"/>
+                    <Setter Property="Background" Value="{DynamicResource SecondaryButtonHoverBackgroundBrush}"/>
                 </Trigger>
                 <Trigger Property="IsPressed" Value="True">
-                    <Setter Property="Background" Value="#C8C6C4"/>
+                    <Setter Property="Background" Value="{DynamicResource ControlPressedBackgroundBrush}"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
 
         <Style x:Key="DangerButtonStyle" TargetType="Button" BasedOn="{StaticResource ModernButtonStyle}">
-            <Setter Property="Background" Value="#D13438"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="{DynamicResource DangerButtonBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ButtonForegroundBrush}"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#B92B30"/>
+                    <Setter Property="Background" Value="{DynamicResource DangerButtonHoverBackgroundBrush}"/>
                 </Trigger>
                 <Trigger Property="IsPressed" Value="True">
-                    <Setter Property="Background" Value="#A12125"/>
+                    <Setter Property="Background" Value="{DynamicResource DangerButtonHoverBackgroundBrush}"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
 
         <Style x:Key="ModernTextBoxStyle" TargetType="TextBox">
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="BorderBrush" Value="#E1DFDD"/>
+            <Setter Property="Background" Value="{DynamicResource TextBoxBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource TextBoxBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="8"/>
             <Setter Property="FontSize" Value="14"/>
@@ -88,8 +88,8 @@
         </Style>
 
         <Style x:Key="ModernComboBoxStyle" TargetType="ComboBox">
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="BorderBrush" Value="#E1DFDD"/>
+            <Setter Property="Background" Value="{DynamicResource ComboBoxBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ComboBoxBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="8"/>
             <Setter Property="FontSize" Value="14"/>
@@ -99,7 +99,7 @@
         <Style x:Key="ModernCheckBoxStyle" TargetType="CheckBox">
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
-            <Setter Property="Foreground" Value="#323130"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
             <Setter Property="Margin" Value="0,4"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
@@ -107,21 +107,21 @@
         <Style x:Key="ModernRadioButtonStyle" TargetType="RadioButton">
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
-            <Setter Property="Foreground" Value="#323130"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
             <Setter Property="Margin" Value="0,4"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
 
         <Style x:Key="ModernTextBlockStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="14"/>
-            <Setter Property="Foreground" Value="#323130"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
         </Style>
 
         <Style x:Key="HeaderTextBlockStyle" TargetType="TextBlock" BasedOn="{StaticResource ModernTextBlockStyle}">
             <Setter Property="FontSize" Value="20"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="#201F1E"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
         </Style>
 
         <Style x:Key="SectionHeaderStyle" TargetType="TextBlock" BasedOn="{StaticResource ModernTextBlockStyle}">
@@ -142,7 +142,7 @@
             <Setter Property="Height" Value="32"/>
             <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
             <Setter Property="FontSize" Value="10"/>
-            <Setter Property="Foreground" Value="#323130"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -151,10 +151,10 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#E5E5E5"/>
+                                <Setter Property="Background" Value="{DynamicResource WindowControlHoverBrush}"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="#CCCCCC"/>
+                                <Setter Property="Background" Value="{DynamicResource ControlPressedBackgroundBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -165,18 +165,18 @@
         <Style x:Key="WindowCloseButtonStyle" TargetType="Button" BasedOn="{StaticResource WindowControlButtonStyle}">
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#E81123"/>
-                    <Setter Property="Foreground" Value="White"/>
+                    <Setter Property="Background" Value="{DynamicResource CloseButtonHoverBrush}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource ButtonForegroundBrush}"/>
                 </Trigger>
                 <Trigger Property="IsPressed" Value="True">
-                    <Setter Property="Background" Value="#C50E1F"/>
-                    <Setter Property="Foreground" Value="White"/>
+                    <Setter Property="Background" Value="{DynamicResource CloseButtonHoverBrush}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource ButtonForegroundBrush}"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
     </Window.Resources>
 
-    <Grid Background="#F3F3F3">
+    <Grid Background="{DynamicResource WindowBackgroundBrush}">
         <Grid.RowDefinitions>
             <!-- Title bar area (32px normal, 40px maximized) -->
             <RowDefinition Name="TitleBarRowDefinition" Height="32"/>
@@ -187,7 +187,7 @@
         </Grid.RowDefinitions>
 
         <!-- Title Bar Area -->
-        <Grid Grid.Row="0" Name="TitleBarGrid" Background="White">
+        <Grid Grid.Row="0" Name="TitleBarGrid" Background="{DynamicResource TitleBarBackgroundBrush}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
@@ -199,7 +199,7 @@
                        Margin="12,0,0,0"
                        FontFamily="Segoe UI" 
                        FontSize="12" 
-                       Foreground="#323130"/>
+                       Foreground="{DynamicResource TitleBarTextBrush}"/>
             
             <!-- Window Control Buttons -->
             <StackPanel Grid.Column="1" Orientation="Horizontal">
@@ -225,7 +225,7 @@
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="16,16,16,0">
                 <StackPanel Margin="8">
                     <!-- General Section -->
-                    <Border Background="White" BorderBrush="#E1DFDD" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,0,16">
+                    <Border Background="{DynamicResource ContentBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,0,16">
                         <StackPanel>
                             <TextBlock Text="General" Style="{StaticResource SectionHeaderStyle}"/>
                             
@@ -246,7 +246,7 @@
                     </Border>
 
                     <!-- Startup Section -->
-                    <Border Background="White" BorderBrush="#E1DFDD" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,0,16">
+                    <Border Background="{DynamicResource ContentBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,0,16">
                         <StackPanel>
                             <TextBlock Text="Startup" Style="{StaticResource SectionHeaderStyle}"/>
                             
@@ -270,7 +270,7 @@
                     </Border>
 
                     <!-- Window Behavior Section -->
-                    <Border Background="White" BorderBrush="#E1DFDD" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,0,16">
+                    <Border Background="{DynamicResource ContentBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,0,16">
                         <StackPanel>
                             <TextBlock Text="Window Behavior" Style="{StaticResource SectionHeaderStyle}"/>
                             
@@ -299,7 +299,7 @@
                     </Border>
 
                     <!-- Notifications Section -->
-                    <Border Background="White" BorderBrush="#E1DFDD" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,0,16">
+                    <Border Background="{DynamicResource ContentBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,0,16">
                         <StackPanel>
                             <TextBlock Text="Notifications" Style="{StaticResource SectionHeaderStyle}"/>
                             
@@ -311,7 +311,7 @@
                     </Border>
 
                     <!-- Updates Section -->
-                    <Border Background="White" BorderBrush="#E1DFDD" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,0,16">
+                    <Border Background="{DynamicResource ContentBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,0,16">
                         <StackPanel>
                             <TextBlock Text="Updates" Style="{StaticResource SectionHeaderStyle}"/>
                             
@@ -323,7 +323,7 @@
                     </Border>
 
                     <!-- About Section -->
-                    <Border Background="White" BorderBrush="#E1DFDD" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,0,16">
+                    <Border Background="{DynamicResource ContentBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,0,16">
                         <StackPanel>
                             <TextBlock Text="About" Style="{StaticResource SectionHeaderStyle}"/>
                             
@@ -333,9 +333,9 @@
                             </StackPanel>
                             
                             <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                <TextBlock Text="Settings Location: " Style="{StaticResource ModernTextBlockStyle}" FontSize="12" Foreground="#8A8886"/>
+                                <TextBlock Text="Settings Location: " Style="{StaticResource ModernTextBlockStyle}" FontSize="12" Foreground="{DynamicResource TertiaryTextBrush}"/>
                                 <TextBlock Name="SettingsPathTextBlock" Style="{StaticResource ModernTextBlockStyle}" 
-                                           FontSize="12" Foreground="#8A8886" TextWrapping="Wrap"/>
+                                           FontSize="12" Foreground="{DynamicResource TertiaryTextBrush}" TextWrapping="Wrap"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>
@@ -343,7 +343,7 @@
         </ScrollViewer>
 
         <!-- Footer Area -->
-        <Border Grid.Row="2" Background="White" BorderBrush="#E1DFDD" BorderThickness="0,1,0,0" Padding="16,12" Margin="16,0,16,16">
+        <Border Grid.Row="2" Background="{DynamicResource ContentBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="16,12" Margin="16,0,16,16">
             <Button Name="ResetSettingsButton" Content="Reset All Settings" 
                     Style="{StaticResource DangerButtonStyle}" 
                     HorizontalAlignment="Right"

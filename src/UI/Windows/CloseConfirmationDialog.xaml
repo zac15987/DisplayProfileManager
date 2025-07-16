@@ -21,8 +21,8 @@
     
     <Window.Resources>
         <Style x:Key="ModernButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#0078D4"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="{DynamicResource ButtonBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ButtonForegroundBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="8,6"/>
             <Setter Property="FontSize" Value="14"/>
@@ -40,10 +40,10 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#106EBE"/>
+                                <Setter Property="Background" Value="{DynamicResource ButtonHoverBackgroundBrush}"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="#005A9E"/>
+                                <Setter Property="Background" Value="{DynamicResource ButtonPressedBackgroundBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -52,41 +52,41 @@
         </Style>
 
         <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource ModernButtonStyle}">
-            <Setter Property="Background" Value="#E5E5E5"/>
-            <Setter Property="Foreground" Value="#323130"/>
+            <Setter Property="Background" Value="{DynamicResource SecondaryButtonBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryButtonForegroundBrush}"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#D2D0CE"/>
+                    <Setter Property="Background" Value="{DynamicResource SecondaryButtonHoverBackgroundBrush}"/>
                 </Trigger>
                 <Trigger Property="IsPressed" Value="True">
-                    <Setter Property="Background" Value="#C8C6C4"/>
+                    <Setter Property="Background" Value="{DynamicResource ControlPressedBackgroundBrush}"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
 
         <Style x:Key="ModernTextBlockStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="14"/>
-            <Setter Property="Foreground" Value="#323130"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
         </Style>
 
         <Style x:Key="HeaderTextBlockStyle" TargetType="TextBlock" BasedOn="{StaticResource ModernTextBlockStyle}">
             <Setter Property="FontSize" Value="18"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="#201F1E"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
         </Style>
 
         <Style x:Key="ModernRadioButtonStyle" TargetType="RadioButton">
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
-            <Setter Property="Foreground" Value="#323130"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
             <Setter Property="Padding" Value="8,4"/>
         </Style>
 
         <Style x:Key="ModernCheckBoxStyle" TargetType="CheckBox">
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
-            <Setter Property="Foreground" Value="#323130"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
             <Setter Property="Padding" Value="8,4"/>
         </Style>
 
@@ -97,7 +97,7 @@
             <Setter Property="Height" Value="32"/>
             <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
             <Setter Property="FontSize" Value="10"/>
-            <Setter Property="Foreground" Value="#323130"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -106,12 +106,12 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#E81123"/>
-                                <Setter Property="Foreground" Value="White"/>
+                                <Setter Property="Background" Value="{DynamicResource CloseButtonHoverBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource ButtonForegroundBrush}"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="#C50E1F"/>
-                                <Setter Property="Foreground" Value="White"/>
+                                <Setter Property="Background" Value="{DynamicResource CloseButtonHoverBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource ButtonForegroundBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -120,7 +120,7 @@
         </Style>
     </Window.Resources>
 
-    <Grid Background="#F3F3F3">
+    <Grid Background="{DynamicResource WindowBackgroundBrush}">
         <Grid.RowDefinitions>
             <!-- Title bar area (32px) -->
             <RowDefinition Height="32"/>
@@ -131,7 +131,7 @@
         </Grid.RowDefinitions>
 
         <!-- Title Bar Area -->
-        <Grid Grid.Row="0" Background="White">
+        <Grid Grid.Row="0" Background="{DynamicResource TitleBarBackgroundBrush}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
@@ -143,7 +143,7 @@
                        Margin="12,0,0,0"
                        FontFamily="Segoe UI" 
                        FontSize="12" 
-                       Foreground="#323130"/>
+                       Foreground="{DynamicResource TitleBarTextBrush}"/>
             
             <!-- Close Button -->
             <Button Grid.Column="1" Name="TitleBarCloseButton" 
@@ -169,7 +169,7 @@
                     
                     <TextBlock Text="The application will continue running in the background and can be accessed from the system tray." 
                                Style="{StaticResource ModernTextBlockStyle}" 
-                               FontSize="12" Foreground="#8A8886" 
+                               FontSize="12" Foreground="{DynamicResource TertiaryTextBrush}" 
                                Margin="24,0,0,16"/>
                     
                     <RadioButton Name="CloseApplicationRadioButton" 
@@ -179,7 +179,7 @@
                     
                     <TextBlock Text="The application will be completely closed and stopped." 
                                Style="{StaticResource ModernTextBlockStyle}" 
-                               FontSize="12" Foreground="#8A8886" 
+                               FontSize="12" Foreground="{DynamicResource TertiaryTextBrush}" 
                                Margin="24,0,0,24"/>
                     
                     <CheckBox Name="RememberChoiceCheckBox" 
@@ -189,7 +189,7 @@
             </Grid>
 
         <!-- Footer with buttons -->
-        <Border Grid.Row="2" Background="White" BorderBrush="#E1DFDD" BorderThickness="0,1,0,0" Padding="24,16">
+        <Border Grid.Row="2" Background="{DynamicResource ContentBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="24,16">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>

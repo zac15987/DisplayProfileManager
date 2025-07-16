@@ -80,6 +80,14 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Page Include="src\UI\Themes\LightTheme.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="src\UI\Themes\DarkTheme.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Compile Include="src\App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
@@ -88,6 +96,7 @@
     <Compile Include="src\UI\Converters\BooleanToVisibilityConverter.cs" />
     <Compile Include="src\Helpers\DisplayHelper.cs" />
     <Compile Include="src\Helpers\DpiHelper.cs" />
+    <Compile Include="src\Helpers\ThemeHelper.cs" />
     <Compile Include="src\UI\Windows\MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
