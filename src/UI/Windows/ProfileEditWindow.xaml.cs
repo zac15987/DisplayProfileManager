@@ -410,7 +410,8 @@ namespace DisplayProfileManager.UI.Windows
             {
                 Padding = new Thickness(8),
                 BorderBrush = (Brush)Application.Current.Resources["ComboBoxBorderBrush"],
-                BorderThickness = new Thickness(1)
+                BorderThickness = new Thickness(1),
+                Style = (Style)Application.Current.Resources["ModernComboBoxStyle"]
             };
             _resolutionComboBox.SelectionChanged += ResolutionComboBox_SelectionChanged;
             PopulateResolutionComboBox();
@@ -425,7 +426,8 @@ namespace DisplayProfileManager.UI.Windows
             {
                 Padding = new Thickness(8),
                 BorderBrush = (Brush)Application.Current.Resources["ComboBoxBorderBrush"],
-                BorderThickness = new Thickness(1)
+                BorderThickness = new Thickness(1),
+                Style = (Style)Application.Current.Resources["ModernComboBoxStyle"]
             };
             PopulateRefreshRateComboBox();
             refreshRatePanel.Children.Add(_refreshRateComboBox);
@@ -439,7 +441,8 @@ namespace DisplayProfileManager.UI.Windows
             {
                 Padding = new Thickness(8),
                 BorderBrush = (Brush)Application.Current.Resources["ComboBoxBorderBrush"],
-                BorderThickness = new Thickness(1)
+                BorderThickness = new Thickness(1),
+                Style = (Style)Application.Current.Resources["ModernComboBoxStyle"]
             };
             PopulateDpiComboBox();
             dpiPanel.Children.Add(_dpiComboBox);
