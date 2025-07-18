@@ -398,8 +398,11 @@ namespace DisplayProfileManager.Helpers
             };
 
             int result = DisplayConfigGetDeviceInfo(ref info.header);
+            System.Diagnostics.Debug.WriteLine($"DisplayConfigGetDeviceInfo result: {result} for AdapterId={adapterId.LowPart}-{adapterId.HighPart}, TargetId={targetId}");
+            
             if (result == 0)
             {
+                System.Diagnostics.Debug.WriteLine($"Monitor unique name: '{info.monitorUniqueName}'");
                 return info.monitorUniqueName;
             }
 

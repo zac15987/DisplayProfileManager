@@ -159,9 +159,11 @@ namespace DisplayProfileManager.UI.Windows
 
                     var deviceName = new TextBlock
                     {
-                        Text = string.IsNullOrEmpty(setting.DeviceString) ? setting.DeviceName : setting.DeviceString,
+                        Text = !string.IsNullOrEmpty(setting.ReadableDeviceName) ? setting.ReadableDeviceName : 
+                               (!string.IsNullOrEmpty(setting.DeviceString) ? setting.DeviceString : setting.DeviceName),
                         Style = (Style)FindResource("ModernTextBlockStyle"),
-                        FontWeight = FontWeights.Medium
+                        FontWeight = FontWeights.Medium,
+                        ToolTip = $"{setting.ReadableDeviceName ?? setting.DeviceString}\n{setting.DeviceName}"
                     };
                     settingPanel.Children.Add(deviceName);
 

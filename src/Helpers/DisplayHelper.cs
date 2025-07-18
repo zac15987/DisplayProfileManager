@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
+using System.Management;
 
 namespace DisplayProfileManager.Helpers
 {
@@ -28,6 +29,7 @@ namespace DisplayProfileManager.Helpers
         private const int CDS_TEST = 0x02;
         private const int DISP_CHANGE_SUCCESSFUL = 0;
         private const int DISP_CHANGE_RESTART = 1;
+        private const uint DISPLAYCONFIG_PATH_ACTIVE = 0x00000001;
         private const int DISP_CHANGE_FAILED = -1;
 
         #endregion
@@ -110,12 +112,14 @@ namespace DisplayProfileManager.Helpers
         {
             public string DeviceName { get; set; } = string.Empty;
             public string DeviceString { get; set; } = string.Empty;
+            public string ReadableDeviceName { get; set; } = string.Empty;
             public int Width { get; set; }
             public int Height { get; set; }
             public int Frequency { get; set; }
             public int BitsPerPixel { get; set; }
             public bool IsPrimary { get; set; }
             public DEVMODE DevMode { get; set; }
+            public string DeviceInstanceId { get; set; } = string.Empty;
         }
 
         public class ResolutionInfo
@@ -131,6 +135,17 @@ namespace DisplayProfileManager.Helpers
             }
         }
 
+        public class MonitorInfo
+        {
+            public string Name { get; set; } = string.Empty;
+            public string DeviceID { get; set; } = string.Empty;
+            public string PnPDeviceID { get; set; } = string.Empty;
+            public string Description { get; set; } = string.Empty;
+            public string Manufacturer { get; set; } = string.Empty;
+            public string Model { get; set; } = string.Empty;
+            public bool IsPrimary { get; set; } = false;
+        }
+
         #endregion
 
         #region Public Methods
@@ -141,6 +156,9 @@ namespace DisplayProfileManager.Helpers
 
             var displayDevice = new DISPLAY_DEVICE();
             displayDevice.cb = Marshal.SizeOf(displayDevice);
+
+            // Get monitor information using WMI
+            var monitors = GetMonitorsFromWMI();
 
             uint deviceIndex = 0;
             while (EnumDisplayDevices(null, deviceIndex, ref displayDevice, 0))
@@ -156,6 +174,7 @@ namespace DisplayProfileManager.Helpers
                         {
                             DeviceName = displayDevice.DeviceName,
                             DeviceString = displayDevice.DeviceString,
+                            DeviceInstanceId = displayDevice.DeviceID,
                             Width = devMode.dmPelsWidth,
                             Height = devMode.dmPelsHeight,
                             Frequency = devMode.dmDisplayFrequency,
@@ -164,11 +183,32 @@ namespace DisplayProfileManager.Helpers
                             DevMode = devMode
                         };
 
+                        // Debug: Log display device details
+                        System.Diagnostics.Debug.WriteLine($"Display[{deviceIndex}]: Device={displayDevice.DeviceName}, " +
+                            $"String={displayDevice.DeviceString}, DeviceID={displayDevice.DeviceID}, Primary={displayInfo.IsPrimary}");
+
+                        // Get readable name using direct monitor correlation
+                        displayInfo.ReadableDeviceName = GetReadableMonitorNameFromWMI(displayInfo, monitors);
+
                         displays.Add(displayInfo);
                     }
                 }
 
                 deviceIndex++;
+            }
+
+            // Handle duplicate monitor names by appending index
+            var nameGroups = displays.GroupBy(d => d.ReadableDeviceName)
+                                   .Where(g => g.Count() > 1);
+            
+            foreach (var group in nameGroups)
+            {
+                int index = 1;
+                foreach (var display in group)
+                {
+                    display.ReadableDeviceName = $"{display.ReadableDeviceName} ({index})";
+                    index++;
+                }
             }
 
             return displays;
@@ -363,6 +403,295 @@ namespace DisplayProfileManager.Helpers
             }
 
             return sortedRates;
+        }
+
+        private static List<MonitorInfo> GetMonitorsFromWMI()
+        {
+            var monitors = new List<MonitorInfo>();
+            
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("Querying WMI for monitor information...");
+                
+                // Query Win32_PnPEntity for monitor devices
+                using (var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_PnPEntity WHERE Service='monitor' OR PNPClass='Monitor'"))
+                {
+                    using (var collection = searcher.Get())
+                    {
+                        foreach (ManagementObject obj in collection)
+                        {
+                            var monitor = new MonitorInfo
+                            {
+                                Name = obj["Name"]?.ToString() ?? "",
+                                DeviceID = obj["DeviceID"]?.ToString() ?? "",
+                                PnPDeviceID = obj["PNPDeviceID"]?.ToString() ?? "",
+                                Description = obj["Description"]?.ToString() ?? "",
+                                Manufacturer = obj["Manufacturer"]?.ToString() ?? ""
+                            };
+                            
+                            System.Diagnostics.Debug.WriteLine($"WMI Monitor: Name='{monitor.Name}', DeviceID='{monitor.DeviceID}', PnPDeviceID='{monitor.PnPDeviceID}'");
+                            
+                            // Filter out non-monitor devices
+                            if (!string.IsNullOrEmpty(monitor.Name) && 
+                                !monitor.Name.Contains("NVIDIA") && 
+                                !monitor.Name.Contains("AMD") &&
+                                !monitor.Name.Contains("Intel"))
+                            {
+                                monitors.Add(monitor);
+                            }
+                        }
+                    }
+                }
+                
+                // Also try Win32_DesktopMonitor
+                using (var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_DesktopMonitor"))
+                {
+                    using (var collection = searcher.Get())
+                    {
+                        foreach (ManagementObject obj in collection)
+                        {
+                            var name = obj["Name"]?.ToString() ?? "";
+                            var deviceID = obj["DeviceID"]?.ToString() ?? "";
+                            
+                            System.Diagnostics.Debug.WriteLine($"WMI DesktopMonitor: Name='{name}', DeviceID='{deviceID}'");
+                            
+                            if (!string.IsNullOrEmpty(name) && !monitors.Any(m => m.Name == name))
+                            {
+                                monitors.Add(new MonitorInfo
+                                {
+                                    Name = name,
+                                    DeviceID = deviceID,
+                                    Description = obj["Description"]?.ToString() ?? ""
+                                });
+                            }
+                        }
+                    }
+                }
+                
+                System.Diagnostics.Debug.WriteLine($"Found {monitors.Count} monitors from WMI");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"WMI query failed: {ex.Message}");
+            }
+            
+            return monitors;
+        }
+
+        private static string GetReadableMonitorNameFromWMI(DisplayInfo displayInfo, List<MonitorInfo> monitors)
+        {
+            try
+            {
+                // Strategy 1: Match by primary display
+                if (displayInfo.IsPrimary && monitors.Count > 0)
+                {
+                    var primaryMonitor = monitors.FirstOrDefault();
+                    if (primaryMonitor != null && !string.IsNullOrEmpty(primaryMonitor.Name))
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Using primary monitor from WMI: {primaryMonitor.Name}");
+                        return primaryMonitor.Name;
+                    }
+                }
+                
+                // Strategy 2: Try to match by device characteristics
+                foreach (var monitor in monitors)
+                {
+                    if (!string.IsNullOrEmpty(monitor.Name) && monitor.Name != "Default Monitor")
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Using WMI monitor: {monitor.Name}");
+                        return monitor.Name;
+                    }
+                }
+                
+                // Strategy 3: Parse device instance ID for monitor info
+                if (!string.IsNullOrEmpty(displayInfo.DeviceInstanceId))
+                {
+                    string parsedName = ParseDeviceInstanceForMonitor(displayInfo.DeviceInstanceId);
+                    if (!string.IsNullOrEmpty(parsedName))
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Parsed monitor name from device instance: {parsedName}");
+                        return parsedName;
+                    }
+                }
+                
+                // Fallback to device string
+                if (!string.IsNullOrEmpty(displayInfo.DeviceString) && 
+                    !displayInfo.DeviceString.Contains("NVIDIA") && 
+                    !displayInfo.DeviceString.Contains("AMD"))
+                {
+                    System.Diagnostics.Debug.WriteLine($"Using device string: {displayInfo.DeviceString}");
+                    return displayInfo.DeviceString;
+                }
+                
+                return displayInfo.DeviceName;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in GetReadableMonitorNameFromWMI: {ex.Message}");
+                return displayInfo.DeviceString;
+            }
+        }
+
+        private static string ParseDeviceInstanceForMonitor(string deviceInstanceId)
+        {
+            try
+            {
+                // Extract vendor and device IDs from PCI device string
+                // Example: PCI\VEN_10DE&DEV_2D19&SUBSYS_60031458&REV_A1
+                if (deviceInstanceId.StartsWith("PCI\\"))
+                {
+                    var parts = deviceInstanceId.Split('\\')[1].Split('&');
+                    foreach (var part in parts)
+                    {
+                        if (part.StartsWith("VEN_"))
+                        {
+                            string vendorId = part.Substring(4);
+                            string friendlyVendor = GetFriendlyVendorName(vendorId);
+                            if (!string.IsNullOrEmpty(friendlyVendor))
+                            {
+                                return $"{friendlyVendor} Display";
+                            }
+                        }
+                    }
+                }
+                
+                return string.Empty;
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
+        private static string GetFriendlyVendorName(string vendorId)
+        {
+            var vendorMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "10DE", "NVIDIA" },
+                { "1002", "AMD" },
+                { "8086", "Intel" },
+                { "1414", "Microsoft" }
+            };
+            
+            return vendorMap.TryGetValue(vendorId, out string friendlyName) ? friendlyName : "";
+        }
+
+
+        private static string GetFriendlyManufacturerName(string pnpId)
+        {
+            // Common monitor manufacturer PNP IDs
+            var manufacturerMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "ACI", "ASUS" },
+                { "ACR", "Acer" },
+                { "AOC", "AOC" },
+                { "APP", "Apple" },
+                { "AUO", "AU Optronics" },
+                { "BNQ", "BenQ" },
+                { "BOE", "BOE" },
+                { "CMN", "Chi Mei" },
+                { "DEL", "Dell" },
+                { "GSM", "LG" },
+                { "HPN", "HP" },
+                { "HSD", "HannStar" },
+                { "HWP", "HP" },
+                { "LEN", "Lenovo" },
+                { "LGD", "LG Display" },
+                { "MEI", "Panasonic" },
+                { "MSI", "MSI" },
+                { "NEC", "NEC" },
+                { "PHL", "Philips" },
+                { "SAM", "Samsung" },
+                { "SDC", "Samsung Display" },
+                { "SEC", "Samsung" },
+                { "SHP", "Sharp" },
+                { "SNY", "Sony" },
+                { "VSC", "ViewSonic" }
+            };
+
+            return manufacturerMap.TryGetValue(pnpId, out string friendlyName) ? friendlyName : pnpId;
+        }
+
+        private static string GetMonitorNameFromRegistry(string deviceName)
+        {
+            try
+            {
+                // Extract display number from device name (e.g., \\.\DISPLAY1 -> 1)
+                if (deviceName.StartsWith("\\\\.\\DISPLAY"))
+                {
+                    string displayNumber = deviceName.Substring("\\\\.\\DISPLAY".Length);
+                    
+                    // Try different registry paths for monitor information
+                    string[] registryPaths = {
+                        $"SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers\\Configuration",
+                        $"SYSTEM\\CurrentControlSet\\Enum\\DISPLAY"
+                    };
+                    
+                    foreach (string basePath in registryPaths)
+                    {
+                        using (var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(basePath))
+                        {
+                            if (key != null)
+                            {
+                                string monitorName = SearchForMonitorName(key, displayNumber);
+                                if (!string.IsNullOrEmpty(monitorName))
+                                {
+                                    return monitorName;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                return string.Empty;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Registry lookup failed: {ex.Message}");
+                return string.Empty;
+            }
+        }
+
+        private static string SearchForMonitorName(Microsoft.Win32.RegistryKey parentKey, string displayNumber)
+        {
+            try
+            {
+                foreach (string subKeyName in parentKey.GetSubKeyNames())
+                {
+                    using (var subKey = parentKey.OpenSubKey(subKeyName))
+                    {
+                        if (subKey != null)
+                        {
+                            // Look for monitor-related values
+                            object friendlyName = subKey.GetValue("FriendlyName");
+                            object deviceDesc = subKey.GetValue("DeviceDesc");
+                            
+                            if (friendlyName != null && !friendlyName.ToString().Contains("NVIDIA") && !friendlyName.ToString().Contains("AMD"))
+                            {
+                                return friendlyName.ToString();
+                            }
+                            
+                            if (deviceDesc != null && !deviceDesc.ToString().Contains("NVIDIA") && !deviceDesc.ToString().Contains("AMD"))
+                            {
+                                return deviceDesc.ToString();
+                            }
+                            
+                            // Recursively search subkeys
+                            string result = SearchForMonitorName(subKey, displayNumber);
+                            if (!string.IsNullOrEmpty(result))
+                            {
+                                return result;
+                            }
+                        }
+                    }
+                }
+                
+                return string.Empty;
+            }
+            catch
+            {
+                return string.Empty;
+            }
         }
 
         #endregion
