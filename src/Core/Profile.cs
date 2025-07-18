@@ -70,6 +70,9 @@ namespace DisplayProfileManager.Core
         [JsonProperty("deviceString")]
         public string DeviceString { get; set; } = string.Empty;
 
+        [JsonProperty("readableDeviceName")]
+        public string ReadableDeviceName { get; set; } = string.Empty;
+
         [JsonProperty("width")]
         public int Width { get; set; }
 

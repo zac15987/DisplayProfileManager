@@ -330,7 +330,7 @@ namespace DisplayProfileManager.UI.Windows
     public class DisplaySettingControl : UserControl
     {
         private DisplaySetting _setting;
-        private TextBox _deviceNameTextBox;
+        private ComboBox _deviceComboBox;
         private ComboBox _resolutionComboBox;
         private ComboBox _refreshRateComboBox;
         private ComboBox _dpiComboBox;
@@ -391,17 +391,17 @@ namespace DisplayProfileManager.UI.Windows
             contentGrid.RowDefinitions.Add(new RowDefinition());
 
             var devicePanel = new StackPanel();
-            devicePanel.Children.Add(new TextBlock { Text = "Device Name", FontWeight = FontWeights.Medium, Margin = new Thickness(0, 0, 0, 4), Foreground = (Brush)Application.Current.Resources["PrimaryTextBrush"] });
-            _deviceNameTextBox = new TextBox
+            devicePanel.Children.Add(new TextBlock { Text = "Monitor", FontWeight = FontWeights.Medium, Margin = new Thickness(0, 0, 0, 4), Foreground = (Brush)Application.Current.Resources["PrimaryTextBrush"] });
+            _deviceComboBox = new ComboBox
             {
-                Text = _setting.DeviceName,
                 Padding = new Thickness(8),
-                Background = (Brush)Application.Current.Resources["TextBoxBackgroundBrush"],
-                Foreground = (Brush)Application.Current.Resources["PrimaryTextBrush"],
-                BorderBrush = (Brush)Application.Current.Resources["TextBoxBorderBrush"],
-                BorderThickness = new Thickness(1)
+                BorderBrush = (Brush)Application.Current.Resources["ComboBoxBorderBrush"],
+                BorderThickness = new Thickness(1),
+                Style = (Style)Application.Current.Resources["ModernComboBoxStyle"]
             };
-            devicePanel.Children.Add(_deviceNameTextBox);
+            _deviceComboBox.SelectionChanged += DeviceComboBox_SelectionChanged;
+            PopulateDeviceComboBox();
+            devicePanel.Children.Add(_deviceComboBox);
             Grid.SetColumn(devicePanel, 0);
             Grid.SetRow(devicePanel, 0);
             contentGrid.Children.Add(devicePanel);
@@ -555,6 +555,56 @@ namespace DisplayProfileManager.UI.Windows
             }
         }
 
+        private void PopulateDeviceComboBox()
+        {
+            _deviceComboBox.Items.Clear();
+            
+            // Get all available displays
+            var displays = DisplayHelper.GetDisplays();
+            
+            // Create a custom class for ComboBox items to store both readable and system names
+            foreach (var display in displays)
+            {
+                var item = new ComboBoxItem
+                {
+                    Content = display.ReadableDeviceName,
+                    Tag = display.DeviceName, // Store system device name in Tag
+                    ToolTip = $"{display.ReadableDeviceName}\n{display.DeviceName}"
+                };
+                _deviceComboBox.Items.Add(item);
+                
+                // Select current device
+                if (display.DeviceName == _setting.DeviceName)
+                {
+                    _deviceComboBox.SelectedItem = item;
+                }
+            }
+            
+            // If no selection was made (device not found), select first item
+            if (_deviceComboBox.SelectedItem == null && _deviceComboBox.Items.Count > 0)
+            {
+                _deviceComboBox.SelectedIndex = 0;
+            }
+        }
+
+        private void DeviceComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_deviceComboBox.SelectedItem == null || _resolutionComboBox == null)
+                return;
+
+            var selectedItem = _deviceComboBox.SelectedItem as ComboBoxItem;
+            var deviceName = selectedItem?.Tag?.ToString();
+            
+            if (!string.IsNullOrEmpty(deviceName))
+            {
+                // Update the setting's device name
+                _setting.DeviceName = deviceName;
+                
+                // Repopulate resolution combo box for the new device
+                PopulateResolutionComboBox();
+            }
+        }
+
         private void ResolutionComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_resolutionComboBox.SelectedItem == null || _refreshRateComboBox == null)
@@ -621,10 +671,18 @@ namespace DisplayProfileManager.UI.Windows
             if (!int.TryParse(refreshRateText.Replace("Hz", ""), out int frequency))
                 frequency = 60; // Fallback to 60Hz
 
+            var selectedItem = _deviceComboBox.SelectedItem as ComboBoxItem;
+            var deviceName = selectedItem?.Tag?.ToString() ?? "";
+            
+            // Get the display info to populate ReadableDeviceName
+            var displays = DisplayHelper.GetDisplays();
+            var display = displays.FirstOrDefault(d => d.DeviceName == deviceName);
+            
             return new DisplaySetting
             {
-                DeviceName = _deviceNameTextBox.Text.Trim(),
+                DeviceName = deviceName,
                 DeviceString = _setting.DeviceString,
+                ReadableDeviceName = display?.ReadableDeviceName ?? selectedItem?.Content?.ToString() ?? "",
                 Width = width,
                 Height = height,
                 Frequency = frequency,
@@ -637,11 +695,11 @@ namespace DisplayProfileManager.UI.Windows
 
         public bool ValidateInput()
         {
-            if (string.IsNullOrWhiteSpace(_deviceNameTextBox.Text))
+            if (_deviceComboBox.SelectedItem == null)
             {
-                MessageBox.Show("Please enter a device name for all displays.", "Validation Error", 
+                MessageBox.Show("Please select a monitor for all displays.", "Validation Error", 
                     MessageBoxButton.OK, MessageBoxImage.Warning);
-                _deviceNameTextBox.Focus();
+                _deviceComboBox.Focus();
                 return false;
             }
 
