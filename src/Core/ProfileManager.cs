@@ -140,6 +140,7 @@ namespace DisplayProfileManager.Core
                             {
                                 DeviceName = display.DeviceName,
                                 DeviceString = display.DeviceString,
+                                ReadableDeviceName = display.ReadableDeviceName,
                                 Width = display.Width,
                                 Height = display.Height,
                                 Frequency = display.Frequency,

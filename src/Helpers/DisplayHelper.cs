@@ -28,6 +28,7 @@ namespace DisplayProfileManager.Helpers
         private const int CDS_TEST = 0x02;
         private const int DISP_CHANGE_SUCCESSFUL = 0;
         private const int DISP_CHANGE_RESTART = 1;
+        private const uint DISPLAYCONFIG_PATH_ACTIVE = 0x00000001;
         private const int DISP_CHANGE_FAILED = -1;
 
         #endregion
@@ -110,12 +111,15 @@ namespace DisplayProfileManager.Helpers
         {
             public string DeviceName { get; set; } = string.Empty;
             public string DeviceString { get; set; } = string.Empty;
+            public string ReadableDeviceName { get; set; } = string.Empty;
             public int Width { get; set; }
             public int Height { get; set; }
             public int Frequency { get; set; }
             public int BitsPerPixel { get; set; }
             public bool IsPrimary { get; set; }
             public DEVMODE DevMode { get; set; }
+            public DpiHelper.LUID AdapterId { get; set; }
+            public uint TargetId { get; set; }
         }
 
         public class ResolutionInfo
@@ -142,6 +146,11 @@ namespace DisplayProfileManager.Helpers
             var displayDevice = new DISPLAY_DEVICE();
             displayDevice.cb = Marshal.SizeOf(displayDevice);
 
+            // Get display configuration paths for adapter/target mapping
+            List<DpiHelper.DISPLAYCONFIG_PATH_INFO> paths;
+            List<DpiHelper.DISPLAYCONFIG_MODE_INFO> modes;
+            DpiHelper.GetPathsAndModes(out paths, out modes);
+
             uint deviceIndex = 0;
             while (EnumDisplayDevices(null, deviceIndex, ref displayDevice, 0))
             {
@@ -164,11 +173,44 @@ namespace DisplayProfileManager.Helpers
                             DevMode = devMode
                         };
 
+                        // Try to find matching path for this display to get adapter/target IDs
+                        foreach (var path in paths)
+                        {
+                            if ((path.flags & DISPLAYCONFIG_PATH_ACTIVE) != 0)
+                            {
+                                // Match by position since we enumerate in the same order
+                                displayInfo.AdapterId = path.targetInfo.adapterId;
+                                displayInfo.TargetId = path.targetInfo.id;
+                                break;
+                            }
+                        }
+
+                        // Get readable name
+                        displayInfo.ReadableDeviceName = GetReadableMonitorName(
+                            displayInfo.DeviceName,
+                            displayInfo.DeviceString,
+                            displayInfo.AdapterId, 
+                            displayInfo.TargetId);
+
                         displays.Add(displayInfo);
                     }
                 }
 
                 deviceIndex++;
+            }
+
+            // Handle duplicate monitor names by appending index
+            var nameGroups = displays.GroupBy(d => d.ReadableDeviceName)
+                                   .Where(g => g.Count() > 1);
+            
+            foreach (var group in nameGroups)
+            {
+                int index = 1;
+                foreach (var display in group)
+                {
+                    display.ReadableDeviceName = $"{display.ReadableDeviceName} ({index})";
+                    index++;
+                }
             }
 
             return displays;
@@ -363,6 +405,86 @@ namespace DisplayProfileManager.Helpers
             }
 
             return sortedRates;
+        }
+
+        public static string GetReadableMonitorName(string deviceName, string deviceString, DpiHelper.LUID adapterId, uint targetId)
+        {
+            try
+            {
+                // First, try to get the unique monitor name
+                string uniqueName = DpiHelper.GetDisplayUniqueName(adapterId, targetId);
+                
+                if (!string.IsNullOrEmpty(uniqueName))
+                {
+                    // Parse the unique name for manufacturer/model info
+                    // Format is typically: "MONITOR\{manufacturer}{model}\{unique-id}"
+                    string[] parts = uniqueName.Split('\\');
+                    if (parts.Length >= 2)
+                    {
+                        string monitorInfo = parts[1];
+                        
+                        // Try to extract manufacturer and model
+                        if (monitorInfo.Length >= 7)
+                        {
+                            string manufacturer = monitorInfo.Substring(0, 3);
+                            string model = monitorInfo.Substring(3, 4);
+                            
+                            // Get friendly manufacturer name
+                            string friendlyManufacturer = GetFriendlyManufacturerName(manufacturer);
+                            
+                            return $"{friendlyManufacturer} {model}";
+                        }
+                    }
+                }
+                
+                // Fallback to device string if available
+                if (!string.IsNullOrEmpty(deviceString))
+                {
+                    return deviceString;
+                }
+                
+                // Last resort: return the device name
+                return deviceName;
+            }
+            catch
+            {
+                return deviceName;
+            }
+        }
+
+        private static string GetFriendlyManufacturerName(string pnpId)
+        {
+            // Common monitor manufacturer PNP IDs
+            var manufacturerMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "ACI", "ASUS" },
+                { "ACR", "Acer" },
+                { "AOC", "AOC" },
+                { "APP", "Apple" },
+                { "AUO", "AU Optronics" },
+                { "BNQ", "BenQ" },
+                { "BOE", "BOE" },
+                { "CMN", "Chi Mei" },
+                { "DEL", "Dell" },
+                { "GSM", "LG" },
+                { "HPN", "HP" },
+                { "HSD", "HannStar" },
+                { "HWP", "HP" },
+                { "LEN", "Lenovo" },
+                { "LGD", "LG Display" },
+                { "MEI", "Panasonic" },
+                { "MSI", "MSI" },
+                { "NEC", "NEC" },
+                { "PHL", "Philips" },
+                { "SAM", "Samsung" },
+                { "SDC", "Samsung Display" },
+                { "SEC", "Samsung" },
+                { "SHP", "Sharp" },
+                { "SNY", "Sony" },
+                { "VSC", "ViewSonic" }
+            };
+
+            return manufacturerMap.TryGetValue(pnpId, out string friendlyName) ? friendlyName : pnpId;
         }
 
         #endregion
