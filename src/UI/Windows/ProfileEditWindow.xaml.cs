@@ -396,6 +396,8 @@ namespace DisplayProfileManager.UI.Windows
             {
                 Text = _setting.DeviceName,
                 Padding = new Thickness(8),
+                Background = (Brush)Application.Current.Resources["TextBoxBackgroundBrush"],
+                Foreground = (Brush)Application.Current.Resources["PrimaryTextBrush"],
                 BorderBrush = (Brush)Application.Current.Resources["TextBoxBorderBrush"],
                 BorderThickness = new Thickness(1)
             };
