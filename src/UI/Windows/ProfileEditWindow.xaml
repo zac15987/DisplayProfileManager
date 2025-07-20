@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:DisplayProfileManager.UI.Windows"
         xmlns:converters="clr-namespace:DisplayProfileManager.UI.Converters"
         mc:Ignorable="d"
-        Title="Profile Editor" Height="500" Width="600" 
+        Title="Profile Editor" Height="500" Width="700" 
         WindowStartupLocation="CenterOwner" ResizeMode="CanResize"
         WindowStyle="SingleBorderWindow"
         Loaded="Window_Loaded">

@@ -381,11 +381,11 @@ namespace DisplayProfileManager.UI.Windows
             mainPanel.Children.Add(headerGrid);
 
             var contentGrid = new Grid();
-            contentGrid.ColumnDefinitions.Add(new ColumnDefinition());
+            contentGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.5, GridUnitType.Star) }); // Monitor column - wider
             contentGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
-            contentGrid.ColumnDefinitions.Add(new ColumnDefinition());
+            contentGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Resolution column
             contentGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
-            contentGrid.ColumnDefinitions.Add(new ColumnDefinition());
+            contentGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Refresh rate column
             contentGrid.RowDefinitions.Add(new RowDefinition());
             contentGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(8) });
             contentGrid.RowDefinitions.Add(new RowDefinition());
