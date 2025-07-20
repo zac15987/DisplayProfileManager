@@ -19,8 +19,8 @@ namespace DisplayProfileManager.UI.Windows
             
             _settingsManager = SettingsManager.Instance;
 
-            // Set default selection based on current MinimizeToTray setting
-            if (_settingsManager.ShouldMinimizeToTray())
+            // Set default selection based on current CloseToTray setting
+            if (_settingsManager.ShouldCloseToTray())
             {
                 MinimizeToTrayRadioButton.IsChecked = true;
                 CloseApplicationRadioButton.IsChecked = false;

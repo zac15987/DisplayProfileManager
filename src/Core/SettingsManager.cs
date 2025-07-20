@@ -17,8 +17,6 @@ namespace DisplayProfileManager.Core
         [JsonProperty("applyStartupProfile")]
         public bool ApplyStartupProfile { get; set; } = false;
 
-        [JsonProperty("minimizeToTray")]
-        public bool MinimizeToTray { get; set; } = true;
 
         [JsonProperty("rememberCloseChoice")]
         public bool RememberCloseChoice { get; set; } = false;
@@ -222,11 +220,6 @@ namespace DisplayProfileManager.Core
             return await SaveSettingsAsync();
         }
 
-        public async Task<bool> SetMinimizeToTrayAsync(bool minimizeToTray)
-        {
-            _settings.MinimizeToTray = minimizeToTray;
-            return await SaveSettingsAsync();
-        }
 
         public async Task<bool> SetRememberCloseChoiceAsync(bool rememberChoice)
         {
@@ -291,10 +284,6 @@ namespace DisplayProfileManager.Core
             return _settings.StartupProfileId;
         }
 
-        public bool ShouldMinimizeToTray()
-        {
-            return _settings.MinimizeToTray;
-        }
 
         public bool ShouldRememberCloseChoice()
         {

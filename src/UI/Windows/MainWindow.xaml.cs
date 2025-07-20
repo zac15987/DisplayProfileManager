@@ -27,7 +27,6 @@ namespace DisplayProfileManager.UI.Windows
         private SettingsManager _settingsManager;
         private Profile _selectedProfile;
         private List<ProfileViewModel> _profileViewModels;
-        private bool _shouldMinimizeToTaskbar;
         private HwndSource _hwndSource;
         
         // Snap Layouts hover state management
@@ -356,7 +355,6 @@ namespace DisplayProfileManager.UI.Windows
 
         private void MinimizeButton_Click(object sender, RoutedEventArgs e)
         {
-            _shouldMinimizeToTaskbar = true;
             WindowState = WindowState.Minimized;
         }
 
@@ -583,16 +581,7 @@ namespace DisplayProfileManager.UI.Windows
 
         protected override void OnStateChanged(EventArgs e)
         {
-            if (WindowState == WindowState.Minimized && !_shouldMinimizeToTaskbar && _settingsManager.ShouldMinimizeToTray())
-            {
-                Hide();
-            }
-            
-            // Reset the flag after handling
-            if (WindowState == WindowState.Minimized)
-            {
-                _shouldMinimizeToTaskbar = false;
-            }
+            // Window minimizes to taskbar normally - ToTray button handles tray functionality
 
             // Update maximize/restore button icon based on window state
             UpdateMaximizeRestoreButton();

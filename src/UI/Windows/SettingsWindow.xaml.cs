@@ -47,7 +47,6 @@ namespace DisplayProfileManager.UI.Windows
                 ApplyStartupProfileCheckBox.IsChecked = settings.ApplyStartupProfile;
                 
                 // Window behavior settings
-                MinimizeToTrayCheckBox.IsChecked = settings.MinimizeToTray;
                 if (settings.CloseToTray)
                 {
                     CloseToTrayRadio.IsChecked = true;
@@ -189,13 +188,6 @@ namespace DisplayProfileManager.UI.Windows
             await _settingsManager.SetStartupProfileAsync(profileId, applyOnStartup);
         }
 
-        private async void MinimizeToTrayCheckBox_Changed(object sender, RoutedEventArgs e)
-        {
-            if (_isLoadingSettings) return;
-            
-            var isChecked = MinimizeToTrayCheckBox.IsChecked ?? false;
-            await _settingsManager.SetMinimizeToTrayAsync(isChecked);
-        }
 
         private async void CloseActionRadio_Changed(object sender, RoutedEventArgs e)
         {

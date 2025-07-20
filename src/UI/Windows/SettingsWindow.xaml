@@ -266,10 +266,6 @@
                         <StackPanel>
                             <TextBlock Text="Window Behavior" Style="{StaticResource SectionHeaderStyle}"/>
                             
-                            <CheckBox Name="MinimizeToTrayCheckBox" Content="Minimize to system tray" 
-                                      Style="{StaticResource ModernCheckBoxStyle}"
-                                      Checked="MinimizeToTrayCheckBox_Changed"
-                                      Unchecked="MinimizeToTrayCheckBox_Changed"/>
                             
                             <TextBlock Text="When closing the application:" Style="{StaticResource LabelTextBlockStyle}" Margin="0,12,0,4"/>
                             <StackPanel Margin="20,0,0,0">
