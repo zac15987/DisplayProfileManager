@@ -392,20 +392,7 @@ namespace DisplayProfileManager
                 // Cleanup theme system
                 ThemeHelper.Cleanup();
                 
-                if (_profileManager != null)
-                {
-                    Task.Run(async () =>
-                    {
-                        try
-                        {
-                            await _profileManager.SaveProfilesAsync();
-                        }
-                        catch (Exception ex)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"Error saving profiles on exit: {ex.Message}");
-                        }
-                    }).Wait(TimeSpan.FromSeconds(2));
-                }
+                // Profiles are now saved individually when modified, no need to save all on exit
 
                 if (_settingsManager != null)
                 {

@@ -364,13 +364,30 @@
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                 <Button Name="EditProfileButton" Content="Edit" 
                                         Style="{StaticResource SecondaryButtonStyle}" 
-                                        Width="60" Margin="0,0,8,0" 
+                                        Width="60" Margin="0,0,4,0" 
                                         Click="EditProfileButton_Click"
                                         IsEnabled="False"/>
                                 <Button Name="DeleteProfileButton" Content="Delete" 
                                         Style="{StaticResource SecondaryButtonStyle}" 
-                                        Width="60" Click="DeleteProfileButton_Click"
+                                        Width="60" Margin="0,0,4,0" 
+                                        Click="DeleteProfileButton_Click"
                                         IsEnabled="False"/>
+                                <Button Name="ExportProfileButton" Content="Export" 
+                                        Style="{StaticResource SecondaryButtonStyle}" 
+                                        Width="60" Margin="0,0,8,0" 
+                                        Click="ExportProfileButton_Click"
+                                        IsEnabled="False"/>
+                            </StackPanel>
+                            
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
+                                <Button Name="ImportProfileButton" Content="Import Profile" 
+                                        Style="{StaticResource SecondaryButtonStyle}" 
+                                        Width="120" Margin="0,0,8,0" 
+                                        Click="ImportProfileButton_Click"/>
+                                <Button Name="OpenProfilesFolderButton" Content="Open Folder" 
+                                        Style="{StaticResource SecondaryButtonStyle}" 
+                                        Width="100" 
+                                        Click="OpenProfilesFolderButton_Click"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>

@@ -44,6 +44,9 @@ namespace DisplayProfileManager.Core
         [JsonProperty("firstRun")]
         public bool FirstRun { get; set; } = true;
 
+        [JsonProperty("currentProfileId")]
+        public string CurrentProfileId { get; set; } = string.Empty;
+
         [JsonProperty("lastUpdated")]
         public DateTime LastUpdated { get; set; } = DateTime.Now;
     }
@@ -326,6 +329,17 @@ namespace DisplayProfileManager.Core
         public DateTime GetLastUpdated()
         {
             return _settings.LastUpdated;
+        }
+
+        public string GetCurrentProfileId()
+        {
+            return _settings.CurrentProfileId;
+        }
+
+        public async Task<bool> SetCurrentProfileIdAsync(string profileId)
+        {
+            _settings.CurrentProfileId = profileId;
+            return await SaveSettingsAsync();
         }
     }
 }

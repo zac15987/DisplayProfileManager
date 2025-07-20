@@ -114,6 +114,7 @@ namespace DisplayProfileManager.UI.Windows
                 ApplyProfileButton.IsEnabled = false;
                 EditProfileButton.IsEnabled = false;
                 DeleteProfileButton.IsEnabled = false;
+                ExportProfileButton.IsEnabled = false;
                 return;
             }
 
@@ -215,6 +216,7 @@ namespace DisplayProfileManager.UI.Windows
             ApplyProfileButton.IsEnabled = true;
             EditProfileButton.IsEnabled = true;
             DeleteProfileButton.IsEnabled = true;
+            ExportProfileButton.IsEnabled = true;
         }
 
         private void ProfilesListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -377,6 +379,115 @@ namespace DisplayProfileManager.UI.Windows
         private void CloseButton_Click(object sender, RoutedEventArgs e)
         {
             Close();
+        }
+
+        private async void ExportProfileButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedProfile == null) return;
+
+            try
+            {
+                var saveFileDialog = new Microsoft.Win32.SaveFileDialog
+                {
+                    Title = "Export Profile",
+                    Filter = "Display Profile (*.dpm)|*.dpm",
+                    DefaultExt = ".dpm",
+                    FileName = $"{_selectedProfile.Name}.dpm"
+                };
+
+                if (saveFileDialog.ShowDialog() == true)
+                {
+                    ExportProfileButton.IsEnabled = false;
+                    StatusTextBlock.Text = "Exporting profile...";
+
+                    bool success = await _profileManager.ExportProfileAsync(_selectedProfile.Id, saveFileDialog.FileName);
+
+                    if (success)
+                    {
+                        StatusTextBlock.Text = "Profile exported successfully";
+                        MessageBox.Show($"Profile '{_selectedProfile.Name}' has been exported to:\n{saveFileDialog.FileName}",
+                            "Export Successful", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    else
+                    {
+                        StatusTextBlock.Text = "Failed to export profile";
+                        MessageBox.Show("Failed to export profile. Please try again.",
+                            "Export Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusTextBlock.Text = "Error exporting profile";
+                MessageBox.Show($"Error exporting profile: {ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                ExportProfileButton.IsEnabled = true;
+            }
+        }
+
+        private async void ImportProfileButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var openFileDialog = new Microsoft.Win32.OpenFileDialog
+                {
+                    Title = "Import Profile",
+                    Filter = "Display Profile (*.dpm)|*.dpm|All Files (*.*)|*.*",
+                    DefaultExt = ".dpm",
+                    Multiselect = false
+                };
+
+                if (openFileDialog.ShowDialog() == true)
+                {
+                    ImportProfileButton.IsEnabled = false;
+                    StatusTextBlock.Text = "Importing profile...";
+
+                    var importedProfile = await _profileManager.ImportProfileAsync(openFileDialog.FileName);
+
+                    if (importedProfile != null)
+                    {
+                        StatusTextBlock.Text = "Profile imported successfully";
+                        MessageBox.Show($"Profile '{importedProfile.Name}' has been imported successfully!",
+                            "Import Successful", MessageBoxButton.OK, MessageBoxImage.Information);
+                        RefreshProfilesList();
+                    }
+                    else
+                    {
+                        StatusTextBlock.Text = "Failed to import profile";
+                        MessageBox.Show("Failed to import profile. Please check that the file is a valid display profile.",
+                            "Import Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusTextBlock.Text = "Error importing profile";
+                MessageBox.Show($"Error importing profile: {ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                ImportProfileButton.IsEnabled = true;
+            }
+        }
+
+        private void OpenProfilesFolderButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var profilesFolder = _profileManager.GetProfilesFolder();
+                System.Diagnostics.Process.Start("explorer.exe", profilesFolder);
+                StatusTextBlock.Text = "Opened profiles folder";
+            }
+            catch (Exception ex)
+            {
+                StatusTextBlock.Text = "Error opening folder";
+                MessageBox.Show($"Error opening profiles folder: {ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private async void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
