@@ -23,12 +23,6 @@ cmd.exe /c "msbuild DisplayProfileManager.sln /t:Rebuild /p:Configuration=Debug"
 ./bin/Release/DisplayProfileManager.exe
 ```
 
-### VS Code
-The project includes VS Code tasks configuration (`.vscode/tasks.json`) for building:
-- **Ctrl+Shift+B**: Build Debug configuration (default)
-- **Task: build-release**: Build Release configuration
-- Uses native MSBuild integration with problem matching
-
 ## Architecture
 
 ### Core Patterns
@@ -75,7 +69,7 @@ The project includes VS Code tasks configuration (`.vscode/tasks.json`) for buil
 ## Platform Requirements
 - **Windows**: Vista+ (manifest declares compatibility through Windows 10+)
 - **DPI Awareness**: Per-monitor V2 awareness configured in app.manifest
-- **Privileges**: Standard user (no admin required for display changes)
+- **Privileges**: Administrator required (`requireAdministrator` in app.manifest)
 
 ## Development Guidelines
 
@@ -99,11 +93,35 @@ The project includes VS Code tasks configuration (`.vscode/tasks.json`) for buil
 - **Validation**: Comprehensive input validation before save operations
 
 ### Display API Usage
-- `GetSupportedResolutionsOnly()`: Resolution dropdowns (no refresh rates)
-- `GetAvailableResolutions()`: Comprehensive enumeration (with refresh rates)
-- `GetAvailableRefreshRates(device, width, height)`: Refresh rate dropdowns
-- Resolution changes trigger refresh rate dropdown updates
-- Monitor-specific detection for accurate supported modes
+
+#### Windows APIs
+- **ChangeDisplaySettings/ChangeDisplaySettingsEx**: Apply resolution and refresh rate changes per monitor
+- **EnumDisplaySettings/EnumDisplaySettingsEx**: Enumerate supported display modes
+- **QueryDisplayConfig/GetDisplayConfigBufferSizes**: Modern display configuration (being phased out)
+- **SystemParametersInfo**: Apply DPI scaling changes system-wide
+- **WMI Win32_DesktopMonitor**: Human-readable monitor names (recent refactor)
+- **Registry HKLM\SYSTEM\CurrentControlSet\Enum\DISPLAY**: Hardware ID to monitor name mapping
+
+#### Key Methods
+- `GetSupportedResolutionsOnly()`: Returns unique resolutions without refresh rates for UI dropdowns
+- `GetAvailableResolutions()`: Full enumeration including refresh rates (for profile data)
+- `GetAvailableRefreshRates(deviceName, width, height)`: Refresh rates for specific resolution
+- `GetMonitorFriendlyName(deviceName)`: Maps device to human-readable name via WMI + Registry
+- `ApplyDisplaySettings(profile)`: Sequential application (resolution → refresh rate → DPI)
+
+#### Profile Switching Sequence
+1. Apply resolution and refresh rate per monitor using `ChangeDisplaySettingsEx`
+2. Apply DPI scaling system-wide using `SystemParametersInfo` with relative adjustment
+3. Broadcast `WM_SETTINGCHANGE` for immediate UI updates
+4. Handle failures gracefully with boolean returns
+
+#### Monitor Detection Evolution
+- **Current**: WMI + Registry correlation - broader compatibility but complex mapping logic
+- **Fallback**: Raw device names when correlation fails
+
+#### DPI Implementation
+- Uses relative adjustment from current DPI to target DPI
+- Sample implementation in `docs/sample-code/Change_DPI_Sample_Code.md`
 
 ### Development Workflow
 - **No Testing Framework**: Project currently has no unit tests or test projects
