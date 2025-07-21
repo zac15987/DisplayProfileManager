@@ -42,15 +42,40 @@ namespace DisplayProfileManager.Helpers
                     return false;
                 }
 
+                // Verify the executable exists
+                if (!File.Exists(executablePath))
+                {
+                    System.Diagnostics.Debug.WriteLine($"Executable path does not exist: {executablePath}");
+                    return false;
+                }
+
                 using (var key = Registry.CurrentUser.OpenSubKey(RegistryKeyPath, true))
                 {
                     if (key != null)
                     {
-                        key.SetValue(ApplicationName, $"\"{executablePath}\"");
-                        return true;
+                        // Set the registry value with quoted path
+                        var registryValue = $"\"{executablePath}\"";
+                        key.SetValue(ApplicationName, registryValue);
+                        
+                        // Verify the value was written correctly
+                        var writtenValue = key.GetValue(ApplicationName)?.ToString();
+                        if (writtenValue == registryValue)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Successfully enabled auto start: {registryValue}");
+                            return true;
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Failed to verify registry write. Expected: {registryValue}, Got: {writtenValue}");
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine("Could not open registry key for writing");
+                        return false;
                     }
                 }
-                return false;
             }
             catch (Exception ex)
             {
@@ -88,25 +113,31 @@ namespace DisplayProfileManager.Helpers
         {
             try
             {
-                var assembly = Assembly.GetExecutingAssembly();
-                var codeBase = assembly.CodeBase;
-                var uri = new UriBuilder(codeBase);
-                var path = Uri.UnescapeDataString(uri.Path);
-                return path;
+                // Primary method: Use Process.GetCurrentProcess() which returns proper Windows path
+                var processPath = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName;
+                
+                // Validate the path exists
+                if (!string.IsNullOrEmpty(processPath) && File.Exists(processPath))
+                {
+                    System.Diagnostics.Debug.WriteLine($"Executable path found: {processPath}");
+                    return processPath;
+                }
+                
+                // Fallback: Try using Assembly.Location
+                var assemblyLocation = Assembly.GetExecutingAssembly().Location;
+                if (!string.IsNullOrEmpty(assemblyLocation) && File.Exists(assemblyLocation))
+                {
+                    System.Diagnostics.Debug.WriteLine($"Using assembly location: {assemblyLocation}");
+                    return assemblyLocation;
+                }
+                
+                System.Diagnostics.Debug.WriteLine("No valid executable path found");
+                return string.Empty;
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error getting executable path: {ex.Message}");
-                
-                try
-                {
-                    return System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName;
-                }
-                catch (Exception ex2)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Error getting process path: {ex2.Message}");
-                    return string.Empty;
-                }
+                return string.Empty;
             }
         }
 

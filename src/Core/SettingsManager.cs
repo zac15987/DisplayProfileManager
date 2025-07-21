@@ -178,21 +178,50 @@ namespace DisplayProfileManager.Core
 
         public async Task<bool> SetStartWithWindowsAsync(bool startWithWindows)
         {
-            _settings.StartWithWindows = startWithWindows;
-            
             try
             {
                 var autoStartHelper = new AutoStartHelper();
+                bool registryOperationSucceeded = false;
+                
                 if (startWithWindows)
                 {
-                    autoStartHelper.EnableAutoStart();
+                    registryOperationSucceeded = autoStartHelper.EnableAutoStart();
+                    if (!registryOperationSucceeded)
+                    {
+                        System.Diagnostics.Debug.WriteLine("Failed to enable auto start in registry");
+                        return false;
+                    }
                 }
                 else
                 {
-                    autoStartHelper.DisableAutoStart();
+                    registryOperationSucceeded = autoStartHelper.DisableAutoStart();
+                    if (!registryOperationSucceeded)
+                    {
+                        System.Diagnostics.Debug.WriteLine("Failed to disable auto start in registry");
+                        return false;
+                    }
                 }
 
-                return await SaveSettingsAsync();
+                // Only update settings if registry operation succeeded
+                _settings.StartWithWindows = startWithWindows;
+                var settingsSaved = await SaveSettingsAsync();
+                
+                if (!settingsSaved)
+                {
+                    System.Diagnostics.Debug.WriteLine("Failed to save settings after registry change");
+                    // Revert registry change if settings save failed
+                    if (startWithWindows)
+                    {
+                        autoStartHelper.DisableAutoStart();
+                    }
+                    else
+                    {
+                        autoStartHelper.EnableAutoStart();
+                    }
+                    return false;
+                }
+                
+                return true;
             }
             catch (Exception ex)
             {
