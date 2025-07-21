@@ -28,9 +28,6 @@ namespace DisplayProfileManager.Helpers
         private const int CDS_UPDATEREGISTRY = 0x01;
         private const int CDS_TEST = 0x02;
         private const int DISP_CHANGE_SUCCESSFUL = 0;
-        private const int DISP_CHANGE_RESTART = 1;
-        private const uint DISPLAYCONFIG_PATH_ACTIVE = 0x00000001;
-        private const int DISP_CHANGE_FAILED = -1;
 
         #endregion
 
@@ -1216,60 +1213,6 @@ namespace DisplayProfileManager.Helpers
             return deviceToMonitorMap;
         }
 
-        private static void ParseDisplayConfiguration(Microsoft.Win32.RegistryKey configKey, Dictionary<string, string> deviceToMonitorMap)
-        {
-            try
-            {
-                System.Diagnostics.Debug.WriteLine($"🔍 ParseDisplayConfiguration: Starting to parse individual configuration");
-                
-                // Use enhanced registry reading with fallback
-                string configName = configKey.Name.Split('\\').Last();
-                (object timestampObj, object setIdObj) = ReadRegistryValuesWithFallback(configKey, configName);
-                
-                System.Diagnostics.Debug.WriteLine($"📊 Enhanced read results:");
-                System.Diagnostics.Debug.WriteLine($"    Timestamp: {timestampObj?.GetType()?.Name ?? "null"}");
-                System.Diagnostics.Debug.WriteLine($"    SetId: {setIdObj?.GetType()?.Name ?? "null"}");
-                
-                if (timestampObj is byte[] timestampBytes && timestampBytes.Length == 8 && setIdObj != null)
-                {
-                    try
-                    {
-                        long timestampLong = BitConverter.ToInt64(timestampBytes, 0);
-                        DateTime timestamp = DateTime.FromFileTime(timestampLong);
-                        
-                        System.Diagnostics.Debug.WriteLine($"✅ Valid config found: SetId='{setIdObj}' at {timestamp}");
-                        
-                        // Parse this configuration directly
-                        ParseSingleConfiguration(configKey, setIdObj.ToString(), deviceToMonitorMap);
-                    }
-                    catch (Exception timestampEx)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"❌ Error parsing timestamp: {timestampEx.Message}");
-                    }
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine($"❌ Invalid config after enhanced read - missing timestamp or SetId");
-                    
-                    // Additional diagnostic information
-                    if (timestampObj == null)
-                        System.Diagnostics.Debug.WriteLine($"    ❌ Timestamp is null");
-                    else if (!(timestampObj is byte[]))
-                        System.Diagnostics.Debug.WriteLine($"    ❌ Timestamp is not byte[] but {timestampObj.GetType().Name}");
-                    else if ((timestampObj as byte[]).Length != 8)
-                        System.Diagnostics.Debug.WriteLine($"    ❌ Timestamp byte array length is {(timestampObj as byte[]).Length}, expected 8");
-                    
-                    if (setIdObj == null)
-                        System.Diagnostics.Debug.WriteLine($"    ❌ SetId is null");
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"❌ Error parsing display configuration: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"❌ Stack trace: {ex.StackTrace}");
-            }
-        }
-
         private static void ParseSingleConfiguration(Microsoft.Win32.RegistryKey configKey, string setId, Dictionary<string, string> deviceToMonitorMap)
         {
             try
@@ -1342,64 +1285,6 @@ namespace DisplayProfileManager.Helpers
             }
         }
 
-        private static string ParseEDIDForMonitorName(byte[] edid)
-        {
-            try
-            {
-                // EDID structure contains monitor name in descriptor blocks
-                // Descriptor blocks start at byte 54
-                for (int i = 54; i < 126; i += 18)
-                {
-                    // Check if this is a monitor name descriptor (0xFC)
-                    if (edid[i] == 0 && edid[i + 1] == 0 && edid[i + 3] == 0xFC)
-                    {
-                        // Extract the monitor name (13 bytes max)
-                        var nameBytes = new byte[13];
-                        Array.Copy(edid, i + 5, nameBytes, 0, 13);
-                        
-                        string name = System.Text.Encoding.ASCII.GetString(nameBytes).Trim('\0', ' ', '\n');
-                        if (!string.IsNullOrEmpty(name))
-                        {
-                            return name;
-                        }
-                    }
-                }
-                
-                // If no name found, try to get manufacturer and product ID
-                return GetManufacturerFromEDID(edid);
-            }
-            catch
-            {
-                return string.Empty;
-            }
-        }
-
-        private static string GetManufacturerFromEDID(byte[] edid)
-        {
-            try
-            {
-                // Manufacturer ID is in bytes 8-9
-                int manufId = (edid[8] << 8) | edid[9];
-                
-                // Extract 3-letter manufacturer code
-                char letter1 = (char)('A' + ((manufId >> 10) & 0x1F) - 1);
-                char letter2 = (char)('A' + ((manufId >> 5) & 0x1F) - 1);
-                char letter3 = (char)('A' + (manufId & 0x1F) - 1);
-                
-                string pnpId = $"{letter1}{letter2}{letter3}";
-                string friendlyName = GetFriendlyManufacturerName(pnpId);
-                
-                // Product code is in bytes 10-11
-                int productCode = edid[10] | (edid[11] << 8);
-                
-                return $"{friendlyName} ({productCode:X4})";
-            }
-            catch
-            {
-                return string.Empty;
-            }
-        }
-
         private static List<DisplayInfo> GetDisplaysForCorrelation()
         {
             var displays = new List<DisplayInfo>();
@@ -1431,48 +1316,6 @@ namespace DisplayProfileManager.Helpers
             }
             
             return displays;
-        }
-        
-        private static string SearchForMonitorName(Microsoft.Win32.RegistryKey parentKey, string displayNumber)
-        {
-            try
-            {
-                foreach (string subKeyName in parentKey.GetSubKeyNames())
-                {
-                    using (var subKey = parentKey.OpenSubKey(subKeyName))
-                    {
-                        if (subKey != null)
-                        {
-                            // Look for monitor-related values
-                            object friendlyName = subKey.GetValue("FriendlyName");
-                            object deviceDesc = subKey.GetValue("DeviceDesc");
-                            
-                            if (friendlyName != null && !friendlyName.ToString().Contains("NVIDIA") && !friendlyName.ToString().Contains("AMD"))
-                            {
-                                return friendlyName.ToString();
-                            }
-                            
-                            if (deviceDesc != null && !deviceDesc.ToString().Contains("NVIDIA") && !deviceDesc.ToString().Contains("AMD"))
-                            {
-                                return deviceDesc.ToString();
-                            }
-                            
-                            // Recursively search subkeys
-                            string result = SearchForMonitorName(subKey, displayNumber);
-                            if (!string.IsNullOrEmpty(result))
-                            {
-                                return result;
-                            }
-                        }
-                    }
-                }
-                
-                return string.Empty;
-            }
-            catch
-            {
-                return string.Empty;
-            }
         }
 
         #endregion

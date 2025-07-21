@@ -12,10 +12,6 @@ namespace DisplayProfileManager.Helpers
         private const string TaskName = "DisplayProfileManager_Startup";
         private const string TaskFolder = "\\DisplayProfileManager";
         private const string FullTaskPath = TaskFolder + "\\" + TaskName;
-        
-        // Legacy registry path for migration
-        private const string RegistryKeyPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
-        private const string RegistryAppName = "DisplayProfileManager";
 
         public bool IsAutoStartEnabled()
         {
@@ -104,7 +100,6 @@ namespace DisplayProfileManager.Helpers
                     if (process.ExitCode == 0)
                     {
                         System.Diagnostics.Debug.WriteLine($"Successfully created scheduled task: {output}");
-                        MigrateFromRegistry(); // Clean up old registry entry if exists
                         return true;
                     }
                     else
@@ -304,29 +299,6 @@ namespace DisplayProfileManager.Helpers
     </Exec>
   </Actions>
 </Task>";
-        }
-
-        private void MigrateFromRegistry()
-        {
-            try
-            {
-                using (var key = Registry.CurrentUser.OpenSubKey(RegistryKeyPath, true))
-                {
-                    if (key != null)
-                    {
-                        var value = key.GetValue(RegistryAppName);
-                        if (value != null)
-                        {
-                            key.DeleteValue(RegistryAppName, false);
-                            System.Diagnostics.Debug.WriteLine("Migrated from registry to Task Scheduler");
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error during registry migration: {ex.Message}");
-            }
         }
 
         public bool ValidateAutoStartEntry()

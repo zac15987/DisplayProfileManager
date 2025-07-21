@@ -87,14 +87,6 @@ namespace DisplayProfileManager.Helpers
             public int scaleRel;
         }
 
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-        public struct DISPLAYCONFIG_GET_MONITOR_INTERNAL_INFO
-        {
-            public DISPLAYCONFIG_DEVICE_INFO_HEADER header;
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
-            public string monitorUniqueName;
-        }
-
         [StructLayout(LayoutKind.Sequential)]
         public struct DISPLAYCONFIG_PATH_INFO
         {
@@ -382,31 +374,6 @@ namespace DisplayProfileManager.Helpers
 
             int result = DisplayConfigSetDeviceInfo(ref setPacket.header);
             return result == 0;
-        }
-
-        public static string GetDisplayUniqueName(LUID adapterId, uint targetId)
-        {
-            var info = new DISPLAYCONFIG_GET_MONITOR_INTERNAL_INFO
-            {
-                header = new DISPLAYCONFIG_DEVICE_INFO_HEADER
-                {
-                    type = DISPLAYCONFIG_DEVICE_INFO_TYPE_CUSTOM.DISPLAYCONFIG_DEVICE_INFO_GET_MONITOR_UNIQUE_NAME,
-                    size = (uint)Marshal.SizeOf<DISPLAYCONFIG_GET_MONITOR_INTERNAL_INFO>(),
-                    adapterId = adapterId,
-                    id = targetId
-                }
-            };
-
-            int result = DisplayConfigGetDeviceInfo(ref info.header);
-            System.Diagnostics.Debug.WriteLine($"DisplayConfigGetDeviceInfo result: {result} for AdapterId={adapterId.LowPart}-{adapterId.HighPart}, TargetId={targetId}");
-            
-            if (result == 0)
-            {
-                System.Diagnostics.Debug.WriteLine($"Monitor unique name: '{info.monitorUniqueName}'");
-                return info.monitorUniqueName;
-            }
-
-            return string.Empty;
         }
 
         #endregion
