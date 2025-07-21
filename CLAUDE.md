@@ -19,8 +19,8 @@ cmd.exe /c "msbuild DisplayProfileManager.sln /t:Clean /p:Configuration=Debug"
 cmd.exe /c "msbuild DisplayProfileManager.sln /t:Rebuild /p:Configuration=Debug"
 
 # Run
-./bin/Debug/DisplayProfileManager.exe
-./bin/Release/DisplayProfileManager.exe
+cmd.exe /c "start bin\Debug\DisplayProfileManager.exe"
+cmd.exe /c "start bin\Release\DisplayProfileManager.exe"
 ```
 
 ## Architecture
