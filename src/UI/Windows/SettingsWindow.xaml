@@ -247,6 +247,11 @@
                                       Checked="StartWithWindowsCheckBox_Changed"
                                       Unchecked="StartWithWindowsCheckBox_Changed"/>
                             
+                            <CheckBox Name="StartInSystemTrayCheckBox" Content="Start in system tray when Windows starts" 
+                                      Style="{StaticResource ModernCheckBoxStyle}" Margin="20,4,0,0"
+                                      Checked="StartInSystemTrayCheckBox_Changed"
+                                      Unchecked="StartInSystemTrayCheckBox_Changed"/>
+                            
                             <TextBlock Text="Startup Profile" Style="{StaticResource LabelTextBlockStyle}" Margin="0,12,0,4"/>
                             <ComboBox Name="StartupProfileComboBox" Style="{StaticResource ModernComboBoxStyle}"
                                       SelectionChanged="StartupProfileComboBox_SelectionChanged">

@@ -42,6 +42,8 @@ namespace DisplayProfileManager.UI.Windows
                 
                 // Startup settings
                 StartWithWindowsCheckBox.IsChecked = settings.StartWithWindows;
+                StartInSystemTrayCheckBox.IsChecked = settings.StartInSystemTray;
+                StartInSystemTrayCheckBox.IsEnabled = settings.StartWithWindows;
                 await LoadStartupProfiles();
                 SelectComboBoxItemByTag(StartupProfileComboBox, settings.StartupProfileId);
                 ApplyStartupProfileCheckBox.IsChecked = settings.ApplyStartupProfile;
@@ -150,12 +152,38 @@ namespace DisplayProfileManager.UI.Windows
             {
                 var isChecked = StartWithWindowsCheckBox.IsChecked ?? false;
                 await _settingsManager.SetStartWithWindowsAsync(isChecked);
+                
+                // Enable/disable the StartInSystemTray checkbox based on StartWithWindows
+                StartInSystemTrayCheckBox.IsEnabled = isChecked;
+                
+                // If StartWithWindows is unchecked, also uncheck StartInSystemTray
+                if (!isChecked)
+                {
+                    StartInSystemTrayCheckBox.IsChecked = false;
+                }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error updating startup setting: {ex.Message}", "Error", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
                 StartWithWindowsCheckBox.IsChecked = !StartWithWindowsCheckBox.IsChecked;
+            }
+        }
+
+        private async void StartInSystemTrayCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_isLoadingSettings) return;
+            
+            try
+            {
+                var isChecked = StartInSystemTrayCheckBox.IsChecked ?? false;
+                await _settingsManager.SetStartInSystemTrayAsync(isChecked);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error updating system tray startup setting: {ex.Message}", "Error", 
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                StartInSystemTrayCheckBox.IsChecked = !StartInSystemTrayCheckBox.IsChecked;
             }
         }
 

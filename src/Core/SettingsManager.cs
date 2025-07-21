@@ -11,6 +11,9 @@ namespace DisplayProfileManager.Core
         [JsonProperty("startWithWindows")]
         public bool StartWithWindows { get; set; } = false;
 
+        [JsonProperty("startInSystemTray")]
+        public bool StartInSystemTray { get; set; } = false;
+
         [JsonProperty("startupProfileId")]
         public string StartupProfileId { get; set; } = string.Empty;
 
@@ -181,42 +184,49 @@ namespace DisplayProfileManager.Core
             try
             {
                 var autoStartHelper = new AutoStartHelper();
-                bool registryOperationSucceeded = false;
+                bool taskOperationSucceeded = false;
                 
                 if (startWithWindows)
                 {
-                    registryOperationSucceeded = autoStartHelper.EnableAutoStart();
-                    if (!registryOperationSucceeded)
+                    taskOperationSucceeded = autoStartHelper.EnableAutoStart(_settings.StartInSystemTray);
+                    if (!taskOperationSucceeded)
                     {
-                        System.Diagnostics.Debug.WriteLine("Failed to enable auto start in registry");
+                        System.Diagnostics.Debug.WriteLine("Failed to enable auto start task");
                         return false;
                     }
                 }
                 else
                 {
-                    registryOperationSucceeded = autoStartHelper.DisableAutoStart();
-                    if (!registryOperationSucceeded)
+                    taskOperationSucceeded = autoStartHelper.DisableAutoStart();
+                    if (!taskOperationSucceeded)
                     {
-                        System.Diagnostics.Debug.WriteLine("Failed to disable auto start in registry");
+                        System.Diagnostics.Debug.WriteLine("Failed to disable auto start task");
                         return false;
                     }
                 }
 
-                // Only update settings if registry operation succeeded
+                // Only update settings if task operation succeeded
                 _settings.StartWithWindows = startWithWindows;
+                
+                // If disabling StartWithWindows, also disable StartInSystemTray
+                if (!startWithWindows)
+                {
+                    _settings.StartInSystemTray = false;
+                }
+                
                 var settingsSaved = await SaveSettingsAsync();
                 
                 if (!settingsSaved)
                 {
-                    System.Diagnostics.Debug.WriteLine("Failed to save settings after registry change");
-                    // Revert registry change if settings save failed
+                    System.Diagnostics.Debug.WriteLine("Failed to save settings after task change");
+                    // Revert task change if settings save failed
                     if (startWithWindows)
                     {
                         autoStartHelper.DisableAutoStart();
                     }
                     else
                     {
-                        autoStartHelper.EnableAutoStart();
+                        autoStartHelper.EnableAutoStart(_settings.StartInSystemTray);
                     }
                     return false;
                 }
@@ -226,6 +236,40 @@ namespace DisplayProfileManager.Core
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error setting start with Windows: {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<bool> SetStartInSystemTrayAsync(bool startInSystemTray)
+        {
+            try
+            {
+                // StartInSystemTray can only be true if StartWithWindows is also true
+                if (startInSystemTray && !_settings.StartWithWindows)
+                {
+                    System.Diagnostics.Debug.WriteLine("Cannot enable StartInSystemTray without StartWithWindows");
+                    return false;
+                }
+
+                // Update the scheduled task with the new argument
+                if (_settings.StartWithWindows)
+                {
+                    var autoStartHelper = new AutoStartHelper();
+                    bool taskOperationSucceeded = autoStartHelper.EnableAutoStart(startInSystemTray);
+                    if (!taskOperationSucceeded)
+                    {
+                        System.Diagnostics.Debug.WriteLine("Failed to update auto start task with tray setting");
+                        return false;
+                    }
+                }
+
+                // Update settings
+                _settings.StartInSystemTray = startInSystemTray;
+                return await SaveSettingsAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error setting start in system tray: {ex.Message}");
                 return false;
             }
         }
@@ -301,6 +345,11 @@ namespace DisplayProfileManager.Core
         public bool ShouldStartWithWindows()
         {
             return _settings.StartWithWindows;
+        }
+
+        public bool ShouldStartInSystemTray()
+        {
+            return _settings.StartInSystemTray && _settings.StartWithWindows;
         }
 
         public bool ShouldApplyStartupProfile()

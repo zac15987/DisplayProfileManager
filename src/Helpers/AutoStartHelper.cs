@@ -55,7 +55,7 @@ namespace DisplayProfileManager.Helpers
             }
         }
 
-        public bool EnableAutoStart()
+        public bool EnableAutoStart(bool startInTray = false)
         {
             try
             {
@@ -76,7 +76,7 @@ namespace DisplayProfileManager.Helpers
                 CreateTaskFolder();
 
                 // Generate XML for the task
-                var xmlContent = GenerateTaskXml(executablePath);
+                var xmlContent = GenerateTaskXml(executablePath, startInTray);
                 var tempXmlPath = Path.Combine(Path.GetTempPath(), "DisplayProfileManager_Task.xml");
                 
                 try
@@ -248,17 +248,19 @@ namespace DisplayProfileManager.Helpers
             }
         }
 
-        private string GenerateTaskXml(string executablePath)
+        private string GenerateTaskXml(string executablePath, bool startInTray = false)
         {
             var currentUser = Environment.UserDomainName + "\\" + Environment.UserName;
             var timestamp = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss");
+            var description = startInTray ? "Starts Display Profile Manager minimized to system tray when user logs on" : "Starts Display Profile Manager when user logs on";
+            var argumentsElement = startInTray ? $"\n      <Arguments>--tray</Arguments>" : "";
 
             return $@"<?xml version=""1.0"" encoding=""UTF-16""?>
 <Task version=""1.4"" xmlns=""http://schemas.microsoft.com/windows/2004/02/mit/task"">
   <RegistrationInfo>
     <Date>{timestamp}</Date>
     <Author>{currentUser}</Author>
-    <Description>Starts Display Profile Manager when user logs on</Description>
+    <Description>{description}</Description>
     <URI>{FullTaskPath}</URI>
   </RegistrationInfo>
   <Triggers>
@@ -297,7 +299,7 @@ namespace DisplayProfileManager.Helpers
   </Settings>
   <Actions Context=""Author"">
     <Exec>
-      <Command>{executablePath}</Command>
+      <Command>{executablePath}</Command>{argumentsElement}
       <WorkingDirectory>{Path.GetDirectoryName(executablePath)}</WorkingDirectory>
     </Exec>
   </Actions>
@@ -374,7 +376,7 @@ namespace DisplayProfileManager.Helpers
                 if (IsAutoStartEnabled())
                 {
                     DisableAutoStart();
-                    return EnableAutoStart();
+                    return EnableAutoStart(false); // Default to not starting in tray for refresh
                 }
                 return true;
             }

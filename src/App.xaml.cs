@@ -75,6 +75,20 @@ namespace DisplayProfileManager
         {
             base.OnStartup(e);
 
+            // Parse command line arguments
+            bool startInTray = false;
+            if (e.Args != null && e.Args.Length > 0)
+            {
+                foreach (var arg in e.Args)
+                {
+                    if (arg.Equals("--tray", StringComparison.OrdinalIgnoreCase))
+                    {
+                        startInTray = true;
+                        break;
+                    }
+                }
+            }
+
             // Check for administrator privileges
             if (!IsRunAsAdministrator())
             {
@@ -100,7 +114,11 @@ namespace DisplayProfileManager
                 SetupTrayIcon();
                 await HandleStartupProfileAsync();
                 
-                ShowMainWindow();
+                // Only show main window if not starting in tray mode
+                if (!startInTray)
+                {
+                    ShowMainWindow();
+                }
 
                 if (_settingsManager.IsFirstRun())
                 {
