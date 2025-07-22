@@ -34,7 +34,7 @@ cmd.exe /c "start bin\Release\DisplayProfileManager.exe"
 - **Error Handling**: Try-catch with `Debug.WriteLine()` logging and graceful degradation
 
 ### Key Components
-- **ProfileManager**: Thread-safe singleton for profile CRUD, JSON persistence to `%AppData%/DisplayProfileManager/`, sequential resolution/refresh rate/DPI changes
+- **ProfileManager**: Thread-safe singleton for profile CRUD, individual `.dpm` file persistence to `%AppData%/DisplayProfileManager/Profiles/`, sequential resolution/refresh rate/DPI changes
 - **SettingsManager**: Thread-safe singleton for app settings, Windows startup integration
 - **DisplayHelper/DpiHelper**: P/Invoke wrappers for Windows APIs (ChangeDisplaySettingsEx, SystemParametersInfo, display enumeration)
 - **TrayIcon**: Dynamic context menu for profile switching, handles system tray lifecycle
@@ -43,7 +43,7 @@ cmd.exe /c "start bin\Release\DisplayProfileManager.exe"
 
 ### Data Flow
 1. Startup: Read current display settings → save as default profile
-2. Profiles: JSON stored in `%AppData%/DisplayProfileManager/profiles.json`
+2. Profiles: Individual `.dpm` files stored in `%AppData%/DisplayProfileManager/Profiles/` folder
 3. Settings: JSON stored in `%AppData%/DisplayProfileManager/settings.json`
 4. Profile switching: Sequential resolution → refresh rate → DPI changes
 5. Resolution dropdowns: Monitor-specific via `GetSupportedResolutionsOnly()`
