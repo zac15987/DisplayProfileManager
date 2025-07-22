@@ -227,14 +227,22 @@ namespace DisplayProfileManager.Core
                             setting.Height, 
                             setting.Frequency);
 
-                        if (resolutionChanged && !string.IsNullOrEmpty(setting.AdapterId))
+                        if (resolutionChanged)
                         {
-                            var adapterId = ParseAdapterId(setting.AdapterId);
-                            bool dpiChanged = DpiHelper.SetDPIScaling(adapterId, setting.SourceId, setting.DpiScaling);
+                            var (adapterId, sourceId, found) = GetCurrentAdapterInfo(setting.DeviceName);
                             
-                            if (!dpiChanged)
+                            if (found)
                             {
-                                System.Diagnostics.Debug.WriteLine($"Failed to set DPI scaling for {setting.DeviceName}");
+                                bool dpiChanged = DpiHelper.SetDPIScaling(adapterId, sourceId, setting.DpiScaling);
+                                
+                                if (!dpiChanged)
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"Failed to set DPI scaling for {setting.DeviceName}");
+                                }
+                            }
+                            else
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Could not find current adapter info for {setting.DeviceName}, skipping DPI change");
                             }
                         }
                         else if (!resolutionChanged)
@@ -284,6 +292,44 @@ namespace DisplayProfileManager.Core
             }
             
             return new DpiHelper.LUID();
+        }
+
+        private (DpiHelper.LUID adapterId, uint sourceId, bool found) GetCurrentAdapterInfo(string deviceName)
+        {
+            try
+            {
+                if (!DpiHelper.GetPathsAndModes(out var paths, out var modes))
+                {
+                    System.Diagnostics.Debug.WriteLine("Failed to get display paths and modes");
+                    return (new DpiHelper.LUID(), 0, false);
+                }
+
+                var displays = DisplayHelper.GetDisplays();
+                var displayIndex = -1;
+                
+                for (int i = 0; i < displays.Count; i++)
+                {
+                    if (displays[i].DeviceName == deviceName)
+                    {
+                        displayIndex = i;
+                        break;
+                    }
+                }
+                
+                if (displayIndex >= 0 && displayIndex < paths.Count)
+                {
+                    var path = paths[displayIndex];
+                    return (path.sourceInfo.adapterId, path.sourceInfo.id, true);
+                }
+                
+                System.Diagnostics.Debug.WriteLine($"Could not find matching display path for {deviceName}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting current adapter info for {deviceName}: {ex.Message}");
+            }
+            
+            return (new DpiHelper.LUID(), 0, false);
         }
 
         public List<Profile> GetAllProfiles()
