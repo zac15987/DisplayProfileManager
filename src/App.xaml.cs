@@ -25,14 +25,6 @@ namespace DisplayProfileManager
         private EventWaitHandle _showWindowEvent;
         private CancellationTokenSource _cancellationTokenSource;
 
-        [DllImport("user32.dll")]
-        private static extern bool SetProcessDpiAwarenessContext(IntPtr dpiContext);
-
-        [DllImport("user32.dll")]
-        private static extern IntPtr GetProcessDpiAwarenessContext();
-
-        [DllImport("user32.dll")]
-        private static extern bool AreDpiAwarenessContextsEqual(IntPtr dpiContextA, IntPtr dpiContextB);
 
         [DllImport("user32.dll")]
         private static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
@@ -66,10 +58,6 @@ namespace DisplayProfileManager
         private const string MUTEX_NAME = "DisplayProfileManager_SingleInstance";
         private const string SHOW_WINDOW_EVENT_NAME = "DisplayProfileManager_ShowWindow";
 
-        private static readonly IntPtr DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = new IntPtr(-4);
-        private static readonly IntPtr DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE = new IntPtr(-3);
-        private static readonly IntPtr DPI_AWARENESS_CONTEXT_SYSTEM_AWARE = new IntPtr(-2);
-        private static readonly IntPtr DPI_AWARENESS_CONTEXT_UNAWARE = new IntPtr(-1);
 
         protected override async void OnStartup(StartupEventArgs e)
         {
@@ -109,7 +97,6 @@ namespace DisplayProfileManager
 
             try
             {
-                SetDpiAwareness();
                 await InitializeApplicationAsync();
                 SetupTrayIcon();
                 await HandleStartupProfileAsync();
@@ -285,30 +272,6 @@ namespace DisplayProfileManager
             }
         }
 
-        private void SetDpiAwareness()
-        {
-            try
-            {
-                var currentContext = GetProcessDpiAwarenessContext();
-                
-                if (!AreDpiAwarenessContextsEqual(currentContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2))
-                {
-                    if (!SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2))
-                    {
-                        System.Diagnostics.Debug.WriteLine("Failed to set DPI awareness to PerMonitorV2, trying PerMonitor");
-                        
-                        if (!SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE))
-                        {
-                            System.Diagnostics.Debug.WriteLine("Failed to set DPI awareness to PerMonitor");
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error setting DPI awareness: {ex.Message}");
-            }
-        }
 
         private async Task InitializeApplicationAsync()
         {
