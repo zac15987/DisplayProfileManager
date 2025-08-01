@@ -544,6 +544,34 @@ namespace DisplayProfileManager.UI.Windows
             UpdateMaximizeRestoreButton();
             // Initialize title bar margin state
             UpdateTitleBarMargin();
+            
+            // Load the app icon
+            LoadAppIcon();
+        }
+        
+        private void LoadAppIcon()
+        {
+            try
+            {
+                var icon = Properties.Resources.AppIcon;
+                if (icon != null)
+                {
+                    // Convert System.Drawing.Icon to WPF BitmapSource
+                    var bitmap = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(
+                        icon.Handle,
+                        Int32Rect.Empty,
+                        BitmapSizeOptions.FromEmptyOptions());
+                    
+                    AppIconImage.Source = bitmap;
+                    
+                    // Also set the window icon
+                    this.Icon = bitmap;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to load app icon: {ex.Message}");
+            }
         }
 
 
