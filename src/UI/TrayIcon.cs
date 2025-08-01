@@ -55,30 +55,21 @@ namespace DisplayProfileManager.UI
         {
             try
             {
-                using (var bitmap = new Bitmap(16, 16))
-                using (var graphics = Graphics.FromImage(bitmap))
+                // Try to load from Resources
+                var icon = Properties.Resources.AppIcon;
+                if (icon != null)
                 {
-                    graphics.Clear(Color.Transparent);
-                    graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-
-                    using (var brush = new SolidBrush(Color.FromArgb(0, 120, 215)))
-                    {
-                        graphics.FillRectangle(brush, 2, 2, 12, 8);
-                    }
-
-                    using (var pen = new Pen(Color.FromArgb(64, 64, 64), 1))
-                    {
-                        graphics.DrawRectangle(pen, 2, 2, 12, 8);
-                        graphics.DrawLine(pen, 6, 10, 10, 10);
-                        graphics.DrawLine(pen, 7, 11, 9, 11);
-                        graphics.DrawLine(pen, 8, 12, 8, 13);
-                    }
-
-                    return Icon.FromHandle(bitmap.GetHicon());
+                    return icon;
+                }
+                else
+                {
+                    // Fallback to a default icon if not found
+                    return SystemIcons.Application;
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"Failed to load icon from resources: {ex.Message}");
                 return SystemIcons.Application;
             }
         }
