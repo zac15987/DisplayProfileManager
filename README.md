@@ -20,7 +20,21 @@ A lightweight Windows desktop application for managing display profiles with qui
 
 ## 📸 Screenshots
 
-*Screenshots coming soon - Main window, system tray menu, profile editor, and settings*
+### Main Window
+![Main Window](docs/screenshots/main-screen.png)
+*Manage all your display profiles in one place*
+
+### Profile Editor
+![Profile Editor](docs/screenshots/edit-screen.png)
+*Configure resolution, refresh rate, and DPI settings for each monitor*
+
+### System Tray Menu
+![System Tray](docs/screenshots/tray.png)
+*Quick access to switch profiles directly from the system tray*
+
+### Dark Theme
+![Dark Theme](docs/screenshots/dark-theme.png)
+*Modern dark theme for comfortable viewing*
 
 ## 📋 Requirements
 
