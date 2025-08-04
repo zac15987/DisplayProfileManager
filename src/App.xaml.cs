@@ -24,6 +24,8 @@ namespace DisplayProfileManager
         private Mutex _instanceMutex;
         private EventWaitHandle _showWindowEvent;
         private CancellationTokenSource _cancellationTokenSource;
+        private GlobalHotkeyHelper _globalHotkeyHelper;
+        private int _printScreenHotkeyId = -1;
 
 
         [DllImport("user32.dll")]
@@ -283,6 +285,9 @@ namespace DisplayProfileManager
             
             // Initialize theme system
             ThemeHelper.InitializeTheme();
+            
+            // Initialize global hotkeys
+            InitializeGlobalHotkeys();
         }
 
         private void SetupTrayIcon()
@@ -356,6 +361,79 @@ namespace DisplayProfileManager
             Shutdown();
         }
 
+        private void InitializeGlobalHotkeys()
+        {
+            try
+            {
+                _globalHotkeyHelper = new GlobalHotkeyHelper();
+                _printScreenHotkeyId = _globalHotkeyHelper.RegisterPrintScreenHotkey(LaunchSnippingTool);
+                
+                if (_printScreenHotkeyId < 0)
+                {
+                    System.Diagnostics.Debug.WriteLine("Failed to register Print Screen hotkey");
+                    _trayIcon?.ShowNotification("Display Profile Manager", 
+                        "Failed to register Print Screen key. It may be in use by another application.", 
+                        System.Windows.Forms.ToolTipIcon.Warning);
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("Successfully registered Print Screen hotkey");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error initializing global hotkeys: {ex.Message}");
+            }
+        }
+
+        private void LaunchSnippingTool()
+        {
+            System.Diagnostics.Debug.WriteLine("LaunchSnippingTool callback triggered!");
+            
+            try
+            {
+                // Show notification that hotkey was received
+                _trayIcon?.ShowNotification("Display Profile Manager", 
+                    "Print Screen captured - launching Snipping Tool...", 
+                    System.Windows.Forms.ToolTipIcon.Info, 1000);
+                
+                // Try modern Snip & Sketch first
+                System.Diagnostics.Debug.WriteLine("Attempting to launch modern Snip & Sketch");
+                var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "ms-screenclip:",
+                    UseShellExecute = true
+                });
+                
+                if (process == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("Modern Snip & Sketch failed, trying legacy Snipping Tool");
+                    // Fallback to legacy Snipping Tool
+                    System.Diagnostics.Process.Start("SnippingTool.exe");
+                }
+                
+                System.Diagnostics.Debug.WriteLine("Launched Snipping Tool successfully");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error launching Snipping Tool: {ex.Message}");
+                
+                // Try alternative method
+                try
+                {
+                    System.Diagnostics.Debug.WriteLine("Trying alternative launch method");
+                    System.Diagnostics.Process.Start("SnippingTool.exe");
+                }
+                catch (Exception ex2)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Alternative method also failed: {ex2.Message}");
+                    _trayIcon?.ShowNotification("Display Profile Manager", 
+                        "Failed to launch Snipping Tool. Please ensure it's installed on your system.", 
+                        System.Windows.Forms.ToolTipIcon.Error);
+                }
+            }
+        }
+
         protected override void OnExit(ExitEventArgs e)
         {
             try
@@ -369,6 +447,16 @@ namespace DisplayProfileManager
                 _instanceMutex?.Dispose();
                 
                 _trayIcon?.Dispose();
+                
+                // Cleanup global hotkeys
+                if (_globalHotkeyHelper != null)
+                {
+                    if (_printScreenHotkeyId >= 0)
+                    {
+                        _globalHotkeyHelper.UnregisterHotkey(_printScreenHotkeyId);
+                    }
+                    _globalHotkeyHelper.Dispose();
+                }
                 
                 // Cleanup theme system
                 ThemeHelper.Cleanup();
