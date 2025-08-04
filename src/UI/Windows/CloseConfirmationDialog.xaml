@@ -1,0 +1,213 @@
+﻿<Window x:Class="DisplayProfileManager.UI.Windows.CloseConfirmationDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:DisplayProfileManager.UI.Windows"
+        xmlns:converters="clr-namespace:DisplayProfileManager.UI.Converters"
+        mc:Ignorable="d"
+        Title="Close Application" Height="360" Width="450"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        WindowStyle="SingleBorderWindow">
+    
+    <WindowChrome.WindowChrome>
+        <WindowChrome 
+            CaptionHeight="32"
+            ResizeBorderThickness="0"
+            CornerRadius="0"
+            GlassFrameThickness="0,32,0,0"
+            UseAeroCaptionButtons="True" />
+    </WindowChrome.WindowChrome>
+    
+    <Window.Resources>
+        <Style x:Key="ModernButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource ButtonBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ButtonForegroundBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                CornerRadius="4" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource ButtonHoverBackgroundBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource ButtonPressedBackgroundBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource ModernButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource SecondaryButtonBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryButtonForegroundBrush}"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource SecondaryButtonHoverBackgroundBrush}"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource SecondaryButtonPressedBackgroundBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="ModernTextBlockStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+        </Style>
+
+        <Style x:Key="HeaderTextBlockStyle" TargetType="TextBlock" BasedOn="{StaticResource ModernTextBlockStyle}">
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+        </Style>
+
+        <Style x:Key="ModernRadioButtonStyle" TargetType="RadioButton">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+            <Setter Property="Padding" Value="8,4"/>
+        </Style>
+
+        <Style x:Key="ModernCheckBoxStyle" TargetType="CheckBox">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+            <Setter Property="Padding" Value="8,4"/>
+        </Style>
+
+        <Style x:Key="WindowCloseButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Width" Value="46"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource CloseButtonHoverBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource ButtonForegroundBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource CloseButtonHoverBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource ButtonForegroundBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid Background="{DynamicResource WindowBackgroundBrush}">
+        <Grid.RowDefinitions>
+            <!-- Title bar area (32px) -->
+            <RowDefinition Height="32"/>
+            <!-- Main content area -->
+            <RowDefinition Height="*"/>
+            <!-- Footer area -->
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Title Bar Area -->
+        <Grid Grid.Row="0" Background="{DynamicResource TitleBarBackgroundBrush}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            
+            <!-- Dialog title -->
+            <TextBlock Grid.Column="0" Text="Close Application" 
+                       VerticalAlignment="Center" 
+                       Margin="12,0,0,0"
+                       FontFamily="Segoe UI" 
+                       FontSize="12" 
+                       Foreground="{DynamicResource TitleBarTextBrush}"/>
+            
+            <!-- Close Button -->
+            <Button Grid.Column="1" Name="TitleBarCloseButton" 
+                    Content="&#xE8BB;" 
+                    Style="{StaticResource WindowCloseButtonStyle}"
+                    Click="TitleBarCloseButton_Click"
+                    WindowChrome.IsHitTestVisibleInChrome="True"
+                    ToolTip="Close"/>
+        </Grid>
+
+        <!-- Content -->
+        <Grid Grid.Row="1" Margin="24">
+                <StackPanel>
+                    <TextBlock Text="What would you like to do when closing the application?" 
+                               Style="{StaticResource ModernTextBlockStyle}" 
+                               Margin="0,0,0,16"/>
+                    
+                    <RadioButton Name="MinimizeToTrayRadioButton" 
+                                 Content="Minimize to system tray" 
+                                 Style="{StaticResource ModernRadioButtonStyle}"
+                                 IsChecked="True" 
+                                 Margin="0,0,0,8"/>
+                    
+                    <TextBlock Text="The application will continue running in the background and can be accessed from the system tray." 
+                               Style="{StaticResource ModernTextBlockStyle}" 
+                               FontSize="12" Foreground="{DynamicResource TertiaryTextBrush}" 
+                               Margin="24,0,0,16"/>
+                    
+                    <RadioButton Name="CloseApplicationRadioButton" 
+                                 Content="Close the application completely" 
+                                 Style="{StaticResource ModernRadioButtonStyle}"
+                                 Margin="0,0,0,8"/>
+                    
+                    <TextBlock Text="The application will be completely closed and stopped." 
+                               Style="{StaticResource ModernTextBlockStyle}" 
+                               FontSize="12" Foreground="{DynamicResource TertiaryTextBrush}" 
+                               Margin="24,0,0,24"/>
+                    
+                    <CheckBox Name="RememberChoiceCheckBox" 
+                              Content="Remember my choice and don't ask again" 
+                              Style="{StaticResource ModernCheckBoxStyle}"/>
+                </StackPanel>
+            </Grid>
+
+        <!-- Footer with buttons -->
+        <Border Grid.Row="2" Background="{DynamicResource ContentBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="24,16">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Button Name="CancelButton" Content="Cancel" 
+                                Style="{StaticResource SecondaryButtonStyle}" 
+                                Width="80" Margin="0,0,8,0" 
+                                Click="CancelButton_Click"
+                                WindowChrome.IsHitTestVisibleInChrome="True"/>
+                        <Button Name="OKButton" Content="OK" 
+                                Style="{StaticResource ModernButtonStyle}" 
+                                Width="80" Click="OKButton_Click"
+                                WindowChrome.IsHitTestVisibleInChrome="True"/>
+                    </StackPanel>
+                </Grid>
+        </Border>
+    </Grid>
+</Window>

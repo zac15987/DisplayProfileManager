@@ -4,76 +4,127 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Display Profile Manager is a Windows desktop application that allows users to manage display profiles (resolution and DPI configurations) and switch between them via a system tray icon. Built with C# (.NET Framework 4.8) and WPF.
+Display Profile Manager is a Windows desktop application for managing display profiles (resolution, refresh rate, DPI) with system tray control. Built with C# (.NET Framework 4.8) and WPF.
 
 ## Build and Run Commands
 
+### Command Line
 ```bash
-# Build debug version
+# Build
 cmd.exe /c "msbuild DisplayProfileManager.sln /p:Configuration=Debug"
-
-# Build release version
 cmd.exe /c "msbuild DisplayProfileManager.sln /p:Configuration=Release"
 
-# Run the application
-./bin/Debug/DisplayProfileManager.exe  # Debug
-./bin/Release/DisplayProfileManager.exe # Release
+# Clean and rebuild
+cmd.exe /c "msbuild DisplayProfileManager.sln /t:Clean /p:Configuration=Debug"
+cmd.exe /c "msbuild DisplayProfileManager.sln /t:Rebuild /p:Configuration=Debug"
+
+# Run
+cmd.exe /c "start bin\Debug\DisplayProfileManager.exe"
+cmd.exe /c "start bin\Release\DisplayProfileManager.exe"
 ```
 
 ## Architecture
 
-### Core Design Patterns
-
-1. **Singleton Pattern**: ProfileManager and SettingsManager use singleton pattern for global state management
-2. **Async/Await**: All file I/O operations use async/await pattern
-3. **Event-Driven**: System tray icon communicates with main app via events
-4. **P/Invoke**: DisplayHelper and DpiHelper wrap Windows native APIs
+### Core Patterns
+- **Singletons**: ProfileManager and SettingsManager for global state (thread-safe double-checked locking)
+- **Async/Await**: All file I/O operations with proper exception handling
+- **Event-Driven**: System tray ↔ main app communication via .NET events
+- **P/Invoke**: Windows display/DPI APIs via Helper classes (ChangeDisplaySettingsEx, SystemParametersInfo)
+- **MVVM**: ViewModels for complex UI state management
+- **Error Handling**: Try-catch with `Debug.WriteLine()` logging and graceful degradation
 
 ### Key Components
-
-- **App.xaml.cs**: Application entry point that manages:
-  - System tray icon lifecycle
-  - Reading default display profile on startup
-  - Window management (show/hide main window)
-
-- **TrayIcon.cs**: System tray implementation with context menu for quick profile switching
-
-- **ProfileManager.cs**: Singleton managing all profile operations:
-  - Profile CRUD operations
-  - JSON persistence to AppData folder
-  - Profile switching logic
-
-- **DisplayHelper.cs & DpiHelper.cs**: P/Invoke wrappers for Windows display APIs:
-  - Resolution changes via ChangeDisplaySettingsEx
-  - DPI scaling via SystemParametersInfo
+- **ProfileManager**: Thread-safe singleton for profile CRUD, individual `.dpm` file persistence to `%AppData%/DisplayProfileManager/Profiles/`, sequential resolution/refresh rate/DPI changes
+- **SettingsManager**: Thread-safe singleton for app settings, Windows startup integration
+- **DisplayHelper/DpiHelper**: P/Invoke wrappers for Windows APIs (ChangeDisplaySettingsEx, SystemParametersInfo, display enumeration)
+- **TrayIcon**: Dynamic context menu for profile switching, handles system tray lifecycle
+- **ProfileViewModel**: MVVM pattern for UI data binding and validation
+- **Custom Windows**: Native-style borderless windows with manual window chrome
 
 ### Data Flow
+1. Startup: Read current display settings → save as default profile
+2. Profiles: Individual `.dpm` files stored in `%AppData%/DisplayProfileManager/Profiles/` folder
+3. Settings: JSON stored in `%AppData%/DisplayProfileManager/settings.json`
+4. Profile switching: Sequential resolution → refresh rate → DPI changes
+5. Resolution dropdowns: Monitor-specific via `GetSupportedResolutionsOnly()`
+6. Refresh rate dropdowns: Auto-update via `GetAvailableRefreshRates()`
 
-1. On startup: App reads current display settings and saves as default profile
-2. Profile data stored as JSON in `%AppData%/DisplayProfileManager/profiles.json`
-3. Settings stored in `%AppData%/DisplayProfileManager/settings.json`
-4. Profile switching applies both resolution and DPI changes sequentially
+### Application Lifecycle
+- **DPI Awareness**: Per-monitor V2 via app.manifest for proper high-DPI display handling
+- **System Tray**: Runs minimized to tray, no taskbar presence when minimized
+- **Auto-startup**: Windows startup integration via registry (AutoStartHelper)
+- **Graceful Shutdown**: Proper resource disposal and settings persistence
+
+## Dependencies
+- **.NET Framework 4.8**: WPF support (Windows 7+ compatibility)
+- **Newtonsoft.Json 13.0.3**: Profile persistence and serialization (via packages.config)
+- **System.Windows.Forms**: System tray functionality and native dialogs
+- **Windows APIs**: P/Invoke for display configuration (user32.dll, gdi32.dll)
+
+### Package Management
+- Uses traditional `packages.config` approach (not PackageReference)
+- NuGet packages stored in `packages/` folder with explicit HintPath in .csproj
+- Restore packages before building: `nuget restore` or MSBuild auto-restore
+
+## Platform Requirements
+- **Windows**: Vista+ (manifest declares compatibility through Windows 10+)
+- **DPI Awareness**: Per-monitor V2 awareness configured in app.manifest
+- **Privileges**: Administrator required (`requireAdministrator` in app.manifest)
 
 ## Development Guidelines
 
-- Follow existing async/await patterns for all I/O operations
-- Use ProfileManager singleton for all profile-related operations
-- P/Invoke declarations should match existing patterns in DisplayHelper/DpiHelper
-- UI follows Windows 11 design style
-- All user-facing strings should be localizable (use Resources.resx)
+### Core Patterns
+- Use ProfileManager/SettingsManager singletons for state management
+- Follow async/await patterns for I/O operations
+- Subscribe to ProfileManager events for UI updates
+- Match existing P/Invoke patterns in Helper classes (return boolean success, use Debug.WriteLine for errors)
+- Use Resources.resx for localizable strings
 
-## Common Tasks
+### Error Handling Patterns
+- **Exception Handling**: Try-catch blocks with `System.Diagnostics.Debug.WriteLine()` for logging
+- **Graceful Degradation**: Return false/empty collections on failure, don't crash
+- **User Validation**: `MessageBox.Show()` for validation errors with input focus management
+- **Boolean Returns**: Most methods return success/failure indicators
 
-### Adding a new profile property
-1. Update Profile.cs model
-2. Update ProfileEditWindow.xaml UI
-3. Update display change logic in ProfileManager.ApplyProfile()
+### UI Patterns
+- **Modern Styles**: Consistent button/control styling across windows
+- **MVVM**: ViewModels for complex state, direct code-behind for simple interactions
+- **Custom Chrome**: Borderless windows with manual title bar and window controls
+- **Validation**: Comprehensive input validation before save operations
 
-### Modifying system tray menu
-1. Edit TrayIcon.cs BuildContextMenu() method
-2. Add event handlers for new menu items
+### Display API Usage
 
-### Debugging display changes
-- Check Windows Event Log for display driver errors
-- Use DisplayHelper.GetDisplayDevices() to enumerate available displays
-- Verify DEVMODE structure matches Windows SDK documentation
+#### Windows APIs
+- **ChangeDisplaySettings/ChangeDisplaySettingsEx**: Apply resolution and refresh rate changes per monitor
+- **EnumDisplaySettings/EnumDisplaySettingsEx**: Enumerate supported display modes
+- **QueryDisplayConfig/GetDisplayConfigBufferSizes**: Modern display configuration (being phased out)
+- **SystemParametersInfo**: Apply DPI scaling changes system-wide
+- **WMI Win32_DesktopMonitor**: Human-readable monitor names (recent refactor)
+- **Registry HKLM\SYSTEM\CurrentControlSet\Enum\DISPLAY**: Hardware ID to monitor name mapping
+
+#### Key Methods
+- `GetSupportedResolutionsOnly()`: Returns unique resolutions without refresh rates for UI dropdowns
+- `GetAvailableResolutions()`: Full enumeration including refresh rates (for profile data)
+- `GetAvailableRefreshRates(deviceName, width, height)`: Refresh rates for specific resolution
+- `GetMonitorFriendlyName(deviceName)`: Maps device to human-readable name via WMI + Registry
+- `ApplyDisplaySettings(profile)`: Sequential application (resolution → refresh rate → DPI)
+
+#### Profile Switching Sequence
+1. Apply resolution and refresh rate per monitor using `ChangeDisplaySettingsEx`
+2. Apply DPI scaling system-wide using `SystemParametersInfo` with relative adjustment
+3. Broadcast `WM_SETTINGCHANGE` for immediate UI updates
+4. Handle failures gracefully with boolean returns
+
+#### Monitor Detection Evolution
+- **Current**: WMI + Registry correlation - broader compatibility but complex mapping logic
+- **Fallback**: Raw device names when correlation fails
+
+#### DPI Implementation
+- Uses relative adjustment from current DPI to target DPI
+- Sample implementation in `docs/sample-code/Change_DPI_Sample_Code.md`
+
+### Development Workflow
+- **No Testing Framework**: Project currently has no unit tests or test projects
+- **Debugging**: Use Debug.WriteLine() output for troubleshooting
+- **File Structure**: Core business logic in `/src/Core/`, UI in `/src/UI/`, P/Invoke helpers in `/src/Helpers/`
+- **Resource Management**: Use `using` statements and IDisposable pattern for proper cleanup

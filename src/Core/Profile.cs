@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 
-namespace DisplayProfileManager
+namespace DisplayProfileManager.Core
 {
     public class Profile
     {
@@ -70,6 +70,9 @@ namespace DisplayProfileManager
         [JsonProperty("deviceString")]
         public string DeviceString { get; set; } = string.Empty;
 
+        [JsonProperty("readableDeviceName")]
+        public string ReadableDeviceName { get; set; } = string.Empty;
+
         [JsonProperty("width")]
         public int Width { get; set; }
 
@@ -130,6 +133,9 @@ namespace DisplayProfileManager
 
         [JsonProperty("lastUpdated")]
         public DateTime LastUpdated { get; set; } = DateTime.Now;
+
+        [JsonProperty("currentProfileId")]
+        public string CurrentProfileId { get; set; }
 
         public ProfileCollection()
         {

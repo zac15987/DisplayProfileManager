@@ -7,11 +7,11 @@ using System.Windows;
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("DisplayProfileManager")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyTitle("Display Profile Manager")]
+[assembly: AssemblyDescription("A lightweight Windows desktop application for managing display profiles with quick switching from the system tray.")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("DisplayProfileManager")]
+[assembly: AssemblyCompany("zac15987")]
+[assembly: AssemblyProduct("Display Profile Manager")]
 [assembly: AssemblyCopyright("Copyright ©  2025")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
