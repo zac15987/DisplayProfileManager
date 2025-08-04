@@ -132,6 +132,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - [Newtonsoft.Json](https://www.newtonsoft.com/json) - JSON serialization
 - Windows Display Configuration APIs - Display management functionality
+- [windows-DPI-scaling-sample](https://github.com/lihas/windows-DPI-scaling-sample) - Provided the foundation for DPI scaling functionality. The original C++ implementation was translated to C# and forms the core of our DpiHelper.cs, enabling reliable system-wide DPI changes. Sample code documentation preserved in docs/sample-code/
 - The open-source community for inspiration and support
 
 ---
