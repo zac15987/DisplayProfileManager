@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace DisplayProfileManager
+namespace DisplayProfileManager.Helpers
 {
     public class DpiHelper
     {
@@ -85,14 +85,6 @@ namespace DisplayProfileManager
         {
             public DISPLAYCONFIG_DEVICE_INFO_HEADER header;
             public int scaleRel;
-        }
-
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-        public struct DISPLAYCONFIG_GET_MONITOR_INTERNAL_INFO
-        {
-            public DISPLAYCONFIG_DEVICE_INFO_HEADER header;
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
-            public string monitorUniqueName;
         }
 
         [StructLayout(LayoutKind.Sequential)]
@@ -382,28 +374,6 @@ namespace DisplayProfileManager
 
             int result = DisplayConfigSetDeviceInfo(ref setPacket.header);
             return result == 0;
-        }
-
-        public static string GetDisplayUniqueName(LUID adapterId, uint targetId)
-        {
-            var info = new DISPLAYCONFIG_GET_MONITOR_INTERNAL_INFO
-            {
-                header = new DISPLAYCONFIG_DEVICE_INFO_HEADER
-                {
-                    type = DISPLAYCONFIG_DEVICE_INFO_TYPE_CUSTOM.DISPLAYCONFIG_DEVICE_INFO_GET_MONITOR_UNIQUE_NAME,
-                    size = (uint)Marshal.SizeOf<DISPLAYCONFIG_GET_MONITOR_INTERNAL_INFO>(),
-                    adapterId = adapterId,
-                    id = targetId
-                }
-            };
-
-            int result = DisplayConfigGetDeviceInfo(ref info.header);
-            if (result == 0)
-            {
-                return info.monitorUniqueName;
-            }
-
-            return string.Empty;
         }
 
         #endregion

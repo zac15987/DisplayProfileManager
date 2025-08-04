@@ -2,13 +2,17 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using DisplayProfileManager.Helpers;
 
-namespace DisplayProfileManager
+namespace DisplayProfileManager.Core
 {
     public class AppSettings
     {
         [JsonProperty("startWithWindows")]
         public bool StartWithWindows { get; set; } = false;
+
+        [JsonProperty("startInSystemTray")]
+        public bool StartInSystemTray { get; set; } = false;
 
         [JsonProperty("startupProfileId")]
         public string StartupProfileId { get; set; } = string.Empty;
@@ -16,8 +20,12 @@ namespace DisplayProfileManager
         [JsonProperty("applyStartupProfile")]
         public bool ApplyStartupProfile { get; set; } = false;
 
-        [JsonProperty("minimizeToTray")]
-        public bool MinimizeToTray { get; set; } = true;
+
+        [JsonProperty("rememberCloseChoice")]
+        public bool RememberCloseChoice { get; set; } = false;
+
+        [JsonProperty("closeToTray")]
+        public bool CloseToTray { get; set; } = true;
 
         [JsonProperty("showNotifications")]
         public bool ShowNotifications { get; set; } = true;
@@ -36,6 +44,9 @@ namespace DisplayProfileManager
 
         [JsonProperty("firstRun")]
         public bool FirstRun { get; set; } = true;
+
+        [JsonProperty("currentProfileId")]
+        public string CurrentProfileId { get; set; } = string.Empty;
 
         [JsonProperty("lastUpdated")]
         public DateTime LastUpdated { get; set; } = DateTime.Now;
@@ -170,25 +181,95 @@ namespace DisplayProfileManager
 
         public async Task<bool> SetStartWithWindowsAsync(bool startWithWindows)
         {
-            _settings.StartWithWindows = startWithWindows;
-            
             try
             {
                 var autoStartHelper = new AutoStartHelper();
+                bool taskOperationSucceeded = false;
+                
                 if (startWithWindows)
                 {
-                    autoStartHelper.EnableAutoStart();
+                    taskOperationSucceeded = autoStartHelper.EnableAutoStart(_settings.StartInSystemTray);
+                    if (!taskOperationSucceeded)
+                    {
+                        System.Diagnostics.Debug.WriteLine("Failed to enable auto start task");
+                        return false;
+                    }
                 }
                 else
                 {
-                    autoStartHelper.DisableAutoStart();
+                    taskOperationSucceeded = autoStartHelper.DisableAutoStart();
+                    if (!taskOperationSucceeded)
+                    {
+                        System.Diagnostics.Debug.WriteLine("Failed to disable auto start task");
+                        return false;
+                    }
                 }
 
-                return await SaveSettingsAsync();
+                // Only update settings if task operation succeeded
+                _settings.StartWithWindows = startWithWindows;
+                
+                // If disabling StartWithWindows, also disable StartInSystemTray
+                if (!startWithWindows)
+                {
+                    _settings.StartInSystemTray = false;
+                }
+                
+                var settingsSaved = await SaveSettingsAsync();
+                
+                if (!settingsSaved)
+                {
+                    System.Diagnostics.Debug.WriteLine("Failed to save settings after task change");
+                    // Revert task change if settings save failed
+                    if (startWithWindows)
+                    {
+                        autoStartHelper.DisableAutoStart();
+                    }
+                    else
+                    {
+                        autoStartHelper.EnableAutoStart(_settings.StartInSystemTray);
+                    }
+                    return false;
+                }
+                
+                return true;
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error setting start with Windows: {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<bool> SetStartInSystemTrayAsync(bool startInSystemTray)
+        {
+            try
+            {
+                // StartInSystemTray can only be true if StartWithWindows is also true
+                if (startInSystemTray && !_settings.StartWithWindows)
+                {
+                    System.Diagnostics.Debug.WriteLine("Cannot enable StartInSystemTray without StartWithWindows");
+                    return false;
+                }
+
+                // Update the scheduled task with the new argument
+                if (_settings.StartWithWindows)
+                {
+                    var autoStartHelper = new AutoStartHelper();
+                    bool taskOperationSucceeded = autoStartHelper.EnableAutoStart(startInSystemTray);
+                    if (!taskOperationSucceeded)
+                    {
+                        System.Diagnostics.Debug.WriteLine("Failed to update auto start task with tray setting");
+                        return false;
+                    }
+                }
+
+                // Update settings
+                _settings.StartInSystemTray = startInSystemTray;
+                return await SaveSettingsAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error setting start in system tray: {ex.Message}");
                 return false;
             }
         }
@@ -212,9 +293,16 @@ namespace DisplayProfileManager
             return await SaveSettingsAsync();
         }
 
-        public async Task<bool> SetMinimizeToTrayAsync(bool minimizeToTray)
+
+        public async Task<bool> SetRememberCloseChoiceAsync(bool rememberChoice)
         {
-            _settings.MinimizeToTray = minimizeToTray;
+            _settings.RememberCloseChoice = rememberChoice;
+            return await SaveSettingsAsync();
+        }
+
+        public async Task<bool> SetCloseToTrayAsync(bool closeToTray)
+        {
+            _settings.CloseToTray = closeToTray;
             return await SaveSettingsAsync();
         }
 
@@ -259,6 +347,11 @@ namespace DisplayProfileManager
             return _settings.StartWithWindows;
         }
 
+        public bool ShouldStartInSystemTray()
+        {
+            return _settings.StartInSystemTray && _settings.StartWithWindows;
+        }
+
         public bool ShouldApplyStartupProfile()
         {
             return _settings.ApplyStartupProfile && !string.IsNullOrEmpty(_settings.StartupProfileId);
@@ -269,9 +362,15 @@ namespace DisplayProfileManager
             return _settings.StartupProfileId;
         }
 
-        public bool ShouldMinimizeToTray()
+
+        public bool ShouldRememberCloseChoice()
         {
-            return _settings.MinimizeToTray;
+            return _settings.RememberCloseChoice;
+        }
+
+        public bool ShouldCloseToTray()
+        {
+            return _settings.CloseToTray;
         }
 
         public bool ShouldShowNotifications()
@@ -297,6 +396,17 @@ namespace DisplayProfileManager
         public DateTime GetLastUpdated()
         {
             return _settings.LastUpdated;
+        }
+
+        public string GetCurrentProfileId()
+        {
+            return _settings.CurrentProfileId;
+        }
+
+        public async Task<bool> SetCurrentProfileIdAsync(string profileId)
+        {
+            _settings.CurrentProfileId = profileId;
+            return await SaveSettingsAsync();
         }
     }
 }
