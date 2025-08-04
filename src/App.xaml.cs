@@ -294,6 +294,7 @@ namespace DisplayProfileManager
         {
             _trayIcon = new TrayIcon();
             _trayIcon.ShowMainWindow += OnShowMainWindow;
+            _trayIcon.ShowSettingsWindow += OnShowSettingsWindow;
             _trayIcon.ExitApplication += OnExitApplication;
         }
 
@@ -324,6 +325,17 @@ namespace DisplayProfileManager
         private void OnShowMainWindow(object sender, EventArgs e)
         {
             ShowMainWindow();
+        }
+        
+        private void OnShowSettingsWindow(object sender, EventArgs e)
+        {
+            ShowMainWindow();
+            
+            // Open settings after showing main window
+            if (_mainWindow != null)
+            {
+                _mainWindow.OpenSettingsWindow();
+            }
         }
 
         private void ShowMainWindow()

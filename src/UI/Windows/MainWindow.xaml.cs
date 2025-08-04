@@ -342,6 +342,11 @@ namespace DisplayProfileManager.UI.Windows
 
         private void SettingsButton_Click(object sender, RoutedEventArgs e)
         {
+            OpenSettingsWindow();
+        }
+        
+        public void OpenSettingsWindow()
+        {
             var settingsWindow = new SettingsWindow();
             settingsWindow.Owner = this;
             settingsWindow.ShowDialog();

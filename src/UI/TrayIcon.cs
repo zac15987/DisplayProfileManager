@@ -17,6 +17,7 @@ namespace DisplayProfileManager.UI
         private bool _disposed = false;
 
         public event EventHandler ShowMainWindow;
+        public event EventHandler ShowSettingsWindow;
         public event EventHandler ExitApplication;
 
         public TrayIcon()
@@ -198,7 +199,7 @@ namespace DisplayProfileManager.UI
 
         private void OnSettingsClick(object sender, EventArgs e)
         {
-            ShowMainWindow?.Invoke(this, EventArgs.Empty);
+            ShowSettingsWindow?.Invoke(this, EventArgs.Empty);
         }
 
         private void OnAboutClick(object sender, EventArgs e)
