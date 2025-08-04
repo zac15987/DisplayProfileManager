@@ -392,11 +392,6 @@ namespace DisplayProfileManager
             
             try
             {
-                // Show notification that hotkey was received
-                _trayIcon?.ShowNotification("Display Profile Manager", 
-                    "Print Screen captured - launching Snipping Tool...", 
-                    System.Windows.Forms.ToolTipIcon.Info, 1000);
-                
                 // Try modern Snip & Sketch first
                 System.Diagnostics.Debug.WriteLine("Attempting to launch modern Snip & Sketch");
                 var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
