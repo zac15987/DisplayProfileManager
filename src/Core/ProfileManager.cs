@@ -258,6 +258,56 @@ namespace DisplayProfileManager.Core
                     }
                 }
 
+                // Apply audio settings after display settings
+                if (success && profile.AudioSettings != null)
+                {
+                    try
+                    {
+                        bool audioSuccess = true;
+                        
+                        // Apply playback device
+                        if (profile.AudioSettings.HasPlaybackDevice())
+                        {
+                            bool playbackSet = AudioHelper.SetDefaultPlaybackDevice(profile.AudioSettings.DefaultPlaybackDeviceId);
+                            if (!playbackSet)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Failed to set playback device: {profile.AudioSettings.PlaybackDeviceName}");
+                                audioSuccess = false;
+                            }
+                            else
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Successfully set playback device: {profile.AudioSettings.PlaybackDeviceName}");
+                            }
+                        }
+                        
+                        // Apply capture device
+                        if (profile.AudioSettings.HasCaptureDevice())
+                        {
+                            bool captureSet = AudioHelper.SetDefaultCaptureDevice(profile.AudioSettings.DefaultCaptureDeviceId);
+                            if (!captureSet)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Failed to set capture device: {profile.AudioSettings.CaptureDeviceName}");
+                                audioSuccess = false;
+                            }
+                            else
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Successfully set capture device: {profile.AudioSettings.CaptureDeviceName}");
+                            }
+                        }
+                        
+                        // Log audio settings result but don't fail the entire profile
+                        if (!audioSuccess)
+                        {
+                            System.Diagnostics.Debug.WriteLine("Some audio settings could not be applied");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error applying audio settings: {ex.Message}");
+                        // Don't fail the entire profile if audio settings fail
+                    }
+                }
+
                 if (success)
                 {
                     _currentProfileId = profile.Id;

@@ -11,16 +11,16 @@ Display Profile Manager is a Windows desktop application for managing display pr
 ### Command Line
 ```bash
 # Build
-cmd.exe /c "msbuild DisplayProfileManager.sln /p:Configuration=Debug"
-cmd.exe /c "msbuild DisplayProfileManager.sln /p:Configuration=Release"
+cmd.exe //c "msbuild DisplayProfileManager.sln /p:Configuration=Debug"
+cmd.exe //c "msbuild DisplayProfileManager.sln /p:Configuration=Release"
 
 # Clean and rebuild
-cmd.exe /c "msbuild DisplayProfileManager.sln /t:Clean /p:Configuration=Debug"
-cmd.exe /c "msbuild DisplayProfileManager.sln /t:Rebuild /p:Configuration=Debug"
+cmd.exe //c "msbuild DisplayProfileManager.sln /t:Clean /p:Configuration=Debug"
+cmd.exe //c "msbuild DisplayProfileManager.sln /t:Rebuild /p:Configuration=Debug"
 
 # Run
-cmd.exe /c "start bin\Debug\DisplayProfileManager.exe"
-cmd.exe /c "start bin\Release\DisplayProfileManager.exe"
+cmd.exe //c "start bin\Debug\DisplayProfileManager.exe"
+cmd.exe //c "start bin\Release\DisplayProfileManager.exe"
 ```
 
 ## Architecture

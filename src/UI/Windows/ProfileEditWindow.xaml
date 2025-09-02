@@ -245,6 +245,88 @@
                         </StackPanel>
                     </ScrollViewer>
                 </Border>
+
+                <!-- Audio Settings Section -->
+                <Grid Margin="0,24,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0" Text="Audio Settings" 
+                               Style="{StaticResource LabelTextBlockStyle}" 
+                               FontSize="16" VerticalAlignment="Center"/>
+
+                    <Button Grid.Column="1" Name="DetectAudioButton" Content="Detect Current Audio" 
+                            Style="{StaticResource SecondaryButtonStyle}" 
+                            Click="DetectAudioButton_Click"/>
+                </Grid>
+
+                <Border Background="{DynamicResource ContentBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="16">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="16"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Output Device (Playback) -->
+                        <Grid Grid.Row="0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0" Text="Output Device:" 
+                                       Style="{StaticResource LabelTextBlockStyle}" 
+                                       VerticalAlignment="Center"/>
+
+                            <ComboBox Grid.Column="1" Name="OutputDeviceComboBox" 
+                                      FontSize="14" 
+                                      Height="32"
+                                      Background="{DynamicResource TextBoxBackgroundBrush}"
+                                      BorderBrush="{DynamicResource TextBoxBorderBrush}"
+                                      Foreground="{DynamicResource PrimaryTextBrush}"
+                                      DisplayMemberPath="SystemName"
+                                      SelectedValuePath="Id"
+                                      SelectionChanged="OutputDeviceComboBox_SelectionChanged">
+                                <ComboBox.ItemContainerStyle>
+                                    <Style TargetType="ComboBoxItem">
+                                        <Setter Property="Padding" Value="8,4"/>
+                                    </Style>
+                                </ComboBox.ItemContainerStyle>
+                            </ComboBox>
+                        </Grid>
+
+                        <!-- Input Device (Capture) -->
+                        <Grid Grid.Row="2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0" Text="Input Device:" 
+                                       Style="{StaticResource LabelTextBlockStyle}" 
+                                       VerticalAlignment="Center"/>
+
+                            <ComboBox Grid.Column="1" Name="InputDeviceComboBox" 
+                                      FontSize="14" 
+                                      Height="32"
+                                      Background="{DynamicResource TextBoxBackgroundBrush}"
+                                      BorderBrush="{DynamicResource TextBoxBorderBrush}"
+                                      Foreground="{DynamicResource PrimaryTextBrush}"
+                                      DisplayMemberPath="SystemName"
+                                      SelectedValuePath="Id"
+                                      SelectionChanged="InputDeviceComboBox_SelectionChanged">
+                                <ComboBox.ItemContainerStyle>
+                                    <Style TargetType="ComboBoxItem">
+                                        <Setter Property="Padding" Value="8,4"/>
+                                    </Style>
+                                </ComboBox.ItemContainerStyle>
+                            </ComboBox>
+                        </Grid>
+                    </Grid>
+                </Border>
             </StackPanel>
         </ScrollViewer>
 

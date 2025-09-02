@@ -18,6 +18,8 @@ namespace DisplayProfileManager.UI.Windows
         private Profile _profile;
         private bool _isEditMode;
         private List<DisplaySettingControl> _displayControls;
+        private List<AudioHelper.AudioDeviceInfo> _playbackDevices;
+        private List<AudioHelper.AudioDeviceInfo> _captureDevices;
 
         public ProfileEditWindow(Profile profileToEdit = null)
         {
@@ -29,6 +31,7 @@ namespace DisplayProfileManager.UI.Windows
             _profile = profileToEdit ?? new Profile();
 
             InitializeWindow();
+            LoadAudioDevices();
         }
 
         private void InitializeWindow()
@@ -58,6 +61,19 @@ namespace DisplayProfileManager.UI.Windows
                 foreach (var setting in _profile.DisplaySettings)
                 {
                     AddDisplaySettingControl(setting);
+                }
+            }
+
+            // Populate audio settings
+            if (_profile.AudioSettings != null)
+            {
+                if (!string.IsNullOrEmpty(_profile.AudioSettings.DefaultPlaybackDeviceId))
+                {
+                    OutputDeviceComboBox.SelectedValue = _profile.AudioSettings.DefaultPlaybackDeviceId;
+                }
+                if (!string.IsNullOrEmpty(_profile.AudioSettings.DefaultCaptureDeviceId))
+                {
+                    InputDeviceComboBox.SelectedValue = _profile.AudioSettings.DefaultCaptureDeviceId;
                 }
             }
         }
@@ -168,6 +184,26 @@ namespace DisplayProfileManager.UI.Windows
                     {
                         _profile.DisplaySettings.Add(setting);
                     }
+                }
+
+                // Save audio settings
+                if (_profile.AudioSettings == null)
+                {
+                    _profile.AudioSettings = new AudioSetting();
+                }
+
+                var selectedOutputDevice = OutputDeviceComboBox.SelectedItem as AudioHelper.AudioDeviceInfo;
+                if (selectedOutputDevice != null)
+                {
+                    _profile.AudioSettings.DefaultPlaybackDeviceId = selectedOutputDevice.Id;
+                    _profile.AudioSettings.PlaybackDeviceName = selectedOutputDevice.SystemName;
+                }
+
+                var selectedInputDevice = InputDeviceComboBox.SelectedItem as AudioHelper.AudioDeviceInfo;
+                if (selectedInputDevice != null)
+                {
+                    _profile.AudioSettings.DefaultCaptureDeviceId = selectedInputDevice.Id;
+                    _profile.AudioSettings.CaptureDeviceName = selectedInputDevice.SystemName;
                 }
 
                 if (DefaultProfileCheckBox.IsChecked == true && !_profile.IsDefault)
@@ -318,6 +354,121 @@ namespace DisplayProfileManager.UI.Windows
             if (windowChrome != null)
             {
                 windowChrome.CaptionHeight = height;
+            }
+        }
+
+        private void LoadAudioDevices()
+        {
+            try
+            {
+                // Load playback devices
+                _playbackDevices = AudioHelper.GetPlaybackDevices();
+                OutputDeviceComboBox.Items.Clear();
+                
+                // Add empty option
+                OutputDeviceComboBox.Items.Add(new AudioHelper.AudioDeviceInfo 
+                { 
+                    Id = "", 
+                    SystemName = "(None)", 
+                    Name = "(None)" 
+                });
+                
+                foreach (var device in _playbackDevices)
+                {
+                    OutputDeviceComboBox.Items.Add(device);
+                }
+                
+                // Load capture devices
+                _captureDevices = AudioHelper.GetCaptureDevices();
+                InputDeviceComboBox.Items.Clear();
+                
+                // Add empty option
+                InputDeviceComboBox.Items.Add(new AudioHelper.AudioDeviceInfo 
+                { 
+                    Id = "", 
+                    SystemName = "(None)", 
+                    Name = "(None)" 
+                });
+                
+                foreach (var device in _captureDevices)
+                {
+                    InputDeviceComboBox.Items.Add(device);
+                }
+                
+                // Select current defaults if no profile is loaded
+                if (!_isEditMode || _profile.AudioSettings == null || 
+                    string.IsNullOrEmpty(_profile.AudioSettings.DefaultPlaybackDeviceId))
+                {
+                    var defaultPlayback = AudioHelper.GetDefaultPlaybackDevice();
+                    if (defaultPlayback != null)
+                    {
+                        OutputDeviceComboBox.SelectedValue = defaultPlayback.Id;
+                    }
+                }
+                
+                if (!_isEditMode || _profile.AudioSettings == null || 
+                    string.IsNullOrEmpty(_profile.AudioSettings.DefaultCaptureDeviceId))
+                {
+                    var defaultCapture = AudioHelper.GetDefaultCaptureDevice();
+                    if (defaultCapture != null)
+                    {
+                        InputDeviceComboBox.SelectedValue = defaultCapture.Id;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error loading audio devices: {ex.Message}");
+                StatusTextBlock.Text = "Could not load audio devices";
+            }
+        }
+
+        private void DetectAudioButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                StatusTextBlock.Text = "Detecting current audio devices...";
+                
+                var defaultPlayback = AudioHelper.GetDefaultPlaybackDevice();
+                if (defaultPlayback != null)
+                {
+                    OutputDeviceComboBox.SelectedValue = defaultPlayback.Id;
+                }
+                
+                var defaultCapture = AudioHelper.GetDefaultCaptureDevice();
+                if (defaultCapture != null)
+                {
+                    InputDeviceComboBox.SelectedValue = defaultCapture.Id;
+                }
+                
+                StatusTextBlock.Text = "Current audio devices detected";
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error detecting audio devices: {ex.Message}");
+                StatusTextBlock.Text = "Error detecting audio devices";
+            }
+        }
+
+        private void OutputDeviceComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (OutputDeviceComboBox.SelectedItem is AudioHelper.AudioDeviceInfo device)
+            {
+                if (!string.IsNullOrEmpty(device.Id))
+                {
+                    StatusTextBlock.Text = $"Output device: {device.SystemName}";
+                }
+            }
+        }
+
+        private void InputDeviceComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (InputDeviceComboBox.SelectedItem is AudioHelper.AudioDeviceInfo device)
+            {
+                if (!string.IsNullOrEmpty(device.Id))
+                {
+                    StatusTextBlock.Text = $"Input device: {device.SystemName}";
+                }
             }
         }
 
