@@ -282,17 +282,22 @@
                                        VerticalAlignment="Center"/>
 
                             <ComboBox Grid.Column="1" Name="OutputDeviceComboBox" 
-                                      FontSize="14" 
+                                      Style="{StaticResource ModernComboBoxStyle}"
                                       Height="32"
-                                      Background="{DynamicResource TextBoxBackgroundBrush}"
-                                      BorderBrush="{DynamicResource TextBoxBorderBrush}"
-                                      Foreground="{DynamicResource PrimaryTextBrush}"
-                                      DisplayMemberPath="SystemName"
-                                      SelectedValuePath="Id"
                                       SelectionChanged="OutputDeviceComboBox_SelectionChanged">
                                 <ComboBox.ItemContainerStyle>
                                     <Style TargetType="ComboBoxItem">
                                         <Setter Property="Padding" Value="8,4"/>
+                                        <Setter Property="Background" Value="{DynamicResource ComboBoxItemBackgroundBrush}"/>
+                                        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="{DynamicResource ComboBoxItemHoverBackgroundBrush}"/>
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter Property="Background" Value="{DynamicResource ComboBoxItemSelectedBackgroundBrush}"/>
+                                            </Trigger>
+                                        </Style.Triggers>
                                     </Style>
                                 </ComboBox.ItemContainerStyle>
                             </ComboBox>
@@ -310,17 +315,22 @@
                                        VerticalAlignment="Center"/>
 
                             <ComboBox Grid.Column="1" Name="InputDeviceComboBox" 
-                                      FontSize="14" 
+                                      Style="{StaticResource ModernComboBoxStyle}"
                                       Height="32"
-                                      Background="{DynamicResource TextBoxBackgroundBrush}"
-                                      BorderBrush="{DynamicResource TextBoxBorderBrush}"
-                                      Foreground="{DynamicResource PrimaryTextBrush}"
-                                      DisplayMemberPath="SystemName"
-                                      SelectedValuePath="Id"
                                       SelectionChanged="InputDeviceComboBox_SelectionChanged">
                                 <ComboBox.ItemContainerStyle>
                                     <Style TargetType="ComboBoxItem">
                                         <Setter Property="Padding" Value="8,4"/>
+                                        <Setter Property="Background" Value="{DynamicResource ComboBoxItemBackgroundBrush}"/>
+                                        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="{DynamicResource ComboBoxItemHoverBackgroundBrush}"/>
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter Property="Background" Value="{DynamicResource ComboBoxItemSelectedBackgroundBrush}"/>
+                                            </Trigger>
+                                        </Style.Triggers>
                                     </Style>
                                 </ComboBox.ItemContainerStyle>
                             </ComboBox>

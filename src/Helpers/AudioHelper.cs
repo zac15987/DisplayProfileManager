@@ -34,6 +34,11 @@ namespace DisplayProfileManager.Helpers
             public string SystemName { get; set; }
             public bool IsActive { get; set; }
             public DeviceType Type { get; set; }
+
+            public override string ToString()
+            {
+                return SystemName ?? Name ?? "Unknown Device";
+            }
         }
 
         public enum DeviceType
