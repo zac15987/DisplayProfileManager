@@ -202,6 +202,48 @@ namespace DisplayProfileManager.UI.Windows
                 }
             }
 
+            // Audio Settings Section
+            if (profile.AudioSettings != null && (profile.AudioSettings.HasPlaybackDevice() || profile.AudioSettings.HasCaptureDevice()))
+            {
+                var audioHeader = new TextBlock
+                {
+                    Text = "Audio Settings:",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontWeight = FontWeights.Medium,
+                    Margin = new Thickness(0, 16, 0, 8)
+                };
+                ProfileDetailsPanel.Children.Add(audioHeader);
+
+                var audioPanel = new StackPanel { Margin = new Thickness(0, 0, 0, 12) };
+
+                if (profile.AudioSettings.HasPlaybackDevice())
+                {
+                    var playbackDevice = new TextBlock
+                    {
+                        Text = $"Output: {profile.AudioSettings.PlaybackDeviceName}",
+                        Style = (Style)FindResource("ModernTextBlockStyle"),
+                        FontSize = 12,
+                        Foreground = (SolidColorBrush)FindResource("SecondaryTextBrush"),
+                        Margin = new Thickness(0, 0, 0, 2)
+                    };
+                    audioPanel.Children.Add(playbackDevice);
+                }
+
+                if (profile.AudioSettings.HasCaptureDevice())
+                {
+                    var captureDevice = new TextBlock
+                    {
+                        Text = $"Input: {profile.AudioSettings.CaptureDeviceName}",
+                        Style = (Style)FindResource("ModernTextBlockStyle"),
+                        FontSize = 12,
+                        Foreground = (SolidColorBrush)FindResource("SecondaryTextBrush")
+                    };
+                    audioPanel.Children.Add(captureDevice);
+                }
+
+                ProfileDetailsPanel.Children.Add(audioPanel);
+            }
+
             var metaInfo = new TextBlock
             {
                 Text = $"Created: {profile.CreatedDate:MMM d, yyyy 'at' h:mm tt}\nLast Modified: {profile.LastModifiedDate:MMM d, yyyy 'at' h:mm tt}",
