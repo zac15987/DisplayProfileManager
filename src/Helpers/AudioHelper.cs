@@ -181,6 +181,15 @@ namespace DisplayProfileManager.Helpers
 
         private static CoreAudioController _audioController;
         private static readonly object _lock = new object();
+        
+        // Cross-device correlation cache for Bluetooth devices
+        private static readonly Dictionary<string, string> _bluetoothDeviceNameCache = new Dictionary<string, string>();
+        private static readonly Dictionary<string, DateTime> _deviceDiscoveryTime = new Dictionary<string, DateTime>();
+        
+        // Device-specific caching to prevent cross-device contamination
+        private static readonly Dictionary<string, string> _deviceSpecificNameCache = new Dictionary<string, string>();
+        private static readonly Dictionary<string, DateTime> _deviceSpecificDiscoveryTime = new Dictionary<string, DateTime>();
+        private static readonly object _cachelock = new object();
 
         static AudioHelper()
         {
@@ -454,22 +463,39 @@ namespace DisplayProfileManager.Helpers
             {
                 Debug.WriteLine($"Getting Windows device name for: {device?.Name ?? "null"} (FullName: {device?.FullName ?? "null"}, ID: {device?.Id.ToString() ?? "null"})");
 
+                var deviceId = device.Id.ToString();
+                var isUnknownDevice = device.Name?.Equals("Unknown", StringComparison.OrdinalIgnoreCase) == true ||
+                                      device.FullName?.Equals("Unknown", StringComparison.OrdinalIgnoreCase) == true;
+
+                // Priority 0: Check cross-device correlation cache first (for Bluetooth input/output correlation)
+                if (isUnknownDevice)
+                {
+                    var correlatedName = GetBluetoothCorrelatedDeviceName(device);
+                    if (!string.IsNullOrEmpty(correlatedName))
+                    {
+                        Debug.WriteLine($"Found correlated Bluetooth device name: {correlatedName}");
+                        CacheDeviceName(device, correlatedName);
+                        return correlatedName;
+                    }
+                }
+
                 // Check if AudioSwitcher's FullName is valid (not "Unknown")
                 if (!string.IsNullOrEmpty(device.FullName) && 
                     !device.FullName.Equals("Unknown", StringComparison.OrdinalIgnoreCase))
                 {
                     Debug.WriteLine($"Using AudioSwitcher FullName: {device.FullName}");
+                    CacheDeviceName(device, device.FullName);
                     return device.FullName;
                 }
 
                 // Special handling for "Unknown" devices - likely Bluetooth audio devices
-                if (device.Name?.Equals("Unknown", StringComparison.OrdinalIgnoreCase) == true ||
-                    device.FullName?.Equals("Unknown", StringComparison.OrdinalIgnoreCase) == true)
+                if (isUnknownDevice)
                 {
                     Debug.WriteLine("Detected 'Unknown' device - applying enhanced Bluetooth detection");
                     var unknownDeviceName = GetUnknownDeviceName(device);
                     if (!string.IsNullOrEmpty(unknownDeviceName))
                     {
+                        CacheDeviceName(device, unknownDeviceName);
                         return unknownDeviceName;
                     }
                 }
@@ -478,6 +504,7 @@ namespace DisplayProfileManager.Helpers
                 var registryName = GetDeviceNameFromRegistry(device);
                 if (!string.IsNullOrEmpty(registryName))
                 {
+                    CacheDeviceName(device, registryName);
                     return registryName;
                 }
 
@@ -485,6 +512,7 @@ namespace DisplayProfileManager.Helpers
                 var wmiName = GetDeviceNameFromWMI(device);
                 if (!string.IsNullOrEmpty(wmiName))
                 {
+                    CacheDeviceName(device, wmiName);
                     return wmiName;
                 }
 
@@ -492,6 +520,7 @@ namespace DisplayProfileManager.Helpers
                 var setupApiName = GetDeviceNameFromSetupAPI(device);
                 if (!string.IsNullOrEmpty(setupApiName))
                 {
+                    CacheDeviceName(device, setupApiName);
                     return setupApiName;
                 }
 
@@ -519,6 +548,463 @@ namespace DisplayProfileManager.Helpers
             {
                 Debug.WriteLine($"Error getting Windows device name: {ex.Message}");
                 return device?.Name ?? "Unknown Device";
+            }
+        }
+
+        private static string GetBluetoothCorrelatedDeviceName(IDevice device)
+        {
+            try
+            {
+                lock (_cachelock)
+                {
+                    var deviceId = device.Id.ToString();
+                    var extractedMac = ExtractMacAddressFromDeviceId(deviceId);
+
+                    Debug.WriteLine($"Attempting Bluetooth device correlation for device ID: {deviceId}");
+
+                    // PRIORITY 1: Device-specific cache lookup (most reliable)
+                    if (_deviceSpecificNameCache.ContainsKey(deviceId))
+                    {
+                        var cachedName = _deviceSpecificNameCache[deviceId];
+                        Debug.WriteLine($"Found cached device name for device ID {deviceId}: {cachedName}");
+                        return cachedName;
+                    }
+
+                    // PRIORITY 2: MAC-based cache lookup (if MAC extraction is reliable)
+                    if (!string.IsNullOrEmpty(extractedMac) && _bluetoothDeviceNameCache.ContainsKey(extractedMac))
+                    {
+                        var cachedMacName = _bluetoothDeviceNameCache[extractedMac];
+                        Debug.WriteLine($"Found cached device name for MAC {extractedMac}: {cachedMacName}");
+                        
+                        // CRITICAL: Validate that this cached name is still appropriate for this specific device
+                        if (IsValidCachedNameForDevice(cachedMacName, device))
+                        {
+                            return cachedMacName;
+                        }
+                        else
+                        {
+                            Debug.WriteLine("Cached MAC-based name failed validation for this device - removing from cache");
+                            _bluetoothDeviceNameCache.Remove(extractedMac);
+                        }
+                    }
+
+                    // PRIORITY 3: Look for other devices with same MAC that have names (cross-device correlation)
+                    if (!string.IsNullOrEmpty(extractedMac))
+                    {
+                        var correlatedName = FindCorrelatedBluetoothDeviceByMac(extractedMac, deviceId);
+                        if (!string.IsNullOrEmpty(correlatedName))
+                        {
+                            // Validate before caching
+                            if (IsValidCachedNameForDevice(correlatedName, device))
+                            {
+                                Debug.WriteLine($"Found and validated correlated device name: {correlatedName}");
+                                return correlatedName;
+                            }
+                            else
+                            {
+                                Debug.WriteLine("Correlated device name failed validation - skipping");
+                            }
+                        }
+                    }
+
+                    // PRIORITY 4: Try to find companion devices (input/output from same Bluetooth device)
+                    if (!string.IsNullOrEmpty(extractedMac))
+                    {
+                        var companionName = FindBluetoothCompanionDeviceName(device, extractedMac);
+                        if (!string.IsNullOrEmpty(companionName))
+                        {
+                            // Transform the companion name for the appropriate device type
+                            var transformedName = TransformBluetoothDeviceNameForType(companionName, device);
+                            if (IsValidCachedNameForDevice(transformedName, device))
+                            {
+                                Debug.WriteLine($"Found and transformed companion device name: {transformedName}");
+                                return transformedName;
+                            }
+                            else
+                            {
+                                Debug.WriteLine("Transformed companion name failed validation - skipping");
+                            }
+                        }
+                    }
+
+                    Debug.WriteLine("No valid correlated device name found");
+                    return null;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error in Bluetooth device correlation: {ex.Message}");
+                return null;
+            }
+        }
+
+        private static bool IsValidCachedNameForDevice(string cachedName, IDevice targetDevice)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(cachedName))
+                    return false;
+
+                // Check if the cached name is too generic or potentially from another device
+                var genericNames = new[] { "Bluetooth Headset", "Hands-Free AG", "Audio Gateway", "Unknown" };
+                if (genericNames.Any(generic => cachedName.Equals(generic, StringComparison.OrdinalIgnoreCase)))
+                {
+                    // Generic names are always valid as they're not device-specific
+                    return true;
+                }
+
+                // For specific device names, perform additional validation
+                // This helps prevent cross-device name contamination
+                var targetDeviceId = targetDevice.Id.ToString();
+                
+                // Check if we've seen this exact name with a different device ID recently
+                var recentDeviceIds = _deviceSpecificDiscoveryTime
+                    .Where(kvp => kvp.Value > DateTime.Now.AddMinutes(-10)) // Recent devices in last 10 minutes
+                    .Select(kvp => kvp.Key)
+                    .ToList();
+
+                foreach (var recentDeviceId in recentDeviceIds)
+                {
+                    if (recentDeviceId != targetDeviceId && 
+                        _deviceSpecificNameCache.ContainsKey(recentDeviceId) &&
+                        _deviceSpecificNameCache[recentDeviceId].Equals(cachedName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        Debug.WriteLine($"Found same device name '{cachedName}' used for different device ID '{recentDeviceId}' recently - validation failed");
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error validating cached name for device: {ex.Message}");
+                return true; // Default to accepting if validation fails
+            }
+        }
+
+        private static string FindCorrelatedBluetoothDeviceByMac(string macAddress, string excludeDeviceId = null)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(macAddress))
+                    return null;
+
+                // Search through currently known devices to find ones with the same MAC
+                if (_audioController == null)
+                    return null;
+
+                // Get all audio devices (both input and output)
+                var allDevices = new List<IDevice>();
+                try
+                {
+                    allDevices.AddRange(_audioController.GetPlaybackDevices(DeviceState.All));
+                    allDevices.AddRange(_audioController.GetCaptureDevices(DeviceState.All));
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error getting all audio devices for correlation: {ex.Message}");
+                    return null;
+                }
+
+                foreach (var candidateDevice in allDevices)
+                {
+                    try
+                    {
+                        var candidateId = candidateDevice.Id.ToString();
+                        
+                        // CRITICAL: Skip the device we're trying to find a name for
+                        if (!string.IsNullOrEmpty(excludeDeviceId) && candidateId.Equals(excludeDeviceId, StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+
+                        var candidateMac = ExtractMacAddressFromDeviceId(candidateId);
+                        
+                        // If MAC addresses match and the candidate has a good name, use it
+                        if (!string.IsNullOrEmpty(candidateMac) && 
+                            candidateMac.Equals(macAddress, StringComparison.OrdinalIgnoreCase))
+                        {
+                            // Check if this device has a good name
+                            if (!string.IsNullOrEmpty(candidateDevice.FullName) && 
+                                !candidateDevice.FullName.Equals("Unknown", StringComparison.OrdinalIgnoreCase) &&
+                                !candidateDevice.FullName.Equals("Bluetooth Headset", StringComparison.OrdinalIgnoreCase))
+                            {
+                                Debug.WriteLine($"Found correlated device with same MAC {macAddress} (ID: {candidateId}): {candidateDevice.FullName}");
+                                return candidateDevice.FullName;
+                            }
+                        }
+                    }
+                    catch (Exception deviceEx)
+                    {
+                        Debug.WriteLine($"Error processing candidate device for correlation: {deviceEx.Message}");
+                    }
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error finding correlated Bluetooth device: {ex.Message}");
+                return null;
+            }
+        }
+
+        private static string FindBluetoothCompanionDeviceName(IDevice device, string macAddress)
+        {
+            try
+            {
+                // Look for the companion device (if this is input, find output with same MAC, and vice versa)
+                if (_audioController == null)
+                    return null;
+
+                var isInputDevice = IsInputDevice(device);
+                IEnumerable<IDevice> companionDevices;
+
+                if (isInputDevice)
+                {
+                    // This is an input device, look for output devices with same MAC
+                    companionDevices = _audioController.GetPlaybackDevices(DeviceState.All);
+                    Debug.WriteLine("Looking for output companion device for input device");
+                }
+                else
+                {
+                    // This is an output device, look for input devices with same MAC
+                    companionDevices = _audioController.GetCaptureDevices(DeviceState.All);
+                    Debug.WriteLine("Looking for input companion device for output device");
+                }
+
+                foreach (var companion in companionDevices)
+                {
+                    try
+                    {
+                        var companionMac = ExtractMacAddressFromDeviceId(companion.Id.ToString());
+                        
+                        if (!string.IsNullOrEmpty(companionMac) && 
+                            companionMac.Equals(macAddress, StringComparison.OrdinalIgnoreCase))
+                        {
+                            // Found companion device with same MAC
+                            if (!string.IsNullOrEmpty(companion.FullName) && 
+                                !companion.FullName.Equals("Unknown", StringComparison.OrdinalIgnoreCase) &&
+                                !companion.FullName.Equals("Bluetooth Headset", StringComparison.OrdinalIgnoreCase))
+                            {
+                                Debug.WriteLine($"Found companion device with same MAC {macAddress}: {companion.FullName}");
+                                return companion.FullName;
+                            }
+                        }
+                    }
+                    catch (Exception companionEx)
+                    {
+                        Debug.WriteLine($"Error processing companion device: {companionEx.Message}");
+                    }
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error finding Bluetooth companion device: {ex.Message}");
+                return null;
+            }
+        }
+
+        private static string TransformBluetoothDeviceNameForType(string companionName, IDevice targetDevice)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(companionName))
+                    return null;
+
+                var isTargetInputDevice = IsInputDevice(targetDevice);
+                
+                // Extract the base device name (remove "Speakers", "Headphones", "Microphone" prefixes)
+                var baseName = ExtractBaseDeviceName(companionName);
+                
+                if (isTargetInputDevice)
+                {
+                    // Transform for input device (microphone)
+                    if (companionName.StartsWith("Headphones", StringComparison.OrdinalIgnoreCase) ||
+                        companionName.StartsWith("Speakers", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return $"Microphone {baseName}";
+                    }
+                    else if (!companionName.StartsWith("Microphone", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return $"Microphone ({baseName})";
+                    }
+                }
+                else
+                {
+                    // Transform for output device (speakers/headphones)
+                    if (companionName.StartsWith("Microphone", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return $"Headphones {baseName}";
+                    }
+                    else if (!companionName.StartsWith("Headphones", StringComparison.OrdinalIgnoreCase) && 
+                             !companionName.StartsWith("Speakers", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return $"Headphones ({baseName})";
+                    }
+                }
+
+                // If we can't transform it appropriately, return the original name
+                return companionName;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error transforming Bluetooth device name: {ex.Message}");
+                return companionName; // Return original name if transformation fails
+            }
+        }
+
+        private static string ExtractBaseDeviceName(string deviceName)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(deviceName))
+                    return deviceName;
+
+                // Remove common prefixes to get the base device name
+                var prefixesToRemove = new[] { "Speakers", "Headphones", "Microphone", "Microphone Array" };
+                
+                foreach (var prefix in prefixesToRemove)
+                {
+                    if (deviceName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var remaining = deviceName.Substring(prefix.Length).Trim();
+                        
+                        // If remaining starts with '(' and ends with ')', return content inside parentheses
+                        if (remaining.StartsWith("(") && remaining.EndsWith(")"))
+                        {
+                            return remaining.Substring(1, remaining.Length - 2);
+                        }
+                        
+                        // If remaining starts with space or other separator, return trimmed content
+                        if (remaining.Length > 0)
+                        {
+                            return remaining.TrimStart(' ', '-', '(').TrimEnd(')', ' ');
+                        }
+                    }
+                }
+
+                // If no prefix found, check if entire name is in parentheses
+                if (deviceName.StartsWith("(") && deviceName.EndsWith(")"))
+                {
+                    return deviceName.Substring(1, deviceName.Length - 2);
+                }
+
+                return deviceName; // Return original if no pattern matches
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error extracting base device name: {ex.Message}");
+                return deviceName;
+            }
+        }
+
+        private static void CacheDeviceName(IDevice device, string deviceName)
+        {
+            try
+            {
+                if (device == null || string.IsNullOrEmpty(deviceName))
+                    return;
+
+                var deviceId = device.Id.ToString();
+                var extractedMac = ExtractMacAddressFromDeviceId(deviceId);
+
+                lock (_cachelock)
+                {
+                    // PRIORITY 1: Device-specific caching using AudioSwitcher device ID
+                    _deviceSpecificNameCache[deviceId] = deviceName;
+                    _deviceSpecificDiscoveryTime[deviceId] = DateTime.Now;
+                    
+                    // PRIORITY 2: MAC-based caching (if MAC extraction is reliable)
+                    if (!string.IsNullOrEmpty(extractedMac))
+                    {
+                        _bluetoothDeviceNameCache[extractedMac] = deviceName;
+                        _deviceDiscoveryTime[deviceId] = DateTime.Now;
+                        Debug.WriteLine($"Cached device name for MAC {extractedMac}: {deviceName}");
+                    }
+                    
+                    Debug.WriteLine($"Cached device name for device ID {deviceId}: {deviceName}");
+                    
+                    // Clean up old entries (keep last 100 entries to prevent memory bloat)
+                    CleanupDeviceCache();
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error caching device name: {ex.Message}");
+            }
+        }
+
+        private static void CleanupDeviceCache()
+        {
+            try
+            {
+                // Clean device-specific cache
+                if (_deviceSpecificNameCache.Count > 100)
+                {
+                    var oldestDeviceEntries = _deviceSpecificDiscoveryTime
+                        .OrderBy(kvp => kvp.Value)
+                        .Take(_deviceSpecificDiscoveryTime.Count - 100)
+                        .Select(kvp => kvp.Key)
+                        .ToList();
+
+                    foreach (var oldKey in oldestDeviceEntries)
+                    {
+                        _deviceSpecificDiscoveryTime.Remove(oldKey);
+                        _deviceSpecificNameCache.Remove(oldKey);
+                    }
+                }
+
+                // Clean MAC-based cache
+                if (_bluetoothDeviceNameCache.Count > 50)
+                {
+                    var oldestMacEntries = _deviceDiscoveryTime
+                        .OrderBy(kvp => kvp.Value)
+                        .Take(_deviceDiscoveryTime.Count - 50)
+                        .Select(kvp => kvp.Key)
+                        .ToList();
+
+                    foreach (var oldKey in oldestMacEntries)
+                    {
+                        _deviceDiscoveryTime.Remove(oldKey);
+                        // Also remove from name cache if it exists
+                        var oldMac = ExtractMacAddressFromDeviceId(oldKey);
+                        if (!string.IsNullOrEmpty(oldMac) && _bluetoothDeviceNameCache.ContainsKey(oldMac))
+                        {
+                            _bluetoothDeviceNameCache.Remove(oldMac);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error cleaning up device cache: {ex.Message}");
+            }
+        }
+
+        private static bool IsInputDevice(IDevice device)
+        {
+            try
+            {
+                if (device == null)
+                    return false;
+
+                // Check if this device is in the capture devices list
+                if (_audioController == null)
+                    return false;
+
+                var captureDevices = _audioController.GetCaptureDevices(DeviceState.All);
+                return captureDevices.Any(d => d.Id == device.Id);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error determining if device is input device: {ex.Message}");
+                // Fallback: check device name for input indicators
+                return device.Name?.ToLower().Contains("microphone") == true ||
+                       device.FullName?.ToLower().Contains("microphone") == true;
             }
         }
 
@@ -805,62 +1291,30 @@ namespace DisplayProfileManager.Helpers
                 // Search for Bluetooth audio devices using only registry and WMI
                 // Focus on device names that commonly appear for Bluetooth headsets
 
-                // Use simplified WMI queries to avoid syntax errors
-                var bluetoothWmiQueries = new[]
+                Debug.WriteLine("Starting alternative WMI-based Bluetooth device search");
+
+                // Method 1: Use broader WMI queries without complex LIKE patterns to avoid syntax errors
+                var result = SearchBluetoothDevicesViaBroadWmiQuery(device);
+                if (!string.IsNullOrEmpty(result))
                 {
-                    // Query 1: Search for devices with common Bluetooth audio keywords
-                    "SELECT Name, FriendlyName FROM Win32_PnPEntity WHERE Name LIKE '%Headset%'",
-                    "SELECT Name, FriendlyName FROM Win32_PnPEntity WHERE Name LIKE '%Earbuds%'", 
-                    "SELECT Name, FriendlyName FROM Win32_PnPEntity WHERE Name LIKE '%AirPods%'",
-                    "SELECT Name, FriendlyName FROM Win32_PnPEntity WHERE FriendlyName LIKE '%Headset%'",
-                    "SELECT Name, FriendlyName FROM Win32_PnPEntity WHERE FriendlyName LIKE '%Earbuds%'",
-                    "SELECT Name, FriendlyName FROM Win32_PnPEntity WHERE FriendlyName LIKE '%AirPods%'",
-                    
-                    // Query 2: Search for BTHENUM devices with audio keywords
-                    "SELECT Name, FriendlyName, DeviceID FROM Win32_PnPEntity WHERE DeviceID LIKE 'BTHENUM%'",
-                    
-                    // Query 3: Search for devices with 'Bluetooth' in name and audio keywords
-                    "SELECT Name, FriendlyName FROM Win32_PnPEntity WHERE Name LIKE '%Bluetooth%' AND Name LIKE '%Audio%'",
-                    "SELECT Name, FriendlyName FROM Win32_PnPEntity WHERE FriendlyName LIKE '%Bluetooth%' AND FriendlyName LIKE '%Audio%'"
-                };
-
-                foreach (var query in bluetoothWmiQueries)
-                {
-                    try
-                    {
-                        using (var searcher = new ManagementObjectSearcher(query))
-                        {
-                            foreach (ManagementObject wmiDevice in searcher.Get())
-                            {
-                                var deviceName = wmiDevice["Name"]?.ToString();
-                                var friendlyName = wmiDevice["FriendlyName"]?.ToString();
-                                var deviceId = wmiDevice["DeviceID"]?.ToString();
-
-                                // For BTHENUM query, filter for audio-related devices
-                                if (query.Contains("BTHENUM") && !string.IsNullOrEmpty(deviceId))
-                                {
-                                    if (!IsLikelyBluetoothAudioDeviceId(deviceId))
-                                        continue;
-                                }
-
-                                var names = new[] { friendlyName, deviceName }.Where(n => !string.IsNullOrEmpty(n));
-                                foreach (var name in names)
-                                {
-                                    if (IsLikelyBluetoothDevice(name))
-                                    {
-                                        Debug.WriteLine($"Found Bluetooth device via alternative WMI: {name}");
-                                        return name;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    catch (Exception queryEx)
-                    {
-                        Debug.WriteLine($"Error with alternative Bluetooth query '{query}': {queryEx.Message}");
-                    }
+                    return result;
                 }
 
+                // Method 2: Use alternative WMI scope and connection options
+                result = SearchBluetoothDevicesViaAlternativeWmiScope(device);
+                if (!string.IsNullOrEmpty(result))
+                {
+                    return result;
+                }
+
+                // Method 3: Use Win32_SystemDevices as fallback (different WMI class)
+                result = SearchBluetoothDevicesViaSystemDevicesWmi(device);
+                if (!string.IsNullOrEmpty(result))
+                {
+                    return result;
+                }
+
+                Debug.WriteLine("Alternative WMI search found no Bluetooth devices");
                 return null;
             }
             catch (Exception ex)
@@ -868,6 +1322,485 @@ namespace DisplayProfileManager.Helpers
                 Debug.WriteLine($"Error in alternative Bluetooth device search: {ex.Message}");
                 return null;
             }
+        }
+
+        private static string SearchBluetoothDevicesViaBroadWmiQuery(IDevice device)
+        {
+            try
+            {
+                Debug.WriteLine("Attempting broad WMI query approach");
+
+                // Use simpler queries that enumerate all devices and filter programmatically
+                // This avoids WMI LIKE clause syntax issues
+                var broadQueries = new[]
+                {
+                    "SELECT Name, FriendlyName, DeviceID, Service, Class FROM Win32_PnPEntity",
+                    "SELECT Name, Caption, Description FROM Win32_SoundDevice"
+                };
+
+                foreach (var query in broadQueries)
+                {
+                    try
+                    {
+                        using (var searcher = new ManagementObjectSearcher("root\\CIMV2", query))
+                        {
+                            // Set timeout to avoid hanging
+                            searcher.Options.Timeout = TimeSpan.FromSeconds(10);
+
+                            foreach (ManagementObject wmiDevice in searcher.Get())
+                            {
+                                var deviceName = wmiDevice["Name"]?.ToString();
+                                var friendlyName = wmiDevice["FriendlyName"]?.ToString();
+                                var deviceId = wmiDevice["DeviceID"]?.ToString();
+                                var service = wmiDevice["Service"]?.ToString();
+                                var deviceClass = wmiDevice["Class"]?.ToString();
+                                var caption = wmiDevice["Caption"]?.ToString();
+                                var description = wmiDevice["Description"]?.ToString();
+
+                                // Filter for Bluetooth devices programmatically
+                                if (IsBluetoothDeviceFromWmiProperties(deviceName, friendlyName, deviceId, service, deviceClass))
+                                {
+                                    var names = new[] { friendlyName, deviceName, caption, description }
+                                        .Where(n => !string.IsNullOrEmpty(n));
+
+                                    foreach (var name in names)
+                                    {
+                                        if (IsLikelyBluetoothDevice(name))
+                                        {
+                                            Debug.WriteLine($"Found Bluetooth device via broad WMI query: {name}");
+                                            return name;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception queryEx)
+                    {
+                        Debug.WriteLine($"Error with broad WMI query '{query}': {queryEx.Message}");
+                    }
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error in broad WMI query approach: {ex.Message}");
+                return null;
+            }
+        }
+
+        private static string SearchBluetoothDevicesViaAlternativeWmiScope(IDevice device)
+        {
+            try
+            {
+                Debug.WriteLine("Attempting alternative WMI scope approach");
+
+                // Try different WMI scopes and connection options
+                var scopes = new[]
+                {
+                    "root\\CIMV2",
+                    "root\\WMI",
+                    "root\\Microsoft\\Windows\\DeviceGuard"
+                };
+
+                foreach (var scopePath in scopes)
+                {
+                    try
+                    {
+                        var scope = new ManagementScope(scopePath);
+                        scope.Connect();
+
+                        // Use simple query without LIKE clauses
+                        var query = new ObjectQuery("SELECT Name, FriendlyName, DeviceID FROM Win32_PnPEntity");
+                        using (var searcher = new ManagementObjectSearcher(scope, query))
+                        {
+                            searcher.Options.Timeout = TimeSpan.FromSeconds(5);
+
+                            foreach (ManagementObject wmiDevice in searcher.Get())
+                            {
+                                var deviceName = wmiDevice["Name"]?.ToString();
+                                var friendlyName = wmiDevice["FriendlyName"]?.ToString();
+                                var deviceId = wmiDevice["DeviceID"]?.ToString();
+
+                                // Filter for Bluetooth devices
+                                if (!string.IsNullOrEmpty(deviceId) && deviceId.ToUpper().StartsWith("BTHENUM"))
+                                {
+                                    var names = new[] { friendlyName, deviceName }.Where(n => !string.IsNullOrEmpty(n));
+                                    foreach (var name in names)
+                                    {
+                                        if (IsLikelyBluetoothDevice(name))
+                                        {
+                                            Debug.WriteLine($"Found Bluetooth device via alternative scope {scopePath}: {name}");
+                                            return name;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception scopeEx)
+                    {
+                        Debug.WriteLine($"Error with WMI scope '{scopePath}': {scopeEx.Message}");
+                    }
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error in alternative WMI scope approach: {ex.Message}");
+                return null;
+            }
+        }
+
+        private static string SearchBluetoothDevicesViaSystemDevicesWmi(IDevice device)
+        {
+            try
+            {
+                Debug.WriteLine($"Attempting Win32_SystemDevices WMI approach for device ID: {device.Id}");
+
+                // CRITICAL FIX: Add device-specific correlation to prevent wrong device names
+                var targetDeviceId = device.Id.ToString();
+                var targetMacAddress = ExtractMacAddressFromDeviceId(targetDeviceId);
+                
+                Debug.WriteLine($"Target device ID: {targetDeviceId}, Target MAC: {targetMacAddress}");
+
+                // Try alternative WMI classes that might have better compatibility
+                var alternativeQueries = new[]
+                {
+                    "SELECT * FROM Win32_PnPEntity WHERE ConfigManagerErrorCode = 0",
+                    "SELECT * FROM CIM_LogicalDevice"
+                };
+
+                foreach (var query in alternativeQueries)
+                {
+                    try
+                    {
+                        using (var searcher = new ManagementObjectSearcher(query))
+                        {
+                            searcher.Options.Timeout = TimeSpan.FromSeconds(5);
+
+                            foreach (ManagementObject wmiDevice in searcher.Get())
+                            {
+                                var deviceName = wmiDevice["Name"]?.ToString();
+                                var description = wmiDevice["Description"]?.ToString();
+                                var caption = wmiDevice["Caption"]?.ToString();
+                                var wmiDeviceId = wmiDevice["DeviceID"]?.ToString();
+
+                                // CRITICAL: Only process devices that could be related to our target device
+                                if (IsBluetoothDeviceFromWmiProperties(deviceName, null, wmiDeviceId, null, null))
+                                {
+                                    // Enhanced device-specific correlation
+                                    if (IsDeviceSpecificallyRelated(device, deviceName, description, caption, wmiDeviceId, targetMacAddress))
+                                    {
+                                        var names = new[] { deviceName, description, caption }
+                                            .Where(n => !string.IsNullOrEmpty(n));
+
+                                        foreach (var name in names)
+                                        {
+                                            if (IsLikelyBluetoothDevice(name) && IsDeviceNameValidForTarget(name, device, targetMacAddress))
+                                            {
+                                                Debug.WriteLine($"Found device-specific Bluetooth device via system devices WMI: {name}");
+                                                return name;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception queryEx)
+                    {
+                        Debug.WriteLine($"Error with system devices WMI query '{query}': {queryEx.Message}");
+                    }
+                }
+
+                Debug.WriteLine("No device-specific matches found in system devices WMI");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error in system devices WMI approach: {ex.Message}");
+                return null;
+            }
+        }
+
+        private static bool IsDeviceSpecificallyRelated(IDevice targetDevice, string wmiDeviceName, string wmiDescription, string wmiCaption, string wmiDeviceId, string targetMacAddress)
+        {
+            try
+            {
+                var targetDeviceId = targetDevice.Id.ToString();
+                
+                // Method 1: Check for GUID correlation
+                if (!string.IsNullOrEmpty(wmiDeviceId))
+                {
+                    // Extract GUIDs from both device IDs for comparison
+                    var wmiGuids = ExtractGuidsFromString(wmiDeviceId);
+                    var targetGuids = ExtractGuidsFromString(targetDeviceId);
+                    
+                    // Check for any GUID overlap
+                    foreach (var wmiGuid in wmiGuids)
+                    {
+                        foreach (var targetGuid in targetGuids)
+                        {
+                            if (wmiGuid.Equals(targetGuid, StringComparison.OrdinalIgnoreCase))
+                            {
+                                Debug.WriteLine($"Found GUID correlation: {wmiGuid}");
+                                return true;
+                            }
+                        }
+                    }
+                }
+
+                // Method 2: Check for MAC address correlation in WMI device ID or name
+                if (!string.IsNullOrEmpty(targetMacAddress))
+                {
+                    var allWmiText = $"{wmiDeviceName} {wmiDescription} {wmiCaption} {wmiDeviceId}".ToUpper();
+                    var macWithoutColons = targetMacAddress.Replace(":", "").ToUpper();
+                    
+                    // Check various MAC formats
+                    var macFormats = new[]
+                    {
+                        targetMacAddress.ToUpper(), // With colons
+                        macWithoutColons, // Without colons
+                        targetMacAddress.Replace(":", "-").ToUpper(), // With dashes
+                        targetMacAddress.Replace(":", "_").ToUpper()  // With underscores
+                    };
+
+                    foreach (var macFormat in macFormats)
+                    {
+                        if (allWmiText.Contains(macFormat))
+                        {
+                            Debug.WriteLine($"Found MAC correlation in WMI data: {macFormat}");
+                            return true;
+                        }
+                    }
+                }
+
+                // Method 3: Check for device-specific patterns in the AudioSwitcher ID
+                if (ContainsDeviceSpecificPattern(wmiDeviceId, targetDeviceId))
+                {
+                    Debug.WriteLine("Found device-specific pattern correlation");
+                    return true;
+                }
+
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error in device-specific relation check: {ex.Message}");
+                return false;
+            }
+        }
+
+        private static List<string> ExtractGuidsFromString(string input)
+        {
+            var guids = new List<string>();
+            
+            if (string.IsNullOrEmpty(input))
+                return guids;
+
+            try
+            {
+                // Pattern for GUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+                var guidPattern = @"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b";
+                var matches = System.Text.RegularExpressions.Regex.Matches(input, guidPattern);
+
+                foreach (System.Text.RegularExpressions.Match match in matches)
+                {
+                    guids.Add(match.Value);
+                }
+
+                // Also extract potential GUID parts (8-character hex sequences)
+                var hexPattern = @"\b[0-9a-fA-F]{8}\b";
+                var hexMatches = System.Text.RegularExpressions.Regex.Matches(input, hexPattern);
+                
+                foreach (System.Text.RegularExpressions.Match match in hexMatches)
+                {
+                    guids.Add(match.Value);
+                }
+
+                return guids;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error extracting GUIDs: {ex.Message}");
+                return guids;
+            }
+        }
+
+        private static bool ContainsDeviceSpecificPattern(string wmiDeviceId, string targetDeviceId)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(wmiDeviceId) || string.IsNullOrEmpty(targetDeviceId))
+                    return false;
+
+                var wmiUpper = wmiDeviceId.ToUpper();
+                var targetUpper = targetDeviceId.ToUpper();
+
+                // Check for partial pattern matches
+                var targetParts = targetUpper.Replace("{", "").Replace("}", "").Replace("-", "").Split(new char[0], StringSplitOptions.RemoveEmptyEntries);
+                
+                foreach (var part in targetParts)
+                {
+                    if (part.Length >= 4 && wmiUpper.Contains(part.Substring(0, Math.Min(8, part.Length))))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error checking device-specific pattern: {ex.Message}");
+                return false;
+            }
+        }
+
+        private static bool IsDeviceNameValidForTarget(string deviceName, IDevice targetDevice, string targetMacAddress)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(deviceName))
+                    return false;
+
+                // CRITICAL: Prevent returning names that clearly belong to other devices
+                // If we have a cached device name that's different from what we just found,
+                // and the MAC addresses don't match, reject this name
+                
+                lock (_cachelock)
+                {
+                    if (!string.IsNullOrEmpty(targetMacAddress) && _bluetoothDeviceNameCache.ContainsKey(targetMacAddress))
+                    {
+                        var cachedName = _bluetoothDeviceNameCache[targetMacAddress];
+                        if (!cachedName.Equals(deviceName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            Debug.WriteLine($"Device name validation: Found different cached name '{cachedName}' vs current '{deviceName}' for MAC {targetMacAddress}");
+                            
+                            // Only accept the new name if it has strong correlation indicators
+                            if (deviceName.Contains("Hands-Free") || deviceName.Contains("AG") || deviceName.Contains("Audio Gateway"))
+                            {
+                                Debug.WriteLine("Accepting new name due to hands-free indicators");
+                                return true;
+                            }
+                            
+                            // Check if this could be the same device with different naming
+                            if (HasSimilarDeviceNamePattern(cachedName, deviceName))
+                            {
+                                Debug.WriteLine("Accepting new name due to similar naming pattern");
+                                return true;
+                            }
+
+                            Debug.WriteLine("Rejecting new name - potential cross-device contamination");
+                            return false;
+                        }
+                    }
+                }
+
+                // If no cached name exists, accept the device name
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error validating device name for target: {ex.Message}");
+                return true; // Default to accepting if validation fails
+            }
+        }
+
+        private static bool HasSimilarDeviceNamePattern(string cachedName, string newName)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(cachedName) || string.IsNullOrEmpty(newName))
+                    return false;
+
+                // Extract the core device name from both (remove prefixes like "Headphones", "Microphone", etc.)
+                var cachedCore = ExtractCoreDeviceName(cachedName);
+                var newCore = ExtractCoreDeviceName(newName);
+
+                // Check for similar core names
+                return cachedCore.Equals(newCore, StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error comparing device name patterns: {ex.Message}");
+                return false;
+            }
+        }
+
+        private static string ExtractCoreDeviceName(string deviceName)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(deviceName))
+                    return deviceName;
+
+                // Remove common audio device prefixes and suffixes
+                var patterns = new[]
+                {
+                    @"^(Speakers|Headphones|Microphone|Microphone Array)\s*\(",
+                    @"^(Speakers|Headphones|Microphone|Microphone Array)\s+",
+                    @"\s+(Hands-Free|AG|Audio Gateway).*$",
+                    @"\s*\([^)]*\)$" // Remove parenthetical suffixes
+                };
+
+                var result = deviceName;
+                foreach (var pattern in patterns)
+                {
+                    result = System.Text.RegularExpressions.Regex.Replace(result, pattern, "", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error extracting core device name: {ex.Message}");
+                return deviceName;
+            }
+        }
+
+        private static bool IsBluetoothDeviceFromWmiProperties(string name, string friendlyName, string deviceId, string service, string deviceClass)
+        {
+            if (string.IsNullOrEmpty(name) && string.IsNullOrEmpty(friendlyName) && string.IsNullOrEmpty(deviceId))
+                return false;
+
+            // Check device ID for Bluetooth indicators
+            if (!string.IsNullOrEmpty(deviceId))
+            {
+                var upperDeviceId = deviceId.ToUpper();
+                if (upperDeviceId.Contains("BTHENUM") || upperDeviceId.Contains("BLUETOOTH"))
+                    return true;
+            }
+
+            // Check service for Bluetooth audio services
+            if (!string.IsNullOrEmpty(service))
+            {
+                var bluetoothServices = new[] { "BTHHENUM", "BTHA2DP", "BTHHFENUM", "BTHPORT" };
+                if (bluetoothServices.Any(s => service.ToUpper().Contains(s.ToUpper())))
+                    return true;
+            }
+
+            // Check device class for Bluetooth class codes
+            if (!string.IsNullOrEmpty(deviceClass))
+            {
+                // Bluetooth device class codes for audio devices
+                var bluetoothClassCodes = new[] { "0x240404", "0x200404", "0x240418", "0x200418" };
+                if (bluetoothClassCodes.Any(code => deviceClass.Contains(code)))
+                    return true;
+            }
+
+            // Check names for Bluetooth indicators
+            var allNames = new[] { name, friendlyName }.Where(n => !string.IsNullOrEmpty(n));
+            foreach (var deviceName in allNames)
+            {
+                if (IsLikelyBluetoothDevice(deviceName))
+                    return true;
+            }
+
+            return false;
         }
 
         private static string InferDeviceNameFromContext(IDevice device)
@@ -1385,13 +2318,17 @@ namespace DisplayProfileManager.Helpers
         {
             try
             {
-                // Enhanced Bluetooth registry search with multiple approaches
+                // Enhanced Bluetooth registry search with multiple approaches including HFP-specific BTHPORT paths
                 var bluetoothRegistryPaths = new[]
                 {
                     @"SYSTEM\CurrentControlSet\Enum\BTHENUM",
                     @"SYSTEM\ControlSet001\Enum\BTHENUM", // Backup control set
                     @"SOFTWARE\Microsoft\Bluetooth\Device",
-                    @"SYSTEM\CurrentControlSet\Services\BTHPORT\Parameters\Devices"
+                    @"SYSTEM\CurrentControlSet\Services\BTHPORT\Parameters\Devices",
+                    @"SYSTEM\CurrentControlSet\Services\BTHPORT\Parameters\Keys", // HFP paired devices
+                    @"SYSTEM\CurrentControlSet\Services\BTHPORT\Parameters", // General BTHPORT configuration
+                    @"SYSTEM\CurrentControlSet\Services\BthHFEnum\Parameters", // HFP enumerator
+                    @"SYSTEM\CurrentControlSet\Services\BTHA2DP\Parameters" // A2DP service parameters
                 };
 
                 foreach (var registryPath in bluetoothRegistryPaths)
@@ -1430,50 +2367,71 @@ namespace DisplayProfileManager.Helpers
                 var deviceId = device.Id.ToString();
                 var extractedMac = ExtractMacAddressFromDeviceId(deviceId);
 
-                // Search through all Bluetooth device entries
-                foreach (string deviceKeyName in bluetoothKey.GetSubKeyNames())
+                // Handle different registry path types
+                if (registryPath.Contains("BTHPORT"))
                 {
-                    using (var deviceKey = bluetoothKey.OpenSubKey(deviceKeyName))
+                    return SearchBthportSpecificRegistry(device, bluetoothKey, extractedMac, registryPath);
+                }
+
+                // Standard Bluetooth enumeration registry search
+                return SearchStandardBluetoothRegistry(device, bluetoothKey, extractedMac);
+            }
+        }
+
+        private static string SearchBthportSpecificRegistry(IDevice device, RegistryKey bthportKey, string extractedMac, string registryPath)
+        {
+            try
+            {
+                Debug.WriteLine($"Searching BTHPORT-specific registry path: {registryPath}");
+
+                if (registryPath.Contains("Parameters\\Keys"))
+                {
+                    return SearchBthportKeysRegistry(device, bthportKey, extractedMac);
+                }
+                else if (registryPath.Contains("Parameters\\Devices"))
+                {
+                    return SearchBthportDevicesRegistry(device, bthportKey, extractedMac);
+                }
+                else
+                {
+                    return SearchGeneralBthportRegistry(device, bthportKey, extractedMac);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error searching BTHPORT registry: {ex.Message}");
+                return null;
+            }
+        }
+
+        private static string SearchBthportKeysRegistry(IDevice device, RegistryKey bthportKeysKey, string extractedMac)
+        {
+            try
+            {
+                Debug.WriteLine("Searching BTHPORT Keys registry for paired Bluetooth devices");
+
+                // BTHPORT\Parameters\Keys contains MAC addresses as key names for paired devices
+                foreach (string macKeyName in bthportKeysKey.GetSubKeyNames())
+                {
+                    // MAC addresses in this registry location are typically formatted as hex without separators
+                    if (!string.IsNullOrEmpty(extractedMac))
                     {
-                        if (deviceKey == null) continue;
+                        var macWithoutColons = extractedMac.Replace(":", "").ToUpper();
+                        var registryMac = macKeyName.Replace(":", "").Replace("-", "").ToUpper();
 
-                        // Enhanced correlation: Check if device key name contains extracted MAC address
-                        if (!string.IsNullOrEmpty(extractedMac))
+                        if (registryMac.Equals(macWithoutColons) || macWithoutColons.Contains(registryMac) || registryMac.Contains(macWithoutColons))
                         {
-                            var macWithoutColons = extractedMac.Replace(":", "");
-                            if (deviceKeyName.ToUpper().Contains(macWithoutColons.ToUpper()))
+                            Debug.WriteLine($"Found MAC match in BTHPORT Keys: {macKeyName} matches extracted MAC {extractedMac}");
+                            
+                            using (var macKey = bthportKeysKey.OpenSubKey(macKeyName))
                             {
-                                var macBasedName = GetDeviceNameFromBluetoothKey(deviceKey, deviceKeyName, true);
-                                if (!string.IsNullOrEmpty(macBasedName))
+                                if (macKey != null)
                                 {
-                                    return macBasedName;
-                                }
-                            }
-                        }
-
-                        // Standard search through device instances
-                        foreach (string instanceKeyName in deviceKey.GetSubKeyNames())
-                        {
-                            using (var instanceKey = deviceKey.OpenSubKey(instanceKeyName))
-                            {
-                                if (instanceKey == null) continue;
-
-                                var friendlyName = instanceKey.GetValue("FriendlyName") as string;
-                                var deviceDesc = instanceKey.GetValue("DeviceDesc") as string;
-                                var service = instanceKey.GetValue("Service") as string;
-                                var deviceClass = instanceKey.GetValue("Class") as string;
-
-                                // Enhanced audio device detection
-                                if (IsBluetoothAudioDevice(service, null) || IsBluetoothAudioByClass(deviceClass))
-                                {
-                                    // Improved device matching with multiple criteria
-                                    if (IsEnhancedDeviceMatch(device, friendlyName, deviceDesc, deviceKeyName, instanceKeyName))
+                                    // Look for device-specific information in this key
+                                    var deviceName = GetDeviceNameFromBthportKey(macKey, macKeyName);
+                                    if (!string.IsNullOrEmpty(deviceName))
                                     {
-                                        var name = friendlyName ?? deviceDesc;
-                                        if (!string.IsNullOrEmpty(name))
-                                        {
-                                            return name;
-                                        }
+                                        return deviceName;
                                     }
                                 }
                             }
@@ -1483,6 +2441,255 @@ namespace DisplayProfileManager.Helpers
 
                 return null;
             }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error searching BTHPORT Keys registry: {ex.Message}");
+                return null;
+            }
+        }
+
+        private static string SearchBthportDevicesRegistry(IDevice device, RegistryKey bthportDevicesKey, string extractedMac)
+        {
+            try
+            {
+                Debug.WriteLine("Searching BTHPORT Devices registry for active Bluetooth devices");
+
+                // BTHPORT\Parameters\Devices contains active Bluetooth device information
+                foreach (string deviceKeyName in bthportDevicesKey.GetSubKeyNames())
+                {
+                    using (var deviceKey = bthportDevicesKey.OpenSubKey(deviceKeyName))
+                    {
+                        if (deviceKey == null) continue;
+
+                        // Check if this device matches our MAC address
+                        if (!string.IsNullOrEmpty(extractedMac))
+                        {
+                            var macWithoutColons = extractedMac.Replace(":", "").ToUpper();
+                            if (deviceKeyName.ToUpper().Contains(macWithoutColons))
+                            {
+                                Debug.WriteLine($"Found MAC match in BTHPORT Devices: {deviceKeyName}");
+                                
+                                var deviceName = GetDeviceNameFromBthportDeviceKey(deviceKey, deviceKeyName);
+                                if (!string.IsNullOrEmpty(deviceName))
+                                {
+                                    return deviceName;
+                                }
+                            }
+                        }
+
+                        // Look for HFP-specific service information
+                        var serviceInfo = deviceKey.GetValue("Services") as string;
+                        if (!string.IsNullOrEmpty(serviceInfo))
+                        {
+                            var hfpServiceIds = new[] { "111e", "1108", "111f" }; // HFP, HSP, A2DP service UUIDs
+                            if (hfpServiceIds.Any(id => serviceInfo.ToLower().Contains(id)))
+                            {
+                                Debug.WriteLine($"Found HFP service in BTHPORT device: {deviceKeyName}");
+                                
+                                var deviceName = GetDeviceNameFromBthportDeviceKey(deviceKey, deviceKeyName);
+                                if (!string.IsNullOrEmpty(deviceName))
+                                {
+                                    return deviceName;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error searching BTHPORT Devices registry: {ex.Message}");
+                return null;
+            }
+        }
+
+        private static string SearchGeneralBthportRegistry(IDevice device, RegistryKey bthportKey, string extractedMac)
+        {
+            try
+            {
+                Debug.WriteLine("Searching general BTHPORT registry");
+
+                // Search through all subkeys in the BTHPORT registry
+                foreach (string subKeyName in bthportKey.GetSubKeyNames())
+                {
+                    using (var subKey = bthportKey.OpenSubKey(subKeyName))
+                    {
+                        if (subKey == null) continue;
+
+                        // Look for device names in common registry value names
+                        var commonValueNames = new[] { "Name", "FriendlyName", "DeviceDesc", "DisplayName", "Description" };
+                        foreach (var valueName in commonValueNames)
+                        {
+                            var deviceName = subKey.GetValue(valueName) as string;
+                            if (!string.IsNullOrEmpty(deviceName) && IsLikelyBluetoothDevice(deviceName))
+                            {
+                                Debug.WriteLine($"Found device name in BTHPORT general registry: {deviceName}");
+                                return deviceName;
+                            }
+                        }
+                    }
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error searching general BTHPORT registry: {ex.Message}");
+                return null;
+            }
+        }
+
+        private static string GetDeviceNameFromBthportKey(RegistryKey bthportKey, string macKeyName)
+        {
+            try
+            {
+                // Look for device information stored in BTHPORT key
+                var valueNames = bthportKey.GetValueNames();
+                
+                foreach (var valueName in valueNames)
+                {
+                    var value = bthportKey.GetValue(valueName) as string;
+                    if (!string.IsNullOrEmpty(value) && IsLikelyBluetoothDevice(value))
+                    {
+                        Debug.WriteLine($"Found device name from BTHPORT key value '{valueName}': {value}");
+                        return value;
+                    }
+                }
+
+                // Also check subkeys for device information
+                foreach (string subKeyName in bthportKey.GetSubKeyNames())
+                {
+                    using (var subKey = bthportKey.OpenSubKey(subKeyName))
+                    {
+                        if (subKey == null) continue;
+                        
+                        var name = subKey.GetValue("Name") as string ?? subKey.GetValue("FriendlyName") as string;
+                        if (!string.IsNullOrEmpty(name) && IsLikelyBluetoothDevice(name))
+                        {
+                            Debug.WriteLine($"Found device name from BTHPORT subkey: {name}");
+                            return name;
+                        }
+                    }
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error getting device name from BTHPORT key: {ex.Message}");
+                return null;
+            }
+        }
+
+        private static string GetDeviceNameFromBthportDeviceKey(RegistryKey deviceKey, string deviceKeyName)
+        {
+            try
+            {
+                // Look for device information in BTHPORT device key
+                var commonValueNames = new[] { "Name", "FriendlyName", "DeviceDesc", "Description", "DisplayName" };
+                
+                foreach (var valueName in commonValueNames)
+                {
+                    var deviceName = deviceKey.GetValue(valueName) as string;
+                    if (!string.IsNullOrEmpty(deviceName) && IsLikelyBluetoothDevice(deviceName))
+                    {
+                        Debug.WriteLine($"Found device name from BTHPORT device key '{valueName}': {deviceName}");
+                        return deviceName;
+                    }
+                }
+
+                // Check for HFP-specific device information
+                var hfpName = deviceKey.GetValue("HFPName") as string;
+                if (!string.IsNullOrEmpty(hfpName))
+                {
+                    Debug.WriteLine($"Found HFP device name: {hfpName}");
+                    return hfpName;
+                }
+
+                // Check subkeys for additional device information
+                foreach (string subKeyName in deviceKey.GetSubKeyNames())
+                {
+                    using (var subKey = deviceKey.OpenSubKey(subKeyName))
+                    {
+                        if (subKey == null) continue;
+                        
+                        foreach (var valueName in commonValueNames)
+                        {
+                            var name = subKey.GetValue(valueName) as string;
+                            if (!string.IsNullOrEmpty(name) && IsLikelyBluetoothDevice(name))
+                            {
+                                Debug.WriteLine($"Found device name from BTHPORT device subkey: {name}");
+                                return name;
+                            }
+                        }
+                    }
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error getting device name from BTHPORT device key: {ex.Message}");
+                return null;
+            }
+        }
+
+        private static string SearchStandardBluetoothRegistry(IDevice device, RegistryKey bluetoothKey, string extractedMac)
+        {
+            // Standard search through device instances (existing logic)
+            foreach (string deviceKeyName in bluetoothKey.GetSubKeyNames())
+            {
+                using (var deviceKey = bluetoothKey.OpenSubKey(deviceKeyName))
+                {
+                    if (deviceKey == null) continue;
+
+                    // Enhanced correlation: Check if device key name contains extracted MAC address
+                    if (!string.IsNullOrEmpty(extractedMac))
+                    {
+                        var macWithoutColons = extractedMac.Replace(":", "");
+                        if (deviceKeyName.ToUpper().Contains(macWithoutColons.ToUpper()))
+                        {
+                            var macBasedName = GetDeviceNameFromBluetoothKey(deviceKey, deviceKeyName, true);
+                            if (!string.IsNullOrEmpty(macBasedName))
+                            {
+                                return macBasedName;
+                            }
+                        }
+                    }
+
+                    // Standard search through device instances
+                    foreach (string instanceKeyName in deviceKey.GetSubKeyNames())
+                    {
+                        using (var instanceKey = deviceKey.OpenSubKey(instanceKeyName))
+                        {
+                            if (instanceKey == null) continue;
+
+                            var friendlyName = instanceKey.GetValue("FriendlyName") as string;
+                            var deviceDesc = instanceKey.GetValue("DeviceDesc") as string;
+                            var service = instanceKey.GetValue("Service") as string;
+                            var deviceClass = instanceKey.GetValue("Class") as string;
+
+                            // Enhanced audio device detection
+                            if (IsBluetoothAudioDevice(service, null) || IsBluetoothAudioByClass(deviceClass))
+                            {
+                                // Improved device matching with multiple criteria
+                                if (IsEnhancedDeviceMatch(device, friendlyName, deviceDesc, deviceKeyName, instanceKeyName))
+                                {
+                                    var name = friendlyName ?? deviceDesc;
+                                    if (!string.IsNullOrEmpty(name))
+                                    {
+                                        return name;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return null;
         }
 
         private static string GetDeviceNameFromBluetoothKey(RegistryKey deviceKey, string deviceKeyName, bool isMacBased)
