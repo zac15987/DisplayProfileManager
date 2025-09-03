@@ -483,9 +483,8 @@ namespace DisplayProfileManager.UI.Windows
             try
             {
                 StatusTextBlock.Text = "Detecting current audio devices...";
-                
-                SelectDefaultPlaybackDevice();
-                SelectDefaultCaptureDevice();
+
+                LoadAudioDevices();
                 
                 StatusTextBlock.Text = "Current audio devices detected";
             }
