@@ -258,8 +258,8 @@ namespace DisplayProfileManager.Core
                     }
                 }
 
-                // Apply audio settings after display settings
-                if (success && profile.AudioSettings != null)
+                // Apply audio settings after display settings (only if not disabled by user)
+                if (success && profile.AudioSettings != null && !profile.DontApplyAudioSettings)
                 {
                     try
                     {
@@ -306,6 +306,10 @@ namespace DisplayProfileManager.Core
                         System.Diagnostics.Debug.WriteLine($"Error applying audio settings: {ex.Message}");
                         // Don't fail the entire profile if audio settings fail
                     }
+                }
+                else if (success && profile.DontApplyAudioSettings)
+                {
+                    System.Diagnostics.Debug.WriteLine("Audio settings skipped - user chose not to apply audio settings for this profile");
                 }
 
                 if (success)

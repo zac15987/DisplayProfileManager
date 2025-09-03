@@ -30,6 +30,9 @@ namespace DisplayProfileManager.Core
         [JsonProperty("audioSettings")]
         public AudioSetting AudioSettings { get; set; } = new AudioSetting();
 
+        [JsonProperty("dontApplyAudioSettings")]
+        public bool DontApplyAudioSettings { get; set; } = false;
+
         public Profile()
         {
         }

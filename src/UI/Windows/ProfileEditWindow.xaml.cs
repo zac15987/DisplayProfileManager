@@ -64,6 +64,7 @@ namespace DisplayProfileManager.UI.Windows
             ProfileNameTextBox.Text = _profile.Name;
             ProfileDescriptionTextBox.Text = _profile.Description;
             DefaultProfileCheckBox.IsChecked = _profile.IsDefault;
+            DontApplyAudioSettingsCheckBox.IsChecked = _profile.DontApplyAudioSettings;
 
             if (_profile.DisplaySettings.Count > 0)
             {
@@ -174,6 +175,7 @@ namespace DisplayProfileManager.UI.Windows
 
                 _profile.Name = ProfileNameTextBox.Text.Trim();
                 _profile.Description = ProfileDescriptionTextBox.Text.Trim();
+                _profile.DontApplyAudioSettings = DontApplyAudioSettingsCheckBox.IsChecked ?? false;
                 _profile.DisplaySettings.Clear();
 
                 foreach (var control in _displayControls)
@@ -515,6 +517,18 @@ namespace DisplayProfileManager.UI.Windows
                     StatusTextBlock.Text = $"Input device: {device.SystemName}";
                 }
             }
+        }
+
+        private void DontApplyAudioSettingsCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            // Checkbox is checked - user doesn't want audio settings applied
+            StatusTextBlock.Text = "Audio settings will not be applied for this profile";
+        }
+
+        private void DontApplyAudioSettingsCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            // Checkbox is unchecked - user wants audio settings applied (normal behavior)
+            StatusTextBlock.Text = "Audio settings will be applied for this profile";
         }
 
         protected override void OnClosed(EventArgs e)
@@ -925,5 +939,6 @@ namespace DisplayProfileManager.UI.Windows
 
             return true;
         }
+
     }
 }
