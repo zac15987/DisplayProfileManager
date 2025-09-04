@@ -157,6 +157,7 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="src\Helpers\AboutHelper.cs" />
     <Compile Include="src\Helpers\AudioHelper.cs" />
     <Compile Include="src\Helpers\AutoStartHelper.cs" />
     <Compile Include="src\UI\Converters\BooleanToVisibilityConverter.cs" />

@@ -330,6 +330,41 @@
                                 <TextBlock Name="SettingsPathTextBlock" Style="{StaticResource ModernTextBlockStyle}" 
                                            FontSize="12" Foreground="{DynamicResource TertiaryTextBrush}" TextWrapping="Wrap"/>
                             </StackPanel>
+                            
+                            <!-- Community Features Section -->
+                            <TextBlock Text="Community Features:" Style="{StaticResource ModernTextBlockStyle}" FontWeight="SemiBold" Margin="0,12,0,4"/>
+                            <TextBlock Style="{StaticResource ModernTextBlockStyle}" FontSize="12" Foreground="{DynamicResource TertiaryTextBrush}" TextWrapping="Wrap">
+                                <Run Text="Audio device switching suggested by"/>
+                                <Hyperlink Name="CatriksLink" NavigateUri="https://github.com/Catriks" RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource LinkBrush}">
+                                    <Run Text="@Catriks"/>
+                                </Hyperlink>
+                                <Run Text=" and"/>
+                                <Hyperlink Name="AlienmarioLink" NavigateUri="https://github.com/Alienmario" RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource LinkBrush}">
+                                    <Run Text="@Alienmario"/>
+                                </Hyperlink>
+                                <Run Text=" ("/>
+                                <Hyperlink Name="IssueLink" NavigateUri="https://github.com/zac15987/DisplayProfileManager/issues/1" RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource LinkBrush}">
+                                    <Run Text="Issue #1"/>
+                                </Hyperlink>
+                                <Run Text=")"/>
+                            </TextBlock>
+                            
+                            <!-- Libraries Section -->
+                            <TextBlock Text="Key Libraries:" Style="{StaticResource ModernTextBlockStyle}" FontWeight="SemiBold" Margin="0,12,0,4"/>
+                            <StackPanel Margin="0,0,0,4">
+                                <TextBlock Style="{StaticResource ModernTextBlockStyle}" FontSize="12" Foreground="{DynamicResource TertiaryTextBrush}">
+                                    <Hyperlink Name="AudioSwitcherLink" NavigateUri="https://github.com/xenolightning/AudioSwitcher" RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource LinkBrush}">
+                                        <Run Text="AudioSwitcher.AudioApi"/>
+                                    </Hyperlink>
+                                    <Run Text=" - Audio device management"/>
+                                </TextBlock>
+                                <TextBlock Style="{StaticResource ModernTextBlockStyle}" FontSize="12" Foreground="{DynamicResource TertiaryTextBrush}">
+                                    <Hyperlink Name="NewtonsoftLink" NavigateUri="https://www.newtonsoft.com/json" RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource LinkBrush}">
+                                        <Run Text="Newtonsoft.Json"/>
+                                    </Hyperlink>
+                                    <Run Text=" - JSON serialization"/>
+                                </TextBlock>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
                 </StackPanel>

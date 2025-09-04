@@ -1,8 +1,10 @@
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Navigation;
 using System.Windows.Shell;
 using DisplayProfileManager.Core;
 using DisplayProfileManager.Helpers;
@@ -66,8 +68,8 @@ namespace DisplayProfileManager.UI.Windows
                 CheckForUpdatesCheckBox.IsChecked = settings.CheckForUpdates;
                 
                 // About section
-                VersionTextBlock.Text = settings.Version;
-                SettingsPathTextBlock.Text = _settingsManager.GetSettingsFilePath();
+                VersionTextBlock.Text = Helpers.AboutHelper.GetVersion();
+                SettingsPathTextBlock.Text = Helpers.AboutHelper.GetSettingsPath();
             }
             catch (Exception ex)
             {
@@ -337,6 +339,21 @@ namespace DisplayProfileManager.UI.Windows
 
 
 
+
+        private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
+                e.Handled = true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error opening URL: {ex.Message}");
+                MessageBox.Show($"Could not open link: {e.Uri.AbsoluteUri}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
 
         protected override void OnClosed(EventArgs e)
         {

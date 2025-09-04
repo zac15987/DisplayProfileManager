@@ -204,10 +204,7 @@ namespace DisplayProfileManager.UI
 
         private void OnAboutClick(object sender, EventArgs e)
         {
-            var aboutMessage = "Display Profile Manager v1.0\n\n" +
-                              "Manage display resolution and DPI scaling profiles.\n\n" +
-                              "Right-click the tray icon to switch between profiles.\n" +
-                              "Double-click to open the management window.";
+            var aboutMessage = Helpers.AboutHelper.GetAboutMessage();
 
             System.Windows.MessageBox.Show(aboutMessage, "About Display Profile Manager", 
                 MessageBoxButton.OK, MessageBoxImage.Information);

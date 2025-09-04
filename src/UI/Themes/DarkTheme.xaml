@@ -74,6 +74,9 @@
     <SolidColorBrush x:Key="TooltipBackgroundBrush" Color="#424245"/>
     <SolidColorBrush x:Key="TooltipTextBrush" Color="#F1F1F1"/>
     
+    <!-- Link Colors -->
+    <SolidColorBrush x:Key="LinkBrush" Color="#4FC3F7"/>
+    
     <!-- Shadow Effects -->
     <DropShadowEffect x:Key="CardShadow" 
                       ShadowDepth="2" 
