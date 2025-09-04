@@ -262,15 +262,6 @@
                             Click="DetectAudioButton_Click"/>
                 </Grid>
 
-                <!-- Don't Apply Audio Settings Checkbox -->
-                <CheckBox Name="DontApplyAudioSettingsCheckBox" 
-                          Content="Don't apply audio settings" 
-                          FontSize="14" 
-                          Margin="0,12,0,16"
-                          Foreground="{DynamicResource PrimaryTextBrush}"
-                          ToolTip="When checked, this profile will not change audio device settings when applied"
-                          Checked="DontApplyAudioSettingsCheckBox_Checked"
-                          Unchecked="DontApplyAudioSettingsCheckBox_Unchecked"/>
 
                 <Border Background="{DynamicResource ContentBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="16">
                     <Grid>
@@ -284,6 +275,7 @@
                         <Grid Grid.Row="0">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
 
@@ -291,9 +283,20 @@
                                        Style="{StaticResource LabelTextBlockStyle}" 
                                        VerticalAlignment="Center"/>
 
-                            <ComboBox Grid.Column="1" Name="OutputDeviceComboBox" 
+                            <CheckBox Grid.Column="1" Name="ApplyOutputDeviceCheckBox" 
+                                      Content="Apply" 
+                                      FontSize="14" 
+                                      Margin="0,0,8,0"
+                                      VerticalAlignment="Center"
+                                      Foreground="{DynamicResource PrimaryTextBrush}"
+                                      ToolTip="When checked, this profile will change the output device when applied"
+                                      Checked="ApplyOutputDeviceCheckBox_Checked"
+                                      Unchecked="ApplyOutputDeviceCheckBox_Unchecked"/>
+
+                            <ComboBox Grid.Column="2" Name="OutputDeviceComboBox" 
                                       Style="{StaticResource ModernComboBoxStyle}"
                                       Height="32"
+                                      IsEnabled="False"
                                       SelectionChanged="OutputDeviceComboBox_SelectionChanged">
                                 <ComboBox.ItemContainerStyle>
                                     <Style TargetType="ComboBoxItem">
@@ -317,6 +320,7 @@
                         <Grid Grid.Row="2">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
 
@@ -324,9 +328,20 @@
                                        Style="{StaticResource LabelTextBlockStyle}" 
                                        VerticalAlignment="Center"/>
 
-                            <ComboBox Grid.Column="1" Name="InputDeviceComboBox" 
+                            <CheckBox Grid.Column="1" Name="ApplyInputDeviceCheckBox" 
+                                      Content="Apply" 
+                                      FontSize="14" 
+                                      Margin="0,0,8,0"
+                                      VerticalAlignment="Center"
+                                      Foreground="{DynamicResource PrimaryTextBrush}"
+                                      ToolTip="When checked, this profile will change the input device when applied"
+                                      Checked="ApplyInputDeviceCheckBox_Checked"
+                                      Unchecked="ApplyInputDeviceCheckBox_Unchecked"/>
+
+                            <ComboBox Grid.Column="2" Name="InputDeviceComboBox" 
                                       Style="{StaticResource ModernComboBoxStyle}"
                                       Height="32"
+                                      IsEnabled="False"
                                       SelectionChanged="InputDeviceComboBox_SelectionChanged">
                                 <ComboBox.ItemContainerStyle>
                                     <Style TargetType="ComboBoxItem">

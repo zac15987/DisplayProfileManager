@@ -218,9 +218,10 @@ namespace DisplayProfileManager.UI.Windows
 
                 if (profile.AudioSettings.HasPlaybackDevice())
                 {
+                    var applyStatus = profile.AudioSettings.ApplyPlaybackDevice ? "" : " (Not Applied)";
                     var playbackDevice = new TextBlock
                     {
-                        Text = $"Output: {profile.AudioSettings.PlaybackDeviceName}",
+                        Text = $"Output: {profile.AudioSettings.PlaybackDeviceName}{applyStatus}",
                         Style = (Style)FindResource("ModernTextBlockStyle"),
                         FontSize = 12,
                         Foreground = (SolidColorBrush)FindResource("SecondaryTextBrush"),
@@ -231,9 +232,10 @@ namespace DisplayProfileManager.UI.Windows
 
                 if (profile.AudioSettings.HasCaptureDevice())
                 {
+                    var applyStatus = profile.AudioSettings.ApplyCaptureDevice ? "" : " (Not Applied)";
                     var captureDevice = new TextBlock
                     {
-                        Text = $"Input: {profile.AudioSettings.CaptureDeviceName}",
+                        Text = $"Input: {profile.AudioSettings.CaptureDeviceName}{applyStatus}",
                         Style = (Style)FindResource("ModernTextBlockStyle"),
                         FontSize = 12,
                         Foreground = (SolidColorBrush)FindResource("SecondaryTextBrush")

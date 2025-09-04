@@ -64,7 +64,6 @@ namespace DisplayProfileManager.UI.Windows
             ProfileNameTextBox.Text = _profile.Name;
             ProfileDescriptionTextBox.Text = _profile.Description;
             DefaultProfileCheckBox.IsChecked = _profile.IsDefault;
-            DontApplyAudioSettingsCheckBox.IsChecked = _profile.DontApplyAudioSettings;
 
             if (_profile.DisplaySettings.Count > 0)
             {
@@ -175,7 +174,6 @@ namespace DisplayProfileManager.UI.Windows
 
                 _profile.Name = ProfileNameTextBox.Text.Trim();
                 _profile.Description = ProfileDescriptionTextBox.Text.Trim();
-                _profile.DontApplyAudioSettings = DontApplyAudioSettingsCheckBox.IsChecked ?? false;
                 _profile.DisplaySettings.Clear();
 
                 foreach (var control in _displayControls)
@@ -192,6 +190,10 @@ namespace DisplayProfileManager.UI.Windows
                 {
                     _profile.AudioSettings = new AudioSetting();
                 }
+
+                // Save apply flags
+                _profile.AudioSettings.ApplyPlaybackDevice = ApplyOutputDeviceCheckBox.IsChecked ?? false;
+                _profile.AudioSettings.ApplyCaptureDevice = ApplyInputDeviceCheckBox.IsChecked ?? false;
 
                 var selectedOutputDevice = OutputDeviceComboBox.SelectedItem as AudioHelper.AudioDeviceInfo;
                 if (selectedOutputDevice != null)
@@ -383,6 +385,14 @@ namespace DisplayProfileManager.UI.Windows
                 // Select appropriate devices
                 if (_isEditMode && _profile.AudioSettings != null)
                 {
+                    // Set checkbox states
+                    ApplyOutputDeviceCheckBox.IsChecked = _profile.AudioSettings.ApplyPlaybackDevice;
+                    ApplyInputDeviceCheckBox.IsChecked = _profile.AudioSettings.ApplyCaptureDevice;
+                    
+                    // Enable/disable ComboBoxes based on checkbox states
+                    OutputDeviceComboBox.IsEnabled = _profile.AudioSettings.ApplyPlaybackDevice;
+                    InputDeviceComboBox.IsEnabled = _profile.AudioSettings.ApplyCaptureDevice;
+                    
                     // If editing, try to select saved devices
                     if (!string.IsNullOrEmpty(_profile.AudioSettings.DefaultPlaybackDeviceId))
                     {
@@ -422,7 +432,8 @@ namespace DisplayProfileManager.UI.Windows
                 }
                 else
                 {
-                    // New profile, select current default devices
+                    // New profile, checkboxes are unchecked by default (XAML default)
+                    // ComboBoxes are disabled by default (set in XAML)
                     SelectDefaultPlaybackDevice();
                     SelectDefaultCaptureDevice();
                 }
@@ -519,16 +530,28 @@ namespace DisplayProfileManager.UI.Windows
             }
         }
 
-        private void DontApplyAudioSettingsCheckBox_Checked(object sender, RoutedEventArgs e)
+        private void ApplyOutputDeviceCheckBox_Checked(object sender, RoutedEventArgs e)
         {
-            // Checkbox is checked - user doesn't want audio settings applied
-            StatusTextBlock.Text = "Audio settings will not be applied for this profile";
+            OutputDeviceComboBox.IsEnabled = true;
+            StatusTextBlock.Text = "Output device will be applied for this profile";
         }
 
-        private void DontApplyAudioSettingsCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        private void ApplyOutputDeviceCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
-            // Checkbox is unchecked - user wants audio settings applied (normal behavior)
-            StatusTextBlock.Text = "Audio settings will be applied for this profile";
+            OutputDeviceComboBox.IsEnabled = false;
+            StatusTextBlock.Text = "Output device will not be applied for this profile";
+        }
+
+        private void ApplyInputDeviceCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            InputDeviceComboBox.IsEnabled = true;
+            StatusTextBlock.Text = "Input device will be applied for this profile";
+        }
+
+        private void ApplyInputDeviceCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            InputDeviceComboBox.IsEnabled = false;
+            StatusTextBlock.Text = "Input device will not be applied for this profile";
         }
 
         protected override void OnClosed(EventArgs e)

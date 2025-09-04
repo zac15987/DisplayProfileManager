@@ -30,8 +30,6 @@ namespace DisplayProfileManager.Core
         [JsonProperty("audioSettings")]
         public AudioSetting AudioSettings { get; set; } = new AudioSetting();
 
-        [JsonProperty("dontApplyAudioSettings")]
-        public bool DontApplyAudioSettings { get; set; } = false;
 
         public Profile()
         {
@@ -142,6 +140,12 @@ namespace DisplayProfileManager.Core
 
         [JsonProperty("captureDeviceName")]
         public string CaptureDeviceName { get; set; } = string.Empty;
+
+        [JsonProperty("applyPlaybackDevice")]
+        public bool ApplyPlaybackDevice { get; set; } = false;
+
+        [JsonProperty("applyCaptureDevice")]
+        public bool ApplyCaptureDevice { get; set; } = false;
 
         public AudioSetting()
         {

@@ -258,15 +258,15 @@ namespace DisplayProfileManager.Core
                     }
                 }
 
-                // Apply audio settings after display settings (only if not disabled by user)
-                if (success && profile.AudioSettings != null && !profile.DontApplyAudioSettings)
+                // Apply audio settings after display settings
+                if (success && profile.AudioSettings != null)
                 {
                     try
                     {
                         bool audioSuccess = true;
                         
-                        // Apply playback device
-                        if (profile.AudioSettings.HasPlaybackDevice())
+                        // Apply playback device if enabled
+                        if (profile.AudioSettings.ApplyPlaybackDevice && profile.AudioSettings.HasPlaybackDevice())
                         {
                             bool playbackSet = AudioHelper.SetDefaultPlaybackDevice(profile.AudioSettings.DefaultPlaybackDeviceId);
                             if (!playbackSet)
@@ -279,9 +279,17 @@ namespace DisplayProfileManager.Core
                                 System.Diagnostics.Debug.WriteLine($"Successfully set playback device: {profile.AudioSettings.PlaybackDeviceName}");
                             }
                         }
+                        else if (profile.AudioSettings.ApplyPlaybackDevice)
+                        {
+                            System.Diagnostics.Debug.WriteLine("Playback device application enabled but no device configured");
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine("Playback device application disabled for this profile");
+                        }
                         
-                        // Apply capture device
-                        if (profile.AudioSettings.HasCaptureDevice())
+                        // Apply capture device if enabled
+                        if (profile.AudioSettings.ApplyCaptureDevice && profile.AudioSettings.HasCaptureDevice())
                         {
                             bool captureSet = AudioHelper.SetDefaultCaptureDevice(profile.AudioSettings.DefaultCaptureDeviceId);
                             if (!captureSet)
@@ -293,6 +301,14 @@ namespace DisplayProfileManager.Core
                             {
                                 System.Diagnostics.Debug.WriteLine($"Successfully set capture device: {profile.AudioSettings.CaptureDeviceName}");
                             }
+                        }
+                        else if (profile.AudioSettings.ApplyCaptureDevice)
+                        {
+                            System.Diagnostics.Debug.WriteLine("Capture device application enabled but no device configured");
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine("Capture device application disabled for this profile");
                         }
                         
                         // Log audio settings result but don't fail the entire profile
@@ -306,10 +322,6 @@ namespace DisplayProfileManager.Core
                         System.Diagnostics.Debug.WriteLine($"Error applying audio settings: {ex.Message}");
                         // Don't fail the entire profile if audio settings fail
                     }
-                }
-                else if (success && profile.DontApplyAudioSettings)
-                {
-                    System.Diagnostics.Debug.WriteLine("Audio settings skipped - user chose not to apply audio settings for this profile");
                 }
 
                 if (success)
