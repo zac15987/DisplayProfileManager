@@ -1,4 +1,6 @@
 using System;
+using System.Diagnostics;
+using System.Reflection;
 using DisplayProfileManager.Core;
 
 namespace DisplayProfileManager.Helpers
@@ -14,6 +16,23 @@ namespace DisplayProfileManager.Helpers
         public static string GetVersion()
         {
             return SettingsManager.Instance.Settings.Version;
+        }
+
+        /// <summary>
+        /// Gets the informational version (includes beta/rc tags)
+        /// </summary>
+        public static string GetInformationalVersion()
+        {
+            var assembly = Assembly.GetExecutingAssembly();
+            var informationalVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+            
+            // Fallback to FileVersionInfo if attribute is not found
+            if (string.IsNullOrEmpty(informationalVersion))
+            {
+                informationalVersion = FileVersionInfo.GetVersionInfo(assembly.Location).ProductVersion;
+            }
+            
+            return informationalVersion ?? GetVersion();
         }
 
         /// <summary>
@@ -74,7 +93,7 @@ namespace DisplayProfileManager.Helpers
         /// </summary>
         public static string GetAboutMessage()
         {
-            var version = GetVersion();
+            var version = GetInformationalVersion();
             var settingsPath = GetSettingsPath();
             
             return $"Display Profile Manager v{version}\n\n" +

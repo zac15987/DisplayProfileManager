@@ -68,7 +68,7 @@ namespace DisplayProfileManager.UI.Windows
                 CheckForUpdatesCheckBox.IsChecked = settings.CheckForUpdates;
                 
                 // About section
-                VersionTextBlock.Text = Helpers.AboutHelper.GetVersion();
+                VersionTextBlock.Text = Helpers.AboutHelper.GetInformationalVersion();
                 SettingsPathTextBlock.Text = Helpers.AboutHelper.GetSettingsPath();
             }
             catch (Exception ex)
