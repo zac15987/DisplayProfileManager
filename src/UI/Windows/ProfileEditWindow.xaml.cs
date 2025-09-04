@@ -367,6 +367,8 @@ namespace DisplayProfileManager.UI.Windows
                 // Clear existing collections
                 _playbackDevices.Clear();
                 _captureDevices.Clear();
+
+                AudioHelper.ReInitializeAudioController();
                 
                 // Load playback devices
                 var playbackDevices = AudioHelper.GetPlaybackDevices();

@@ -3291,5 +3291,18 @@ namespace DisplayProfileManager.Helpers
                 Debug.WriteLine($"Error disposing AudioController: {ex.Message}");
             }
         }
+
+        public static void ReInitializeAudioController()
+        {
+            try
+            {
+                Dispose();
+                _audioController = new CoreAudioController();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error re-initializing AudioController: {ex.Message}");
+            }
+        }
     }
 }
