@@ -131,7 +131,7 @@ cmd.exe //c "start bin\Release\DisplayProfileManager.exe"
 - **AudioHelper**: Manages audio device enumeration and switching via AudioSwitcher.AudioApi
 - **Playback Devices**: Default audio output device switching (speakers, headphones, etc.)
 - **Communication Devices**: Default communication device switching (microphones, etc.)
-- **Profile Integration**: Audio settings stored in profile with optional skip flag (`DontApplyAudioSettings`)
+- **Profile Integration**: Audio settings stored in profile with per-device apply flags (`ApplyPlaybackDevice`, `ApplyCaptureDevice`)
 - **Device Names**: Uses AudioSwitcher for friendly device names and system integration
 - **Bluetooth Support**: Handles Bluetooth device correlation and naming consistency
 
