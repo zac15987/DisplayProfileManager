@@ -36,7 +36,7 @@ cmd.exe //c "start bin\Release\DisplayProfileManager.exe"
 ### Key Components
 - **ProfileManager**: Thread-safe singleton for profile CRUD, individual `.dpm` file persistence to `%AppData%/DisplayProfileManager/Profiles/`, sequential resolution/refresh rate/DPI/audio changes
 - **SettingsManager**: Thread-safe singleton for app settings, Windows startup integration
-- **DisplayHelper/DpiHelper/AudioHelper**: P/Invoke wrappers for Windows APIs (ChangeDisplaySettingsEx, SystemParametersInfo, display enumeration, audio device switching)
+- **DisplayHelper/DpiHelper/AudioHelper/AboutHelper**: P/Invoke wrappers for Windows APIs (ChangeDisplaySettingsEx, SystemParametersInfo, display enumeration, audio device switching), and utility classes for application information
 - **TrayIcon**: Dynamic context menu for profile switching, handles system tray lifecycle
 - **ProfileViewModel**: MVVM pattern for UI data binding and validation
 - **Custom Windows**: Native-style borderless windows with manual window chrome
