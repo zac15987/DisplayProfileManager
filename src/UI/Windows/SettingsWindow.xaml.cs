@@ -67,9 +67,6 @@ namespace DisplayProfileManager.UI.Windows
                 // Global hotkeys settings
                 RefreshHotkeyList();
                 
-                // Updates settings
-                CheckForUpdatesCheckBox.IsChecked = settings.CheckForUpdates;
-                
                 // About section
                 VersionTextBlock.Text = Helpers.AboutHelper.GetInformationalVersion();
                 SettingsPathTextBlock.Text = Helpers.AboutHelper.GetSettingsPath();
@@ -246,15 +243,6 @@ namespace DisplayProfileManager.UI.Windows
             var isChecked = ShowNotificationsCheckBox.IsChecked ?? false;
             await _settingsManager.SetNotificationsAsync(isChecked);
         }
-
-        private async void CheckForUpdatesCheckBox_Changed(object sender, RoutedEventArgs e)
-        {
-            if (_isLoadingSettings) return;
-            
-            var isChecked = CheckForUpdatesCheckBox.IsChecked ?? false;
-            await _settingsManager.UpdateSettingAsync("CheckForUpdates", isChecked);
-        }
-
 
         private void RefreshHotkeyList()
         {

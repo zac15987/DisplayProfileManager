@@ -336,18 +336,6 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Updates Section -->
-                    <Border Background="{DynamicResource ContentBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,0,16">
-                        <StackPanel>
-                            <TextBlock Text="Updates" Style="{StaticResource SectionHeaderStyle}"/>
-                            
-                            <CheckBox Name="CheckForUpdatesCheckBox" Content="Automatically check for updates" 
-                                      Style="{StaticResource ModernCheckBoxStyle}"
-                                      Checked="CheckForUpdatesCheckBox_Changed"
-                                      Unchecked="CheckForUpdatesCheckBox_Changed"/>
-                        </StackPanel>
-                    </Border>
-
                     <!-- About Section -->
                     <Border Background="{DynamicResource ContentBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,0,16">
                         <StackPanel>

@@ -30,9 +30,6 @@ namespace DisplayProfileManager.Core
         [JsonProperty("showNotifications")]
         public bool ShowNotifications { get; set; } = true;
 
-        [JsonProperty("checkForUpdates")]
-        public bool CheckForUpdates { get; set; } = true;
-
         [JsonProperty("theme")]
         public string Theme { get; set; } = "System";
 
