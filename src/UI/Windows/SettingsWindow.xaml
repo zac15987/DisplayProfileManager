@@ -303,6 +303,44 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- Global Hotkeys Section -->
+                    <Border Background="{DynamicResource ContentBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBlock Text="Global Hotkeys" Style="{StaticResource SectionHeaderStyle}"/>
+                            
+                            <CheckBox Name="GlobalHotkeysEnabledCheckBox" Content="Enable global hotkeys for profiles" 
+                                      Style="{StaticResource ModernCheckBoxStyle}"
+                                      Checked="GlobalHotkeysEnabledCheckBox_Changed"
+                                      Unchecked="GlobalHotkeysEnabledCheckBox_Changed"/>
+                            
+                            <TextBlock Text="Hotkeys are configured individually for each profile in the Profile Editor. When disabled, all profile hotkeys will be ignored." 
+                                       Style="{StaticResource ModernTextBlockStyle}" 
+                                       FontSize="12" 
+                                       Foreground="{DynamicResource TertiaryTextBrush}" 
+                                       TextWrapping="Wrap" 
+                                       Margin="0,8,0,0"/>
+                            
+                            <!-- Read-only list of configured hotkeys -->
+                            <TextBlock Text="Currently Configured Hotkeys:" Style="{StaticResource LabelTextBlockStyle}" Margin="0,12,0,4"/>
+                            <Border Background="{DynamicResource TextBoxBackgroundBrush}" 
+                                    BorderBrush="{DynamicResource TextBoxBorderBrush}" 
+                                    BorderThickness="1" 
+                                    CornerRadius="3" 
+                                    MinHeight="80" 
+                                    MaxHeight="120">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8">
+                                    <StackPanel Name="HotkeyListPanel">
+                                        <TextBlock Text="No global hotkeys configured" 
+                                                   Style="{StaticResource ModernTextBlockStyle}" 
+                                                   FontSize="12" 
+                                                   Foreground="{DynamicResource TertiaryTextBrush}" 
+                                                   FontStyle="Italic"/>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
                     <!-- Updates Section -->
                     <Border Background="{DynamicResource ContentBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,0,16">
                         <StackPanel>

@@ -10,6 +10,7 @@ using System.Windows.Media;
 using System.Windows.Shell;
 using DisplayProfileManager.Core;
 using DisplayProfileManager.Helpers;
+using DisplayProfileManager.UI.Controls;
 
 namespace DisplayProfileManager.UI.Windows
 {
@@ -73,6 +74,20 @@ namespace DisplayProfileManager.UI.Windows
                     AddDisplaySettingControl(setting);
                 }
             }
+
+            // Initialize hotkey configuration
+            if (_profile.HotkeyConfig != null)
+            {
+                HotkeyEditor.HotkeyConfig = _profile.HotkeyConfig.Clone();
+                EnableHotkeyCheckBox.IsChecked = _profile.HotkeyConfig.IsEnabled;
+            }
+            else
+            {
+                HotkeyEditor.HotkeyConfig = new HotkeyConfig();
+                EnableHotkeyCheckBox.IsChecked = false;
+            }
+
+            CheckForHotkeyConflicts();
 
             // Audio settings will be populated in LoadAudioDevices which is called from constructor
         }
@@ -208,6 +223,15 @@ namespace DisplayProfileManager.UI.Windows
                     _profile.AudioSettings.DefaultCaptureDeviceId = selectedInputDevice.Id;
                     _profile.AudioSettings.CaptureDeviceName = selectedInputDevice.SystemName;
                 }
+
+                // Save hotkey configuration
+                if (_profile.HotkeyConfig == null)
+                {
+                    _profile.HotkeyConfig = new HotkeyConfig();
+                }
+
+                _profile.HotkeyConfig = HotkeyEditor.HotkeyConfig?.Clone() ?? new HotkeyConfig();
+                _profile.HotkeyConfig.IsEnabled = EnableHotkeyCheckBox.IsChecked ?? false;
 
                 if (DefaultProfileCheckBox.IsChecked == true && !_profile.IsDefault)
                 {
@@ -554,6 +578,55 @@ namespace DisplayProfileManager.UI.Windows
         {
             InputDeviceComboBox.IsEnabled = false;
             StatusTextBlock.Text = "Input device will not be applied for this profile";
+        }
+
+        private void HotkeyEditor_HotkeyChanged(object sender, HotkeyConfig e)
+        {
+            CheckForHotkeyConflicts();
+        }
+
+        private void CheckForHotkeyConflicts()
+        {
+            if (HotkeyEditor?.HotkeyConfig == null || 
+                HotkeyEditor.HotkeyConfig.Key == System.Windows.Input.Key.None)
+            {
+                ConflictWarning.Visibility = Visibility.Collapsed;
+                HotkeyEditor.ConflictingProfile = null;
+                return;
+            }
+
+            var conflictingProfile = FindConflictingProfile(HotkeyEditor.HotkeyConfig);
+            if (conflictingProfile != null)
+            {
+                ConflictWarning.Text = $"⚠ Already assigned to '{conflictingProfile.Name}'";
+                ConflictWarning.Visibility = Visibility.Visible;
+                HotkeyEditor.ConflictingProfile = conflictingProfile.Name;
+            }
+            else
+            {
+                ConflictWarning.Visibility = Visibility.Collapsed;
+                HotkeyEditor.ConflictingProfile = null;
+            }
+        }
+
+        private Profile FindConflictingProfile(HotkeyConfig hotkey)
+        {
+            var allProfiles = _profileManager.GetAllProfiles();
+            return allProfiles.FirstOrDefault(p => 
+                p.Id != _profile.Id && 
+                p.HotkeyConfig != null && 
+                p.HotkeyConfig.IsEnabled &&
+                p.HotkeyConfig.Equals(hotkey));
+        }
+
+        private void EnableHotkeyCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            StatusTextBlock.Text = "Global hotkey enabled for this profile";
+        }
+
+        private void EnableHotkeyCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            StatusTextBlock.Text = "Global hotkey disabled for this profile";
         }
 
         protected override void OnClosed(EventArgs e)

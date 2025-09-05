@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Read(/D:\\Documents\\MyProjects\\DisplayProfileManager\\src\\UI\\Windows/**)"
-    ],
-    "deny": [],
-    "ask": []
-  }
-}

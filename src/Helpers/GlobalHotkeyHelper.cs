@@ -4,6 +4,8 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows.Interop;
 using System.Windows.Threading;
+using System.Windows.Input;
+using DisplayProfileManager.Core;
 
 namespace DisplayProfileManager.Helpers
 {
@@ -63,6 +65,8 @@ namespace DisplayProfileManager.Helpers
         private HwndSource _hwndSource;
         private IntPtr _windowHandle;
         private readonly Dictionary<int, Action> _hotkeyActions = new Dictionary<int, Action>();
+        private readonly Dictionary<string, int> _profileHotkeyIds = new Dictionary<string, int>();
+        private readonly Dictionary<int, string> _hotkeyIdToProfileId = new Dictionary<int, string>();
         private int _currentHotkeyId = 9000; // Starting ID for hotkeys
         private bool _disposed = false;
         
@@ -281,6 +285,114 @@ namespace DisplayProfileManager.Helpers
             return IntPtr.Zero;
         }
 
+        public int RegisterProfileHotkey(string profileId, HotkeyConfig hotkey, Action callback)
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(GlobalHotkeyHelper));
+
+            if (hotkey?.Key == Key.None || string.IsNullOrEmpty(profileId))
+                return -1;
+
+            // Unregister existing hotkey for this profile if any
+            UnregisterProfileHotkey(profileId);
+
+            var virtualKey = Helpers.KeyConverter.ToVirtualKey(hotkey.Key);
+            var modifiers = Helpers.KeyConverter.ConvertModifierKeys(hotkey.ModifierKeys);
+
+            if (virtualKey == 0)
+            {
+                Debug.WriteLine($"Could not convert WPF Key {hotkey.Key} to virtual key");
+                return -1;
+            }
+
+            int hotkeyId = RegisterHotkey((uint)virtualKey, modifiers, callback);
+            
+            if (hotkeyId > 0)
+            {
+                _profileHotkeyIds[profileId] = hotkeyId;
+                _hotkeyIdToProfileId[hotkeyId] = profileId;
+                Debug.WriteLine($"Registered profile hotkey for '{profileId}': {hotkey} (ID: {hotkeyId})");
+            }
+            else
+            {
+                Debug.WriteLine($"Failed to register profile hotkey for '{profileId}': {hotkey}");
+            }
+
+            return hotkeyId;
+        }
+
+        public bool UnregisterProfileHotkey(string profileId)
+        {
+            if (_disposed || string.IsNullOrEmpty(profileId))
+                return false;
+
+            if (_profileHotkeyIds.TryGetValue(profileId, out int hotkeyId))
+            {
+                bool result = UnregisterHotkey(hotkeyId);
+                _profileHotkeyIds.Remove(profileId);
+                _hotkeyIdToProfileId.Remove(hotkeyId);
+                
+                Debug.WriteLine($"Unregistered profile hotkey for '{profileId}' (ID: {hotkeyId}): {(result ? "Success" : "Failed")}");
+                return result;
+            }
+
+            return true; // No hotkey to unregister
+        }
+
+        public void RegisterAllProfileHotkeys(Dictionary<string, HotkeyConfig> profileHotkeys, Func<string, Action> callbackFactory)
+        {
+            if (_disposed || profileHotkeys == null || callbackFactory == null)
+                return;
+
+            // Clear existing profile hotkeys
+            UnregisterAllProfileHotkeys();
+
+            foreach (var kvp in profileHotkeys)
+            {
+                var profileId = kvp.Key;
+                var hotkeyConfig = kvp.Value;
+                
+                if (hotkeyConfig?.IsEnabled == true && hotkeyConfig.Key != Key.None)
+                {
+                    var callback = callbackFactory(profileId);
+                    if (callback != null)
+                    {
+                        RegisterProfileHotkey(profileId, hotkeyConfig, callback);
+                    }
+                }
+            }
+        }
+
+        public void UnregisterAllProfileHotkeys()
+        {
+            if (_disposed)
+                return;
+
+            var profileIds = new List<string>(_profileHotkeyIds.Keys);
+            foreach (var profileId in profileIds)
+            {
+                UnregisterProfileHotkey(profileId);
+            }
+
+            Debug.WriteLine("Unregistered all profile hotkeys");
+        }
+
+        public bool IsProfileHotkeyRegistered(string profileId)
+        {
+            return !string.IsNullOrEmpty(profileId) && _profileHotkeyIds.ContainsKey(profileId);
+        }
+
+        public string GetProfileIdByHotkeyId(int hotkeyId)
+        {
+            _hotkeyIdToProfileId.TryGetValue(hotkeyId, out string profileId);
+            return profileId;
+        }
+
+        public List<string> GetRegisteredProfiles()
+        {
+            return new List<string>(_profileHotkeyIds.Keys);
+        }
+
         public void Dispose()
         {
             Dispose(true);
@@ -308,6 +420,8 @@ namespace DisplayProfileManager.Helpers
                         Debug.WriteLine($"Unregistered hotkey {hotkeyId} during disposal");
                     }
                     _hotkeyActions.Clear();
+                    _profileHotkeyIds.Clear();
+                    _hotkeyIdToProfileId.Clear();
 
                     // Dispose of the window
                     if (System.Windows.Application.Current?.Dispatcher != null)

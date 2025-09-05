@@ -153,6 +153,10 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Page Include="src\UI\Controls\HotkeyEditorControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Compile Include="src\App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
@@ -165,6 +169,12 @@
     <Compile Include="src\Helpers\DpiHelper.cs" />
     <Compile Include="src\Helpers\GlobalHotkeyHelper.cs" />
     <Compile Include="src\Helpers\ThemeHelper.cs" />
+    <Compile Include="src\Helpers\KeyConverter.cs" />
+    <Compile Include="src\Core\HotkeyConfig.cs" />
+    <Compile Include="src\UI\Controls\HotkeyEditorControl.xaml.cs">
+      <DependentUpon>HotkeyEditorControl.xaml</DependentUpon>
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="src\UI\Windows\MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>

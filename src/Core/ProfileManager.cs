@@ -580,6 +580,78 @@ namespace DisplayProfileManager.Core
             }
         }
 
+        public List<Profile> GetProfilesWithHotkeys()
+        {
+            return _profiles.Where(p => p.HotkeyConfig != null && 
+                                       p.HotkeyConfig.IsEnabled && 
+                                       p.HotkeyConfig.Key != System.Windows.Input.Key.None).ToList();
+        }
+
+        public Profile GetProfileByHotkey(HotkeyConfig hotkey)
+        {
+            if (hotkey?.Key == System.Windows.Input.Key.None)
+                return null;
+
+            return _profiles.FirstOrDefault(p => p.HotkeyConfig != null &&
+                                                p.HotkeyConfig.IsEnabled &&
+                                                p.HotkeyConfig.Equals(hotkey));
+        }
+
+        public bool HasHotkeyConflict(string profileId, HotkeyConfig hotkey)
+        {
+            if (hotkey?.Key == System.Windows.Input.Key.None)
+                return false;
+
+            return _profiles.Any(p => p.Id != profileId &&
+                                     p.HotkeyConfig != null &&
+                                     p.HotkeyConfig.IsEnabled &&
+                                     p.HotkeyConfig.Equals(hotkey));
+        }
+
+        public Profile FindConflictingProfile(string excludeProfileId, HotkeyConfig hotkey)
+        {
+            if (hotkey?.Key == System.Windows.Input.Key.None)
+                return null;
+
+            return _profiles.FirstOrDefault(p => p.Id != excludeProfileId &&
+                                                p.HotkeyConfig != null &&
+                                                p.HotkeyConfig.IsEnabled &&
+                                                p.HotkeyConfig.Equals(hotkey));
+        }
+
+        public async Task<bool> ClearHotkeyAsync(string profileId)
+        {
+            try
+            {
+                var profile = GetProfile(profileId);
+                if (profile?.HotkeyConfig != null)
+                {
+                    profile.HotkeyConfig = new HotkeyConfig();
+                    return await UpdateProfileAsync(profile);
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error clearing hotkey for profile {profileId}: {ex.Message}");
+                return false;
+            }
+        }
+
+        public Dictionary<string, HotkeyConfig> GetAllHotkeys()
+        {
+            var hotkeys = new Dictionary<string, HotkeyConfig>();
+            
+            foreach (var profile in _profiles.Where(p => p.HotkeyConfig != null && 
+                                                        p.HotkeyConfig.IsEnabled && 
+                                                        p.HotkeyConfig.Key != System.Windows.Input.Key.None))
+            {
+                hotkeys[profile.Id] = profile.HotkeyConfig;
+            }
+            
+            return hotkeys;
+        }
+
         private readonly SettingsManager _settingsManager = SettingsManager.Instance;
     }
 }

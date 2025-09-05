@@ -288,6 +288,11 @@ namespace DisplayProfileManager
             
             // Initialize global hotkeys
             InitializeGlobalHotkeys();
+            
+            // Subscribe to profile events to keep hotkeys updated
+            _profileManager.ProfileAdded += OnProfileChanged;
+            _profileManager.ProfileUpdated += OnProfileChanged;
+            _profileManager.ProfileDeleted += OnProfileDeleted;
         }
 
         private void SetupTrayIcon()
@@ -391,10 +396,91 @@ namespace DisplayProfileManager
                 {
                     System.Diagnostics.Debug.WriteLine("Successfully registered Print Screen hotkey");
                 }
+
+                // Register all profile hotkeys
+                RegisterAllProfileHotkeys();
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error initializing global hotkeys: {ex.Message}");
+            }
+        }
+
+        private void RegisterAllProfileHotkeys()
+        {
+            try
+            {
+                if (_globalHotkeyHelper == null || _profileManager == null)
+                    return;
+
+                var profileHotkeys = _profileManager.GetAllHotkeys();
+                if (profileHotkeys.Count > 0)
+                {
+                    _globalHotkeyHelper.RegisterAllProfileHotkeys(profileHotkeys, CreateProfileHotkeyCallback);
+                    System.Diagnostics.Debug.WriteLine($"Registered {profileHotkeys.Count} profile hotkeys");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error registering profile hotkeys: {ex.Message}");
+            }
+        }
+
+        private Action CreateProfileHotkeyCallback(string profileId)
+        {
+            return () => ApplyProfileViaHotkey(profileId);
+        }
+
+        private async void ApplyProfileViaHotkey(string profileId)
+        {
+            try
+            {
+                var profile = _profileManager.GetProfile(profileId);
+                if (profile != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Applying profile '{profile.Name}' via hotkey");
+                    
+                    bool success = await _profileManager.ApplyProfileAsync(profile);
+                    if (success)
+                    {
+                        _trayIcon?.ShowNotification("Display Profile Manager", 
+                            $"Applied profile: {profile.Name}", 
+                            System.Windows.Forms.ToolTipIcon.Info);
+                    }
+                    else
+                    {
+                        _trayIcon?.ShowNotification("Display Profile Manager", 
+                            $"Failed to apply profile: {profile.Name}", 
+                            System.Windows.Forms.ToolTipIcon.Error);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error applying profile {profileId} via hotkey: {ex.Message}");
+                _trayIcon?.ShowNotification("Display Profile Manager", 
+                    "Error applying profile via hotkey", 
+                    System.Windows.Forms.ToolTipIcon.Error);
+            }
+        }
+
+        private void OnProfileChanged(object sender, Profile profile)
+        {
+            // Refresh all profile hotkeys when any profile is added or updated
+            RegisterAllProfileHotkeys();
+        }
+
+        private void OnProfileDeleted(object sender, string profileId)
+        {
+            try
+            {
+                // Unregister the specific profile's hotkey
+                _globalHotkeyHelper?.UnregisterProfileHotkey(profileId);
+                System.Diagnostics.Debug.WriteLine($"Unregistered hotkey for deleted profile: {profileId}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error unregistering hotkey for deleted profile {profileId}: {ex.Message}");
             }
         }
 
@@ -455,6 +541,14 @@ namespace DisplayProfileManager
                 
                 _trayIcon?.Dispose();
                 
+                // Unsubscribe from profile events
+                if (_profileManager != null)
+                {
+                    _profileManager.ProfileAdded -= OnProfileChanged;
+                    _profileManager.ProfileUpdated -= OnProfileChanged;
+                    _profileManager.ProfileDeleted -= OnProfileDeleted;
+                }
+                
                 // Cleanup global hotkeys
                 if (_globalHotkeyHelper != null)
                 {
@@ -462,6 +556,7 @@ namespace DisplayProfileManager
                     {
                         _globalHotkeyHelper.UnregisterHotkey(_printScreenHotkeyId);
                     }
+                    _globalHotkeyHelper.UnregisterAllProfileHotkeys();
                     _globalHotkeyHelper.Dispose();
                 }
                 

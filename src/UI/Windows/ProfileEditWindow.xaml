@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:DisplayProfileManager.UI.Windows"
         xmlns:converters="clr-namespace:DisplayProfileManager.UI.Converters"
+        xmlns:controls="clr-namespace:DisplayProfileManager.UI.Controls"
         mc:Ignorable="d"
         Title="Profile Editor" Height="500" Width="700" 
         WindowStartupLocation="CenterOwner" ResizeMode="CanResize"
@@ -211,6 +212,48 @@
                              VerticalScrollBarVisibility="Auto" 
                              AcceptsReturn="True"
                              Foreground="{DynamicResource PrimaryTextBrush}"/>
+                </StackPanel>
+
+                <!-- Global Hotkey Section -->
+                <StackPanel Margin="0,0,0,24">
+                    <Grid>
+                        <TextBlock Text="Global Hotkey (Optional)" 
+                                   Style="{StaticResource LabelTextBlockStyle}"/>
+                        <TextBlock Text="Press ESC to clear" 
+                                   FontSize="11" 
+                                   Opacity="0.7" 
+                                   HorizontalAlignment="Right"
+                                   Foreground="{DynamicResource TertiaryTextBrush}"/>
+                    </Grid>
+                    
+                    <Grid Margin="0,4,0,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        
+                        <controls:HotkeyEditorControl x:Name="HotkeyEditor" 
+                                                      Grid.Row="0"
+                                                      HotkeyChanged="HotkeyEditor_HotkeyChanged"/>
+                        
+                        <TextBlock x:Name="ConflictWarning" 
+                                   Grid.Row="1"
+                                   Text="⚠ Already assigned to another profile" 
+                                   Foreground="#FF6B35" 
+                                   Visibility="Collapsed" 
+                                   Margin="0,4,0,0"
+                                   FontSize="12"/>
+                        
+                        <CheckBox Name="EnableHotkeyCheckBox" 
+                                  Grid.Row="2"
+                                  Content="Enable global hotkey for this profile" 
+                                  FontSize="14"
+                                  Margin="0,8,0,0"
+                                  Foreground="{DynamicResource PrimaryTextBrush}"
+                                  Checked="EnableHotkeyCheckBox_Checked"
+                                  Unchecked="EnableHotkeyCheckBox_Unchecked"/>
+                    </Grid>
                 </StackPanel>
 
                 <Grid Margin="0,0,0,16">

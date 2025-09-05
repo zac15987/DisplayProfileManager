@@ -87,13 +87,29 @@ namespace DisplayProfileManager.UI
                 
                 foreach (var profile in profiles.OrderBy(p => p.Name))
                 {
-                    var profileItem = new ToolStripMenuItem(profile.Name);
+                    var profileDisplayName = profile.Name;
+                    
+                    // Add hotkey display if profile has one
+                    if (profile.HotkeyConfig?.IsEnabled == true && 
+                        profile.HotkeyConfig.Key != System.Windows.Input.Key.None)
+                    {
+                        profileDisplayName += $"\t{profile.HotkeyConfig}";
+                    }
+                    
+                    var profileItem = new ToolStripMenuItem(profileDisplayName);
                     profileItem.Tag = profile;
                     profileItem.Click += OnProfileMenuItemClick;
                     
                     if (profile.Id == _profileManager.CurrentProfileId)
                     {
                         profileItem.Checked = true;
+                    }
+                    
+                    // Gray out disabled profiles
+                    if (profile.HotkeyConfig?.IsEnabled == false && 
+                        profile.HotkeyConfig.Key != System.Windows.Input.Key.None)
+                    {
+                        profileItem.ForeColor = System.Drawing.Color.Gray;
                     }
                     
                     profilesMenuItem.DropDownItems.Add(profileItem);

@@ -30,6 +30,9 @@ namespace DisplayProfileManager.Core
         [JsonProperty("audioSettings")]
         public AudioSetting AudioSettings { get; set; } = new AudioSetting();
 
+        [JsonProperty("hotkeyConfig")]
+        public HotkeyConfig HotkeyConfig { get; set; } = new HotkeyConfig();
+
 
         public Profile()
         {

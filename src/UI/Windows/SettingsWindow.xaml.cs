@@ -64,6 +64,10 @@ namespace DisplayProfileManager.UI.Windows
                 // Notifications settings
                 ShowNotificationsCheckBox.IsChecked = settings.ShowNotifications;
                 
+                // Global hotkeys settings
+                GlobalHotkeysEnabledCheckBox.IsChecked = settings.GlobalHotkeysEnabled;
+                RefreshHotkeyList();
+                
                 // Updates settings
                 CheckForUpdatesCheckBox.IsChecked = settings.CheckForUpdates;
                 
@@ -249,6 +253,74 @@ namespace DisplayProfileManager.UI.Windows
             
             var isChecked = CheckForUpdatesCheckBox.IsChecked ?? false;
             await _settingsManager.UpdateSettingAsync("CheckForUpdates", isChecked);
+        }
+
+        private async void GlobalHotkeysEnabledCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_isLoadingSettings) return;
+            
+            var isChecked = GlobalHotkeysEnabledCheckBox.IsChecked ?? false;
+            await _settingsManager.SetGlobalHotkeysEnabledAsync(isChecked);
+        }
+
+        private void RefreshHotkeyList()
+        {
+            try
+            {
+                HotkeyListPanel.Children.Clear();
+                
+                var profilesWithHotkeys = _profileManager.GetProfilesWithHotkeys();
+                
+                if (profilesWithHotkeys.Count == 0)
+                {
+                    var noHotkeysText = new TextBlock
+                    {
+                        Text = "No global hotkeys configured",
+                        Style = (Style)FindResource("ModernTextBlockStyle"),
+                        FontSize = 12,
+                        Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush"),
+                        FontStyle = FontStyles.Italic
+                    };
+                    HotkeyListPanel.Children.Add(noHotkeysText);
+                }
+                else
+                {
+                    foreach (var profile in profilesWithHotkeys.OrderBy(p => p.Name))
+                    {
+                        var hotkeyItem = new StackPanel
+                        {
+                            Orientation = Orientation.Horizontal,
+                            Margin = new Thickness(0, 2, 0, 2)
+                        };
+                        
+                        var profileNameText = new TextBlock
+                        {
+                            Text = $"{profile.Name}:",
+                            Style = (Style)FindResource("ModernTextBlockStyle"),
+                            FontSize = 12,
+                            Width = 150,
+                            TextTrimming = TextTrimming.CharacterEllipsis
+                        };
+                        
+                        var hotkeyText = new TextBlock
+                        {
+                            Text = profile.HotkeyConfig.ToString(),
+                            Style = (Style)FindResource("ModernTextBlockStyle"),
+                            FontSize = 12,
+                            FontWeight = FontWeights.SemiBold,
+                            Margin = new Thickness(8, 0, 0, 0)
+                        };
+                        
+                        hotkeyItem.Children.Add(profileNameText);
+                        hotkeyItem.Children.Add(hotkeyText);
+                        HotkeyListPanel.Children.Add(hotkeyItem);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error refreshing hotkey list: {ex.Message}");
+            }
         }
 
         private async void ResetSettingsButton_Click(object sender, RoutedEventArgs e)
