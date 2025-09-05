@@ -587,6 +587,12 @@ namespace DisplayProfileManager.Core
                                        p.HotkeyConfig.Key != System.Windows.Input.Key.None).ToList();
         }
 
+        public List<Profile> GetAllProfilesWithHotkeys()
+        {
+            return _profiles.Where(p => p.HotkeyConfig != null && 
+                                       p.HotkeyConfig.Key != System.Windows.Input.Key.None).ToList();
+        }
+
         public Profile GetProfileByHotkey(HotkeyConfig hotkey)
         {
             if (hotkey?.Key == System.Windows.Input.Key.None)

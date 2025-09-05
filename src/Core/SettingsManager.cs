@@ -48,9 +48,6 @@ namespace DisplayProfileManager.Core
         [JsonProperty("currentProfileId")]
         public string CurrentProfileId { get; set; } = string.Empty;
 
-        [JsonProperty("globalHotkeysEnabled")]
-        public bool GlobalHotkeysEnabled { get; set; } = true;
-
         [JsonProperty("lastUpdated")]
         public DateTime LastUpdated { get; set; } = DateTime.Now;
     }
@@ -412,15 +409,5 @@ namespace DisplayProfileManager.Core
             return await SaveSettingsAsync();
         }
 
-        public bool AreGlobalHotkeysEnabled()
-        {
-            return _settings.GlobalHotkeysEnabled;
-        }
-
-        public async Task<bool> SetGlobalHotkeysEnabledAsync(bool enabled)
-        {
-            _settings.GlobalHotkeysEnabled = enabled;
-            return await SaveSettingsAsync();
-        }
     }
 }

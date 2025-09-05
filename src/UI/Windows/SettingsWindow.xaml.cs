@@ -65,7 +65,6 @@ namespace DisplayProfileManager.UI.Windows
                 ShowNotificationsCheckBox.IsChecked = settings.ShowNotifications;
                 
                 // Global hotkeys settings
-                GlobalHotkeysEnabledCheckBox.IsChecked = settings.GlobalHotkeysEnabled;
                 RefreshHotkeyList();
                 
                 // Updates settings
@@ -255,25 +254,6 @@ namespace DisplayProfileManager.UI.Windows
             await _settingsManager.UpdateSettingAsync("CheckForUpdates", isChecked);
         }
 
-        private async void GlobalHotkeysEnabledCheckBox_Changed(object sender, RoutedEventArgs e)
-        {
-            if (_isLoadingSettings) return;
-            
-            var isChecked = GlobalHotkeysEnabledCheckBox.IsChecked ?? false;
-            await _settingsManager.SetGlobalHotkeysEnabledAsync(isChecked);
-            
-            // Trigger hotkey re-registration to respect the new setting
-            try
-            {
-                var app = Application.Current as App;
-                app?.RegisterAllProfileHotkeys();
-                System.Diagnostics.Debug.WriteLine($"Global hotkeys setting changed to: {isChecked}, re-registered hotkeys");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error re-registering hotkeys after settings change: {ex.Message}");
-            }
-        }
 
         private void RefreshHotkeyList()
         {
@@ -281,13 +261,17 @@ namespace DisplayProfileManager.UI.Windows
             {
                 HotkeyListPanel.Children.Clear();
                 
-                var profilesWithHotkeys = _profileManager.GetProfilesWithHotkeys();
+                // Get all profiles with hotkeys configured (both enabled and disabled)
+                var profilesWithHotkeys = _profileManager.GetAllProfiles()
+                    .Where(p => p.HotkeyConfig != null && p.HotkeyConfig.Key != System.Windows.Input.Key.None)
+                    .OrderBy(p => p.Name)
+                    .ToList();
                 
                 if (profilesWithHotkeys.Count == 0)
                 {
                     var noHotkeysText = new TextBlock
                     {
-                        Text = "No global hotkeys configured",
+                        Text = "No hotkeys configured",
                         Style = (Style)FindResource("ModernTextBlockStyle"),
                         FontSize = 12,
                         Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush"),
@@ -297,7 +281,7 @@ namespace DisplayProfileManager.UI.Windows
                 }
                 else
                 {
-                    foreach (var profile in profilesWithHotkeys.OrderBy(p => p.Name))
+                    foreach (var profile in profilesWithHotkeys)
                     {
                         var hotkeyItem = new StackPanel
                         {
@@ -323,8 +307,32 @@ namespace DisplayProfileManager.UI.Windows
                             Margin = new Thickness(8, 0, 0, 0)
                         };
                         
+                        // Apply different styling based on enabled/disabled status
+                        if (profile.HotkeyConfig.IsEnabled)
+                        {
+                            hotkeyText.Foreground = (System.Windows.Media.Brush)FindResource("PrimaryTextBrush");
+                        }
+                        else
+                        {
+                            hotkeyText.Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush");
+                        }
+                        
+                        // Add status indicator
+                        var statusText = new TextBlock
+                        {
+                            Text = profile.HotkeyConfig.IsEnabled ? "(Enabled)" : "(Disabled)",
+                            Style = (Style)FindResource("ModernTextBlockStyle"),
+                            FontSize = 11,
+                            FontStyle = profile.HotkeyConfig.IsEnabled ? FontStyles.Normal : FontStyles.Italic,
+                            Foreground = profile.HotkeyConfig.IsEnabled 
+                                ? (System.Windows.Media.Brush)FindResource("SuccessButtonBackgroundBrush")
+                                : (System.Windows.Media.Brush)FindResource("TertiaryTextBrush"),
+                            Margin = new Thickness(8, 0, 0, 0)
+                        };
+                        
                         hotkeyItem.Children.Add(profileNameText);
                         hotkeyItem.Children.Add(hotkeyText);
+                        hotkeyItem.Children.Add(statusText);
                         HotkeyListPanel.Children.Add(hotkeyItem);
                     }
                 }
