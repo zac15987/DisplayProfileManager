@@ -261,6 +261,18 @@ namespace DisplayProfileManager.UI.Windows
             
             var isChecked = GlobalHotkeysEnabledCheckBox.IsChecked ?? false;
             await _settingsManager.SetGlobalHotkeysEnabledAsync(isChecked);
+            
+            // Trigger hotkey re-registration to respect the new setting
+            try
+            {
+                var app = Application.Current as App;
+                app?.RegisterAllProfileHotkeys();
+                System.Diagnostics.Debug.WriteLine($"Global hotkeys setting changed to: {isChecked}, re-registered hotkeys");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error re-registering hotkeys after settings change: {ex.Message}");
+            }
         }
 
         private void RefreshHotkeyList()

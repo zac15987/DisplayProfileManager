@@ -598,7 +598,8 @@ namespace DisplayProfileManager.UI.Windows
             var conflictingProfile = FindConflictingProfile(HotkeyEditor.HotkeyConfig);
             if (conflictingProfile != null)
             {
-                ConflictWarning.Text = $"⚠ Already assigned to '{conflictingProfile.Name}'";
+                var enabledState = conflictingProfile.HotkeyConfig.IsEnabled ? "" : " (disabled)";
+                ConflictWarning.Text = $"⚠ Already assigned to '{conflictingProfile.Name}'{enabledState}";
                 ConflictWarning.Visibility = Visibility.Visible;
                 HotkeyEditor.ConflictingProfile = conflictingProfile.Name;
             }
@@ -615,7 +616,7 @@ namespace DisplayProfileManager.UI.Windows
             return allProfiles.FirstOrDefault(p => 
                 p.Id != _profile.Id && 
                 p.HotkeyConfig != null && 
-                p.HotkeyConfig.IsEnabled &&
+                p.HotkeyConfig.Key != System.Windows.Input.Key.None &&
                 p.HotkeyConfig.Equals(hotkey));
         }
 

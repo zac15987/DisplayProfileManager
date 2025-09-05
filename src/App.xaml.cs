@@ -406,18 +406,33 @@ namespace DisplayProfileManager
             }
         }
 
-        private void RegisterAllProfileHotkeys()
+        public void RegisterAllProfileHotkeys()
         {
             try
             {
-                if (_globalHotkeyHelper == null || _profileManager == null)
+                if (_globalHotkeyHelper == null || _profileManager == null || _settingsManager == null)
                     return;
+
+                // Check if global hotkeys are enabled
+                if (!_settingsManager.AreGlobalHotkeysEnabled())
+                {
+                    // If global hotkeys are disabled, unregister all profile hotkeys
+                    _globalHotkeyHelper.UnregisterAllProfileHotkeys();
+                    System.Diagnostics.Debug.WriteLine("Global hotkeys disabled - unregistered all profile hotkeys");
+                    return;
+                }
 
                 var profileHotkeys = _profileManager.GetAllHotkeys();
                 if (profileHotkeys.Count > 0)
                 {
                     _globalHotkeyHelper.RegisterAllProfileHotkeys(profileHotkeys, CreateProfileHotkeyCallback);
                     System.Diagnostics.Debug.WriteLine($"Registered {profileHotkeys.Count} profile hotkeys");
+                }
+                else
+                {
+                    // No enabled hotkeys, unregister all
+                    _globalHotkeyHelper.UnregisterAllProfileHotkeys();
+                    System.Diagnostics.Debug.WriteLine("No enabled profile hotkeys - unregistered all");
                 }
             }
             catch (Exception ex)

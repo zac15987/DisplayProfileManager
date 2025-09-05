@@ -604,7 +604,7 @@ namespace DisplayProfileManager.Core
 
             return _profiles.Any(p => p.Id != profileId &&
                                      p.HotkeyConfig != null &&
-                                     p.HotkeyConfig.IsEnabled &&
+                                     p.HotkeyConfig.Key != System.Windows.Input.Key.None &&
                                      p.HotkeyConfig.Equals(hotkey));
         }
 
@@ -615,7 +615,7 @@ namespace DisplayProfileManager.Core
 
             return _profiles.FirstOrDefault(p => p.Id != excludeProfileId &&
                                                 p.HotkeyConfig != null &&
-                                                p.HotkeyConfig.IsEnabled &&
+                                                p.HotkeyConfig.Key != System.Windows.Input.Key.None &&
                                                 p.HotkeyConfig.Equals(hotkey));
         }
 
