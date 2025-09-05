@@ -73,6 +73,7 @@ namespace DisplayProfileManager.UI.Windows
                 // About section
                 VersionTextBlock.Text = Helpers.AboutHelper.GetInformationalVersion();
                 SettingsPathTextBlock.Text = Helpers.AboutHelper.GetSettingsPath();
+                LoadCommunityFeatures();
             }
             catch (Exception ex)
             {
@@ -431,6 +432,154 @@ namespace DisplayProfileManager.UI.Windows
 
 
 
+
+        private void LoadCommunityFeatures()
+        {
+            try
+            {
+                CommunityFeaturesPanel.Children.Clear();
+                
+                // Audio feature line
+                var audioFeaturePanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+                
+                audioFeaturePanel.Children.Add(new TextBlock 
+                { 
+                    Text = "Audio device switching suggested by ",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+                
+                var catriksLink = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run("@Catriks"))
+                {
+                    NavigateUri = new Uri(AboutHelper.Community.CatriksUrl),
+                    Foreground = (System.Windows.Media.Brush)FindResource("LinkBrush")
+                };
+                catriksLink.RequestNavigate += Hyperlink_RequestNavigate;
+                
+                audioFeaturePanel.Children.Add(new TextBlock(catriksLink)
+                {
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+                
+                audioFeaturePanel.Children.Add(new TextBlock 
+                { 
+                    Text = " and ",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+                
+                var alienmarioLink = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run("@Alienmario"))
+                {
+                    NavigateUri = new Uri(AboutHelper.Community.AlienmarioUrl),
+                    Foreground = (System.Windows.Media.Brush)FindResource("LinkBrush")
+                };
+                alienmarioLink.RequestNavigate += Hyperlink_RequestNavigate;
+                
+                audioFeaturePanel.Children.Add(new TextBlock(alienmarioLink)
+                {
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+                
+                audioFeaturePanel.Children.Add(new TextBlock 
+                { 
+                    Text = " (",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+                
+                var audioIssueLink = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run("Issue #1"))
+                {
+                    NavigateUri = new Uri(AboutHelper.Community.AudioIssueUrl),
+                    Foreground = (System.Windows.Media.Brush)FindResource("LinkBrush")
+                };
+                audioIssueLink.RequestNavigate += Hyperlink_RequestNavigate;
+                
+                audioFeaturePanel.Children.Add(new TextBlock(audioIssueLink)
+                {
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+                
+                audioFeaturePanel.Children.Add(new TextBlock 
+                { 
+                    Text = ")",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+                
+                CommunityFeaturesPanel.Children.Add(audioFeaturePanel);
+                
+                // Hotkey feature line
+                var hotkeyFeaturePanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+                
+                hotkeyFeaturePanel.Children.Add(new TextBlock 
+                { 
+                    Text = "Global hotkey functionality suggested by ",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+                
+                var anodynosLink = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run("@anodynos"))
+                {
+                    NavigateUri = new Uri(AboutHelper.Community.AnodynosUrl),
+                    Foreground = (System.Windows.Media.Brush)FindResource("LinkBrush")
+                };
+                anodynosLink.RequestNavigate += Hyperlink_RequestNavigate;
+                
+                hotkeyFeaturePanel.Children.Add(new TextBlock(anodynosLink)
+                {
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+                
+                hotkeyFeaturePanel.Children.Add(new TextBlock 
+                { 
+                    Text = " (",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+                
+                var hotkeyIssueLink = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run("Issue #2"))
+                {
+                    NavigateUri = new Uri(AboutHelper.Community.HotkeyIssueUrl),
+                    Foreground = (System.Windows.Media.Brush)FindResource("LinkBrush")
+                };
+                hotkeyIssueLink.RequestNavigate += Hyperlink_RequestNavigate;
+                
+                hotkeyFeaturePanel.Children.Add(new TextBlock(hotkeyIssueLink)
+                {
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+                
+                hotkeyFeaturePanel.Children.Add(new TextBlock 
+                { 
+                    Text = ")",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+                
+                CommunityFeaturesPanel.Children.Add(hotkeyFeaturePanel);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error loading community features: {ex.Message}");
+            }
+        }
 
         private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
         {

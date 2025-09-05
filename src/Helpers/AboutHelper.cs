@@ -52,11 +52,15 @@ namespace DisplayProfileManager.Helpers
             public const string CatriksUrl = "https://github.com/Catriks";
             public const string AlienmarioName = "@Alienmario"; 
             public const string AlienmarioUrl = "https://github.com/Alienmario";
-            public const string IssueUrl = "https://github.com/zac15987/DisplayProfileManager/issues/1";
+            public const string AnodynosName = "@anodynos";
+            public const string AnodynosUrl = "https://github.com/anodynos";
+            public const string AudioIssueUrl = "https://github.com/zac15987/DisplayProfileManager/issues/1";
+            public const string HotkeyIssueUrl = "https://github.com/zac15987/DisplayProfileManager/issues/2";
             
             public static string GetCommunityText()
             {
-                return $"Audio device switching suggested by {CatriksName} and {AlienmarioName}";
+                return $"Audio device switching suggested by {CatriksName} and {AlienmarioName}\n" +
+                       $"Global hotkey functionality suggested by {AnodynosName}";
             }
         }
 
@@ -84,7 +88,8 @@ namespace DisplayProfileManager.Helpers
             public static string GetContributorsText()
             {
                 return $"• {Community.CatriksName} - Feature request for audio device switching\n" +
-                       $"• {Community.AlienmarioName} - AudioSwitcher recommendation and design suggestions";
+                       $"• {Community.AlienmarioName} - AudioSwitcher recommendation and design suggestions\n" +
+                       $"• {Community.AnodynosName} - Feature request for global hotkey functionality";
             }
         }
 
@@ -101,7 +106,7 @@ namespace DisplayProfileManager.Helpers
                    $"Settings Location: {settingsPath}\n\n" +
                    "Community Features:\n" +
                    $"{Community.GetCommunityText()}\n" +
-                   $"GitHub Issue: {Community.IssueUrl}\n\n" +
+                   $"GitHub Issues: {Community.AudioIssueUrl}, {Community.HotkeyIssueUrl}\n\n" +
                    "Key Libraries:\n" +
                    $"{Libraries.GetLibrariesText()}\n\n" +
                    "Contributors:\n" +

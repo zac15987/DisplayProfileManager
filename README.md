@@ -145,6 +145,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ### 🤝 Feature Contributors
 - [@Catriks](https://github.com/Catriks) - Requested audio device switching functionality ([#1](https://github.com/zac15987/DisplayProfileManager/issues/1))
 - [@Alienmario](https://github.com/Alienmario) - Recommended AudioSwitcher.AudioApi library and suggested per-device "Don't change" options ([#1](https://github.com/zac15987/DisplayProfileManager/issues/1))
+- [@anodynos](https://github.com/anodynos) - Suggested global hotkey functionality for quick profile switching ([#2](https://github.com/zac15987/DisplayProfileManager/issues/2))
 - The open-source community for inspiration and support
 
 ---

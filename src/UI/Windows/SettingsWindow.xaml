@@ -366,21 +366,9 @@
                             
                             <!-- Community Features Section -->
                             <TextBlock Text="Community Features:" Style="{StaticResource ModernTextBlockStyle}" FontWeight="SemiBold" Margin="0,12,0,4"/>
-                            <TextBlock Style="{StaticResource ModernTextBlockStyle}" FontSize="12" Foreground="{DynamicResource TertiaryTextBrush}" TextWrapping="Wrap">
-                                <Run Text="Audio device switching suggested by"/>
-                                <Hyperlink Name="CatriksLink" NavigateUri="https://github.com/Catriks" RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource LinkBrush}">
-                                    <Run Text="@Catriks"/>
-                                </Hyperlink>
-                                <Run Text=" and"/>
-                                <Hyperlink Name="AlienmarioLink" NavigateUri="https://github.com/Alienmario" RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource LinkBrush}">
-                                    <Run Text="@Alienmario"/>
-                                </Hyperlink>
-                                <Run Text=" ("/>
-                                <Hyperlink Name="IssueLink" NavigateUri="https://github.com/zac15987/DisplayProfileManager/issues/1" RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource LinkBrush}">
-                                    <Run Text="Issue #1"/>
-                                </Hyperlink>
-                                <Run Text=")"/>
-                            </TextBlock>
+                            <StackPanel Name="CommunityFeaturesPanel" Margin="0,0,0,4">
+                                <!-- This will be populated programmatically -->
+                            </StackPanel>
                             
                             <!-- Libraries Section -->
                             <TextBlock Text="Key Libraries:" Style="{StaticResource ModernTextBlockStyle}" FontWeight="SemiBold" Margin="0,12,0,4"/>
