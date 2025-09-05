@@ -329,6 +329,18 @@ namespace DisplayProfileManager.UI.Windows
         {
             // Initialize title bar margin state
             UpdateTitleBarMargin();
+            
+            // Disable global profile hotkeys while editing to prevent interference
+            try
+            {
+                var app = Application.Current as App;
+                app?.DisableProfileHotkeys();
+                System.Diagnostics.Debug.WriteLine("Disabled profile hotkeys for ProfileEditWindow");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error disabling profile hotkeys: {ex.Message}");
+            }
         }
 
         private void MinimizeButton_Click(object sender, RoutedEventArgs e)
@@ -632,6 +644,18 @@ namespace DisplayProfileManager.UI.Windows
 
         protected override void OnClosed(EventArgs e)
         {
+            // Re-enable global profile hotkeys when closing
+            try
+            {
+                var app = Application.Current as App;
+                app?.EnableProfileHotkeys();
+                System.Diagnostics.Debug.WriteLine("Re-enabled profile hotkeys after ProfileEditWindow closed");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error re-enabling profile hotkeys: {ex.Message}");
+            }
+            
             base.OnClosed(e);
         }
     }

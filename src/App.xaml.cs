@@ -26,6 +26,8 @@ namespace DisplayProfileManager
         private CancellationTokenSource _cancellationTokenSource;
         private GlobalHotkeyHelper _globalHotkeyHelper;
         private int _printScreenHotkeyId = -1;
+        private int _profileEditWindowCount = 0;
+        private bool _hotkeysDisabledForEditing = false;
 
 
         [DllImport("user32.dll")]
@@ -539,6 +541,48 @@ namespace DisplayProfileManager
                         "Failed to launch Snipping Tool. Please ensure it's installed on your system.", 
                         System.Windows.Forms.ToolTipIcon.Error);
                 }
+            }
+        }
+
+        public void DisableProfileHotkeys()
+        {
+            try
+            {
+                _profileEditWindowCount++;
+                System.Diagnostics.Debug.WriteLine($"ProfileEditWindow opened. Count: {_profileEditWindowCount}");
+
+                if (!_hotkeysDisabledForEditing && _globalHotkeyHelper != null)
+                {
+                    _globalHotkeyHelper.UnregisterAllProfileHotkeys();
+                    _hotkeysDisabledForEditing = true;
+                    System.Diagnostics.Debug.WriteLine("Disabled all profile hotkeys for editing");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error disabling profile hotkeys: {ex.Message}");
+            }
+        }
+
+        public void EnableProfileHotkeys()
+        {
+            try
+            {
+                _profileEditWindowCount--;
+                System.Diagnostics.Debug.WriteLine($"ProfileEditWindow closed. Count: {_profileEditWindowCount}");
+
+                // Only re-enable when all ProfileEditWindows are closed
+                if (_profileEditWindowCount <= 0 && _hotkeysDisabledForEditing)
+                {
+                    _profileEditWindowCount = 0; // Ensure it doesn't go negative
+                    _hotkeysDisabledForEditing = false;
+                    RegisterAllProfileHotkeys();
+                    System.Diagnostics.Debug.WriteLine("Re-enabled profile hotkeys after editing");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error re-enabling profile hotkeys: {ex.Message}");
             }
         }
 
