@@ -246,6 +246,48 @@ namespace DisplayProfileManager.UI.Windows
                 ProfileDetailsPanel.Children.Add(audioPanel);
             }
 
+            // Hotkey Settings Section
+            if (profile.HotkeyConfig != null && profile.HotkeyConfig.Key != System.Windows.Input.Key.None)
+            {
+                var hotkeyHeader = new TextBlock
+                {
+                    Text = "Hotkey Settings:",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontWeight = FontWeights.Medium,
+                    Margin = new Thickness(0, 16, 0, 8)
+                };
+                ProfileDetailsPanel.Children.Add(hotkeyHeader);
+
+                var hotkeyPanel = new StackPanel { Margin = new Thickness(0, 0, 0, 12) };
+
+                var hotkeyText = new TextBlock
+                {
+                    Text = $"Hotkey: {profile.HotkeyConfig}",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (SolidColorBrush)FindResource("SecondaryTextBrush"),
+                    Margin = new Thickness(0, 0, 0, 2)
+                };
+                hotkeyPanel.Children.Add(hotkeyText);
+
+                var statusText = profile.HotkeyConfig.IsEnabled ? "Enabled" : "Disabled";
+                var statusColor = profile.HotkeyConfig.IsEnabled ? 
+                    (SolidColorBrush)FindResource("SuccessButtonBackgroundBrush") :
+                    (SolidColorBrush)FindResource("TertiaryTextBrush");
+
+                var hotkeyStatus = new TextBlock
+                {
+                    Text = $"Status: {statusText}",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = statusColor,
+                    FontWeight = FontWeights.Medium
+                };
+                hotkeyPanel.Children.Add(hotkeyStatus);
+
+                ProfileDetailsPanel.Children.Add(hotkeyPanel);
+            }
+
             var metaInfo = new TextBlock
             {
                 Text = $"Created: {profile.CreatedDate:MMM d, yyyy 'at' h:mm tt}\nLast Modified: {profile.LastModifiedDate:MMM d, yyyy 'at' h:mm tt}",

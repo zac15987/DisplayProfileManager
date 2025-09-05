@@ -291,9 +291,47 @@
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
                                             
-                                            <TextBlock Grid.Column="0" Text="{Binding Name}" 
-                                                       FontWeight="Medium" FontSize="14"
-                                                       Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                                <TextBlock Text="{Binding Name}" 
+                                                           FontWeight="Medium" FontSize="14"
+                                                           Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                                <TextBlock Name="HotkeyTextBlock" Text="{Binding HotkeyConfig, StringFormat=' ({0})'}" 
+                                                           FontSize="12" FontWeight="Medium" 
+                                                           Margin="4,0,0,0">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Setter Property="Foreground" Value="{DynamicResource TertiaryTextBrush}"/>
+                                                            <Style.Triggers>
+                                                                <!-- Show and color green when hotkey is configured and enabled -->
+                                                                <MultiDataTrigger>
+                                                                    <MultiDataTrigger.Conditions>
+                                                                        <Condition Binding="{Binding Path=HotkeyConfig.IsEnabled}" Value="True"/>
+                                                                    </MultiDataTrigger.Conditions>
+                                                                    <MultiDataTrigger.Setters>
+                                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                                        <Setter Property="Foreground" Value="{DynamicResource SuccessButtonBackgroundBrush}"/>
+                                                                    </MultiDataTrigger.Setters>
+                                                                </MultiDataTrigger>
+                                                                <!-- Show and color gray when hotkey is configured but disabled -->
+                                                                <MultiDataTrigger>
+                                                                    <MultiDataTrigger.Conditions>
+                                                                        <Condition Binding="{Binding Path=HotkeyConfig.IsEnabled}" Value="False"/>
+                                                                    </MultiDataTrigger.Conditions>
+                                                                    <MultiDataTrigger.Setters>
+                                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                                        <Setter Property="Foreground" Value="{DynamicResource TertiaryTextBrush}"/>
+                                                                    </MultiDataTrigger.Setters>
+                                                                </MultiDataTrigger>
+                                                                <!-- Hide when Key is None regardless of other settings -->
+                                                                <DataTrigger Binding="{Binding Path=HotkeyConfig.Key}" Value="{x:Static Key.None}">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </StackPanel>
                                             
                                             <StackPanel Grid.Column="1" Orientation="Horizontal">
                                                 <TextBlock Text="Active" 

@@ -24,6 +24,7 @@ namespace DisplayProfileManager.UI.ViewModels
         public DateTime CreatedDate => _profile.CreatedDate;
         public DateTime LastModifiedDate => _profile.LastModifiedDate;
         public System.Collections.Generic.List<DisplaySetting> DisplaySettings => _profile.DisplaySettings;
+        public HotkeyConfig HotkeyConfig => _profile.HotkeyConfig;
 
         public bool IsActive
         {
