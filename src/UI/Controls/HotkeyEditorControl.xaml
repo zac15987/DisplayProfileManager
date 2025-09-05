@@ -10,11 +10,12 @@
     <UserControl.Resources>
         <Style x:Key="HotkeyTextBoxStyle" TargetType="TextBox">
             <Setter Property="Padding" Value="8,6"/>
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="BorderBrush" Value="#DDD"/>
+            <Setter Property="Background" Value="{DynamicResource ControlBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="MinHeight" Value="30"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TextBox">
@@ -31,7 +32,7 @@
                                                   HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
                                     <TextBlock x:Name="PlaceholderText"
                                                Text="Click to set hotkey..."
-                                               Foreground="#999"
+                                               Foreground="{DynamicResource TertiaryTextBrush}"
                                                VerticalAlignment="Center"
                                                Margin="{TemplateBinding Padding}"
                                                IsHitTestVisible="False"
@@ -54,22 +55,22 @@
                                 <Setter TargetName="PlaceholderText" Property="Visibility" Value="Visible"/>
                             </Trigger>
                             <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="BorderElement" Property="BorderBrush" Value="#0078D4"/>
+                                <Setter TargetName="BorderElement" Property="BorderBrush" Value="{DynamicResource TextBoxFocusBorderBrush}"/>
                                 <Setter TargetName="BorderElement" Property="BorderThickness" Value="2"/>
                             </Trigger>
                             <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=IsRecording}" Value="True">
-                                <Setter TargetName="BorderElement" Property="BorderBrush" Value="#0078D4"/>
+                                <Setter TargetName="BorderElement" Property="BorderBrush" Value="{DynamicResource TextBoxFocusBorderBrush}"/>
                                 <Setter TargetName="BorderElement" Property="BorderThickness" Value="2"/>
                             </DataTrigger>
                             <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=HasConflict}" Value="True">
-                                <Setter TargetName="BorderElement" Property="BorderBrush" Value="#FF6B35"/>
+                                <Setter TargetName="BorderElement" Property="BorderBrush" Value="{DynamicResource DangerButtonBackgroundBrush}"/>
                                 <Setter TargetName="BorderElement" Property="BorderThickness" Value="2"/>
                                 <Setter TargetName="IconText" Property="Text" Value="⚠"/>
-                                <Setter TargetName="IconText" Property="Foreground" Value="#FF6B35"/>
+                                <Setter TargetName="IconText" Property="Foreground" Value="{DynamicResource DangerButtonBackgroundBrush}"/>
                             </DataTrigger>
                             <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=IsValid}" Value="True">
                                 <Setter TargetName="IconText" Property="Text" Value="✓"/>
-                                <Setter TargetName="IconText" Property="Foreground" Value="#107C10"/>
+                                <Setter TargetName="IconText" Property="Foreground" Value="{DynamicResource SuccessButtonBackgroundBrush}"/>
                             </DataTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -86,14 +87,14 @@
                         <Border Background="Transparent" CornerRadius="2">
                             <TextBlock Text="✕" 
                                        FontSize="12" 
-                                       Foreground="#666"
+                                       Foreground="{DynamicResource SecondaryTextBrush}"
                                        HorizontalAlignment="Center"
                                        VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#E0E0E0"/>
-                                <Setter Property="Foreground" Value="#000"/>
+                                <Setter Property="Background" Value="{DynamicResource ControlHoverBackgroundBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
