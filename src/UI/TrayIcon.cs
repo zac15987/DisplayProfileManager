@@ -93,7 +93,7 @@ namespace DisplayProfileManager.UI
                     if (profile.HotkeyConfig?.IsEnabled == true && 
                         profile.HotkeyConfig.Key != System.Windows.Input.Key.None)
                     {
-                        profileDisplayName += $"\t{profile.HotkeyConfig}";
+                        profileDisplayName += $" ({profile.HotkeyConfig})";
                     }
                     
                     var profileItem = new ToolStripMenuItem(profileDisplayName);
@@ -104,14 +104,14 @@ namespace DisplayProfileManager.UI
                     {
                         profileItem.Checked = true;
                     }
-                    
-                    // Gray out disabled profiles
+
+                    // Indicate disabled hotkey
                     if (profile.HotkeyConfig?.IsEnabled == false && 
                         profile.HotkeyConfig.Key != System.Windows.Input.Key.None)
                     {
-                        profileItem.ForeColor = System.Drawing.Color.Gray;
+                        // do nothing here for now
                     }
-                    
+
                     profilesMenuItem.DropDownItems.Add(profileItem);
                 }
                 
