@@ -11,11 +11,19 @@ namespace DisplayProfileManager.Helpers
     public static class AboutHelper
     {
         /// <summary>
-        /// Gets the application version from SettingsManager
+        /// Gets the application version from assembly
         /// </summary>
         public static string GetVersion()
         {
-            return SettingsManager.Instance.Settings.Version;
+            var assembly = Assembly.GetExecutingAssembly();
+            
+            // Try to get AssemblyFileVersion first
+            var fileVersion = FileVersionInfo.GetVersionInfo(assembly.Location).FileVersion;
+            if (!string.IsNullOrEmpty(fileVersion))
+                return fileVersion;
+            
+            // Fall back to AssemblyVersion
+            return assembly.GetName().Version?.ToString() ?? "Error";
         }
 
         /// <summary>

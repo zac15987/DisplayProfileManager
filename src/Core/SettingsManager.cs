@@ -36,9 +36,6 @@ namespace DisplayProfileManager.Core
         [JsonProperty("language")]
         public string Language { get; set; } = "en-US";
 
-        [JsonProperty("version")]
-        public string Version { get; set; } = "1.0.0";
-
         [JsonProperty("firstRun")]
         public bool FirstRun { get; set; } = true;
 
@@ -383,11 +380,6 @@ namespace DisplayProfileManager.Core
         public string GetLanguage()
         {
             return _settings.Language;
-        }
-
-        public string GetVersion()
-        {
-            return _settings.Version;
         }
 
         public DateTime GetLastUpdated()
