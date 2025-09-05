@@ -37,6 +37,7 @@ cmd.exe //c "start bin\Release\DisplayProfileManager.exe"
 - **ProfileManager**: Thread-safe singleton for profile CRUD, individual `.dpm` file persistence to `%AppData%/DisplayProfileManager/Profiles/`, sequential resolution/refresh rate/DPI/audio changes
 - **SettingsManager**: Thread-safe singleton for app settings, Windows startup integration
 - **DisplayHelper/DpiHelper/AudioHelper/AboutHelper**: P/Invoke wrappers for Windows APIs (ChangeDisplaySettingsEx, SystemParametersInfo, display enumeration, audio device switching), and utility classes for application information
+- **GlobalHotkeyHelper**: System-wide hotkey registration using RegisterHotKey API and low-level keyboard hooks for Print Screen detection
 - **TrayIcon**: Dynamic context menu for profile switching, handles system tray lifecycle
 - **ProfileViewModel**: MVVM pattern for UI data binding and validation
 - **Custom Windows**: Native-style borderless windows with manual window chrome
@@ -82,6 +83,7 @@ cmd.exe //c "start bin\Release\DisplayProfileManager.exe"
 - Subscribe to ProfileManager events for UI updates
 - Match existing P/Invoke patterns in Helper classes (return boolean success, use Debug.WriteLine for errors)
 - Use Resources.resx for localizable strings
+- **Hotkey Integration**: All profile hotkeys are managed through GlobalHotkeyHelper with automatic registration/unregistration
 
 ### Error Handling Patterns
 - **Exception Handling**: Try-catch blocks with `System.Diagnostics.Debug.WriteLine()` for logging
@@ -134,6 +136,16 @@ cmd.exe //c "start bin\Release\DisplayProfileManager.exe"
 - **Profile Integration**: Audio settings stored in profile with per-device apply flags (`ApplyPlaybackDevice`, `ApplyCaptureDevice`)
 - **Device Names**: Uses AudioSwitcher for friendly device names and system integration
 - **Bluetooth Support**: Handles Bluetooth device correlation and naming consistency
+
+#### Global Hotkey System
+- **HotkeyConfig**: Configuration class with Key, ModifierKeys, and IsEnabled properties, JSON serializable with proper validation
+- **GlobalHotkeyHelper**: IDisposable P/Invoke wrapper for RegisterHotKey/UnregisterHotKey Windows APIs
+- **Profile Hotkeys**: Each profile can have an assigned hotkey combination for instant switching
+- **Hotkey Registration**: System-wide hotkeys with conflict detection and graceful failure handling
+- **KeyConverter**: Maps WPF Key enums to Windows virtual key codes for API compatibility
+- **HotkeyEditorControl**: WPF UserControl for capturing and editing hotkey combinations
+- **Print Screen Support**: Uses low-level keyboard hooks (SetWindowsHookEx) for special key handling
+- **Thread Safety**: All hotkey operations dispatched to UI thread with proper cleanup on disposal
 
 ### Development Workflow
 - **No Testing Framework**: Project currently has no unit tests or test projects
