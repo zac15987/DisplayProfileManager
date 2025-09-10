@@ -1,8 +1,10 @@
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Navigation;
 using System.Windows.Shell;
 using DisplayProfileManager.Core;
 using DisplayProfileManager.Helpers;
@@ -62,12 +64,13 @@ namespace DisplayProfileManager.UI.Windows
                 // Notifications settings
                 ShowNotificationsCheckBox.IsChecked = settings.ShowNotifications;
                 
-                // Updates settings
-                CheckForUpdatesCheckBox.IsChecked = settings.CheckForUpdates;
+                // Global hotkeys settings
+                RefreshHotkeyList();
                 
                 // About section
-                VersionTextBlock.Text = settings.Version;
-                SettingsPathTextBlock.Text = _settingsManager.GetSettingsFilePath();
+                VersionTextBlock.Text = Helpers.AboutHelper.GetInformationalVersion();
+                SettingsPathTextBlock.Text = Helpers.AboutHelper.GetSettingsPath();
+                LoadCommunityFeatures();
             }
             catch (Exception ex)
             {
@@ -241,12 +244,92 @@ namespace DisplayProfileManager.UI.Windows
             await _settingsManager.SetNotificationsAsync(isChecked);
         }
 
-        private async void CheckForUpdatesCheckBox_Changed(object sender, RoutedEventArgs e)
+        private void RefreshHotkeyList()
         {
-            if (_isLoadingSettings) return;
-            
-            var isChecked = CheckForUpdatesCheckBox.IsChecked ?? false;
-            await _settingsManager.UpdateSettingAsync("CheckForUpdates", isChecked);
+            try
+            {
+                HotkeyListPanel.Children.Clear();
+                
+                // Get all profiles with hotkeys configured (both enabled and disabled)
+                var profilesWithHotkeys = _profileManager.GetAllProfiles()
+                    .Where(p => p.HotkeyConfig != null && p.HotkeyConfig.Key != System.Windows.Input.Key.None)
+                    .OrderBy(p => p.Name)
+                    .ToList();
+                
+                if (profilesWithHotkeys.Count == 0)
+                {
+                    var noHotkeysText = new TextBlock
+                    {
+                        Text = "No hotkeys configured",
+                        Style = (Style)FindResource("ModernTextBlockStyle"),
+                        FontSize = 12,
+                        Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush"),
+                        FontStyle = FontStyles.Italic
+                    };
+                    HotkeyListPanel.Children.Add(noHotkeysText);
+                }
+                else
+                {
+                    foreach (var profile in profilesWithHotkeys)
+                    {
+                        var hotkeyItem = new StackPanel
+                        {
+                            Orientation = Orientation.Horizontal,
+                            Margin = new Thickness(0, 2, 0, 2)
+                        };
+                        
+                        var profileNameText = new TextBlock
+                        {
+                            Text = $"{profile.Name}:",
+                            Style = (Style)FindResource("ModernTextBlockStyle"),
+                            FontSize = 12,
+                            Width = 150,
+                            TextTrimming = TextTrimming.CharacterEllipsis
+                        };
+                        
+                        var hotkeyText = new TextBlock
+                        {
+                            Text = profile.HotkeyConfig.ToString(),
+                            Style = (Style)FindResource("ModernTextBlockStyle"),
+                            FontSize = 12,
+                            FontWeight = FontWeights.SemiBold,
+                            Margin = new Thickness(8, 0, 0, 0)
+                        };
+                        
+                        // Apply different styling based on enabled/disabled status
+                        if (profile.HotkeyConfig.IsEnabled)
+                        {
+                            hotkeyText.Foreground = (System.Windows.Media.Brush)FindResource("PrimaryTextBrush");
+                        }
+                        else
+                        {
+                            hotkeyText.Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush");
+                        }
+                        
+                        // Add status indicator
+                        var statusText = new TextBlock
+                        {
+                            Text = profile.HotkeyConfig.IsEnabled ? "(Enabled)" : "(Disabled)",
+                            Style = (Style)FindResource("ModernTextBlockStyle"),
+                            FontSize = 11,
+                            FontStyle = profile.HotkeyConfig.IsEnabled ? FontStyles.Normal : FontStyles.Italic,
+                            Foreground = profile.HotkeyConfig.IsEnabled 
+                                ? (System.Windows.Media.Brush)FindResource("SuccessButtonBackgroundBrush")
+                                : (System.Windows.Media.Brush)FindResource("TertiaryTextBrush"),
+                            Margin = new Thickness(8, 0, 0, 0)
+                        };
+                        
+                        hotkeyItem.Children.Add(profileNameText);
+                        hotkeyItem.Children.Add(hotkeyText);
+                        hotkeyItem.Children.Add(statusText);
+                        HotkeyListPanel.Children.Add(hotkeyItem);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error refreshing hotkey list: {ex.Message}");
+            }
         }
 
         private async void ResetSettingsButton_Click(object sender, RoutedEventArgs e)
@@ -337,6 +420,169 @@ namespace DisplayProfileManager.UI.Windows
 
 
 
+
+        private void LoadCommunityFeatures()
+        {
+            try
+            {
+                CommunityFeaturesPanel.Children.Clear();
+                
+                // Audio feature line
+                var audioFeaturePanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+                
+                audioFeaturePanel.Children.Add(new TextBlock 
+                { 
+                    Text = "Audio device switching suggested by ",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+                
+                var catriksLink = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run("@Catriks"))
+                {
+                    NavigateUri = new Uri(AboutHelper.Community.CatriksUrl),
+                    Foreground = (System.Windows.Media.Brush)FindResource("LinkBrush")
+                };
+                catriksLink.RequestNavigate += Hyperlink_RequestNavigate;
+                
+                audioFeaturePanel.Children.Add(new TextBlock(catriksLink)
+                {
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+                
+                audioFeaturePanel.Children.Add(new TextBlock 
+                { 
+                    Text = " and ",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+                
+                var alienmarioLink = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run("@Alienmario"))
+                {
+                    NavigateUri = new Uri(AboutHelper.Community.AlienmarioUrl),
+                    Foreground = (System.Windows.Media.Brush)FindResource("LinkBrush")
+                };
+                alienmarioLink.RequestNavigate += Hyperlink_RequestNavigate;
+                
+                audioFeaturePanel.Children.Add(new TextBlock(alienmarioLink)
+                {
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+                
+                audioFeaturePanel.Children.Add(new TextBlock 
+                { 
+                    Text = " (",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+                
+                var audioIssueLink = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run("Issue #1"))
+                {
+                    NavigateUri = new Uri(AboutHelper.Community.AudioIssueUrl),
+                    Foreground = (System.Windows.Media.Brush)FindResource("LinkBrush")
+                };
+                audioIssueLink.RequestNavigate += Hyperlink_RequestNavigate;
+                
+                audioFeaturePanel.Children.Add(new TextBlock(audioIssueLink)
+                {
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+                
+                audioFeaturePanel.Children.Add(new TextBlock 
+                { 
+                    Text = ")",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+                
+                CommunityFeaturesPanel.Children.Add(audioFeaturePanel);
+                
+                // Hotkey feature line
+                var hotkeyFeaturePanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+                
+                hotkeyFeaturePanel.Children.Add(new TextBlock 
+                { 
+                    Text = "Global hotkey functionality suggested by ",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+                
+                var anodynosLink = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run("@anodynos"))
+                {
+                    NavigateUri = new Uri(AboutHelper.Community.AnodynosUrl),
+                    Foreground = (System.Windows.Media.Brush)FindResource("LinkBrush")
+                };
+                anodynosLink.RequestNavigate += Hyperlink_RequestNavigate;
+                
+                hotkeyFeaturePanel.Children.Add(new TextBlock(anodynosLink)
+                {
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+                
+                hotkeyFeaturePanel.Children.Add(new TextBlock 
+                { 
+                    Text = " (",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+                
+                var hotkeyIssueLink = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run("Issue #2"))
+                {
+                    NavigateUri = new Uri(AboutHelper.Community.HotkeyIssueUrl),
+                    Foreground = (System.Windows.Media.Brush)FindResource("LinkBrush")
+                };
+                hotkeyIssueLink.RequestNavigate += Hyperlink_RequestNavigate;
+                
+                hotkeyFeaturePanel.Children.Add(new TextBlock(hotkeyIssueLink)
+                {
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+                
+                hotkeyFeaturePanel.Children.Add(new TextBlock 
+                { 
+                    Text = ")",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+                
+                CommunityFeaturesPanel.Children.Add(hotkeyFeaturePanel);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error loading community features: {ex.Message}");
+            }
+        }
+
+        private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
+                e.Handled = true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error opening URL: {ex.Message}");
+                MessageBox.Show($"Could not open link: {e.Uri.AbsoluteUri}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
 
         protected override void OnClosed(EventArgs e)
         {

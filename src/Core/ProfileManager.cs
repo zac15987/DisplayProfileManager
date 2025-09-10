@@ -258,6 +258,72 @@ namespace DisplayProfileManager.Core
                     }
                 }
 
+                // Apply audio settings after display settings
+                if (success && profile.AudioSettings != null)
+                {
+                    try
+                    {
+                        bool audioSuccess = true;
+                        
+                        // Apply playback device if enabled
+                        if (profile.AudioSettings.ApplyPlaybackDevice && profile.AudioSettings.HasPlaybackDevice())
+                        {
+                            bool playbackSet = AudioHelper.SetDefaultPlaybackDevice(profile.AudioSettings.DefaultPlaybackDeviceId);
+                            if (!playbackSet)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Failed to set playback device: {profile.AudioSettings.PlaybackDeviceName}");
+                                audioSuccess = false;
+                            }
+                            else
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Successfully set playback device: {profile.AudioSettings.PlaybackDeviceName}");
+                            }
+                        }
+                        else if (profile.AudioSettings.ApplyPlaybackDevice)
+                        {
+                            System.Diagnostics.Debug.WriteLine("Playback device application enabled but no device configured");
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine("Playback device application disabled for this profile");
+                        }
+                        
+                        // Apply capture device if enabled
+                        if (profile.AudioSettings.ApplyCaptureDevice && profile.AudioSettings.HasCaptureDevice())
+                        {
+                            bool captureSet = AudioHelper.SetDefaultCaptureDevice(profile.AudioSettings.DefaultCaptureDeviceId);
+                            if (!captureSet)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Failed to set capture device: {profile.AudioSettings.CaptureDeviceName}");
+                                audioSuccess = false;
+                            }
+                            else
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Successfully set capture device: {profile.AudioSettings.CaptureDeviceName}");
+                            }
+                        }
+                        else if (profile.AudioSettings.ApplyCaptureDevice)
+                        {
+                            System.Diagnostics.Debug.WriteLine("Capture device application enabled but no device configured");
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine("Capture device application disabled for this profile");
+                        }
+                        
+                        // Log audio settings result but don't fail the entire profile
+                        if (!audioSuccess)
+                        {
+                            System.Diagnostics.Debug.WriteLine("Some audio settings could not be applied");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error applying audio settings: {ex.Message}");
+                        // Don't fail the entire profile if audio settings fail
+                    }
+                }
+
                 if (success)
                 {
                     _currentProfileId = profile.Id;
@@ -512,6 +578,84 @@ namespace DisplayProfileManager.Core
                 System.Diagnostics.Debug.WriteLine($"Error importing profile: {ex.Message}");
                 return null;
             }
+        }
+
+        public List<Profile> GetProfilesWithHotkeys()
+        {
+            return _profiles.Where(p => p.HotkeyConfig != null && 
+                                       p.HotkeyConfig.IsEnabled && 
+                                       p.HotkeyConfig.Key != System.Windows.Input.Key.None).ToList();
+        }
+
+        public List<Profile> GetAllProfilesWithHotkeys()
+        {
+            return _profiles.Where(p => p.HotkeyConfig != null && 
+                                       p.HotkeyConfig.Key != System.Windows.Input.Key.None).ToList();
+        }
+
+        public Profile GetProfileByHotkey(HotkeyConfig hotkey)
+        {
+            if (hotkey?.Key == System.Windows.Input.Key.None)
+                return null;
+
+            return _profiles.FirstOrDefault(p => p.HotkeyConfig != null &&
+                                                p.HotkeyConfig.IsEnabled &&
+                                                p.HotkeyConfig.Equals(hotkey));
+        }
+
+        public bool HasHotkeyConflict(string profileId, HotkeyConfig hotkey)
+        {
+            if (hotkey?.Key == System.Windows.Input.Key.None)
+                return false;
+
+            return _profiles.Any(p => p.Id != profileId &&
+                                     p.HotkeyConfig != null &&
+                                     p.HotkeyConfig.Key != System.Windows.Input.Key.None &&
+                                     p.HotkeyConfig.Equals(hotkey));
+        }
+
+        public Profile FindConflictingProfile(string excludeProfileId, HotkeyConfig hotkey)
+        {
+            if (hotkey?.Key == System.Windows.Input.Key.None)
+                return null;
+
+            return _profiles.FirstOrDefault(p => p.Id != excludeProfileId &&
+                                                p.HotkeyConfig != null &&
+                                                p.HotkeyConfig.Key != System.Windows.Input.Key.None &&
+                                                p.HotkeyConfig.Equals(hotkey));
+        }
+
+        public async Task<bool> ClearHotkeyAsync(string profileId)
+        {
+            try
+            {
+                var profile = GetProfile(profileId);
+                if (profile?.HotkeyConfig != null)
+                {
+                    profile.HotkeyConfig = new HotkeyConfig();
+                    return await UpdateProfileAsync(profile);
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error clearing hotkey for profile {profileId}: {ex.Message}");
+                return false;
+            }
+        }
+
+        public Dictionary<string, HotkeyConfig> GetAllHotkeys()
+        {
+            var hotkeys = new Dictionary<string, HotkeyConfig>();
+            
+            foreach (var profile in _profiles.Where(p => p.HotkeyConfig != null && 
+                                                        p.HotkeyConfig.IsEnabled && 
+                                                        p.HotkeyConfig.Key != System.Windows.Input.Key.None))
+            {
+                hotkeys[profile.Id] = profile.HotkeyConfig;
+            }
+            
+            return hotkeys;
         }
 
         private readonly SettingsManager _settingsManager = SettingsManager.Instance;

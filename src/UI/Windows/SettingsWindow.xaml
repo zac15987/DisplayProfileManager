@@ -14,7 +14,7 @@
     <WindowChrome.WindowChrome>
         <WindowChrome 
             CaptionHeight="32"
-            ResizeBorderThickness="0"
+            ResizeBorderThickness="6"
             CornerRadius="0"
             GlassFrameThickness="0,32,0,0"
             UseAeroCaptionButtons="True" />
@@ -303,15 +303,36 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Updates Section -->
+                    <!-- Global Hotkeys Section -->
                     <Border Background="{DynamicResource ContentBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,0,16">
                         <StackPanel>
-                            <TextBlock Text="Updates" Style="{StaticResource SectionHeaderStyle}"/>
+                            <TextBlock Text="Global Hotkeys" Style="{StaticResource SectionHeaderStyle}"/>
                             
-                            <CheckBox Name="CheckForUpdatesCheckBox" Content="Automatically check for updates" 
-                                      Style="{StaticResource ModernCheckBoxStyle}"
-                                      Checked="CheckForUpdatesCheckBox_Changed"
-                                      Unchecked="CheckForUpdatesCheckBox_Changed"/>
+                            <TextBlock Text="Hotkeys are configured individually for each profile in the Profile Editor. Each hotkey can be enabled or disabled per profile." 
+                                       Style="{StaticResource ModernTextBlockStyle}" 
+                                       FontSize="12" 
+                                       Foreground="{DynamicResource TertiaryTextBrush}" 
+                                       TextWrapping="Wrap" 
+                                       Margin="0,0,0,8"/>
+                            
+                            <!-- Read-only list of configured hotkeys -->
+                            <TextBlock Text="Configured Hotkeys:" Style="{StaticResource LabelTextBlockStyle}" Margin="0,12,0,4"/>
+                            <Border Background="{DynamicResource TextBoxBackgroundBrush}" 
+                                    BorderBrush="{DynamicResource TextBoxBorderBrush}" 
+                                    BorderThickness="1" 
+                                    CornerRadius="3" 
+                                    MinHeight="80" 
+                                    MaxHeight="120">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8">
+                                    <StackPanel Name="HotkeyListPanel">
+                                        <TextBlock Text="No hotkeys configured" 
+                                                   Style="{StaticResource ModernTextBlockStyle}" 
+                                                   FontSize="12" 
+                                                   Foreground="{DynamicResource TertiaryTextBrush}" 
+                                                   FontStyle="Italic"/>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Border>
                         </StackPanel>
                     </Border>
 
@@ -329,6 +350,29 @@
                                 <TextBlock Text="Settings Location: " Style="{StaticResource ModernTextBlockStyle}" FontSize="12" Foreground="{DynamicResource TertiaryTextBrush}"/>
                                 <TextBlock Name="SettingsPathTextBlock" Style="{StaticResource ModernTextBlockStyle}" 
                                            FontSize="12" Foreground="{DynamicResource TertiaryTextBrush}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                            
+                            <!-- Community Features Section -->
+                            <TextBlock Text="Community Features:" Style="{StaticResource ModernTextBlockStyle}" FontWeight="SemiBold" Margin="0,12,0,4"/>
+                            <StackPanel Name="CommunityFeaturesPanel" Margin="0,0,0,4">
+                                <!-- This will be populated programmatically -->
+                            </StackPanel>
+                            
+                            <!-- Libraries Section -->
+                            <TextBlock Text="Key Libraries:" Style="{StaticResource ModernTextBlockStyle}" FontWeight="SemiBold" Margin="0,12,0,4"/>
+                            <StackPanel Margin="0,0,0,4">
+                                <TextBlock Style="{StaticResource ModernTextBlockStyle}" FontSize="12" Foreground="{DynamicResource TertiaryTextBrush}">
+                                    <Hyperlink Name="AudioSwitcherLink" NavigateUri="https://github.com/xenolightning/AudioSwitcher" RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource LinkBrush}">
+                                        <Run Text="AudioSwitcher.AudioApi"/>
+                                    </Hyperlink>
+                                    <Run Text=" - Audio device management"/>
+                                </TextBlock>
+                                <TextBlock Style="{StaticResource ModernTextBlockStyle}" FontSize="12" Foreground="{DynamicResource TertiaryTextBrush}">
+                                    <Hyperlink Name="NewtonsoftLink" NavigateUri="https://www.newtonsoft.com/json" RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource LinkBrush}">
+                                        <Run Text="Newtonsoft.Json"/>
+                                    </Hyperlink>
+                                    <Run Text=" - JSON serialization"/>
+                                </TextBlock>
                             </StackPanel>
                         </StackPanel>
                     </Border>

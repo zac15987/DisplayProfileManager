@@ -17,6 +17,7 @@ A lightweight Windows desktop application for managing display profiles with qui
 - 🎨 **Modern UI with Theme Support** - Light, dark or system themes
 - 💾 **Profile Import/Export** - Backup your configurations
 - 🖼️ **Per-Monitor Configuration** - Different settings for multi-monitor setups
+- 🔊 **Audio Device Switching** - Automatically switch default playback and recording devices with profiles
 - 🔄 **System Tray Profile Switching** - Instantly switch display profiles directly from the system tray
 
 ## 📸 Screenshots
@@ -27,7 +28,7 @@ A lightweight Windows desktop application for managing display profiles with qui
 
 ### Profile Editor
 ![Profile Editor](docs/screenshots/edit-screen.png)
-*Configure resolution, refresh rate, and DPI settings for each monitor*
+*Configure resolution, refresh rate, DPI settings for each monitor, and audio device preferences*
 
 ### System Tray Menu
 ![System Tray](docs/screenshots/tray.png)
@@ -55,8 +56,10 @@ A lightweight Windows desktop application for managing display profiles with qui
 ### Creating a Profile
 1. Right-click the system tray icon and select "Manage Profiles"
 2. Click "Add New Profile"
-3. Configure your desired resolution, refresh rate, and DPI settings
-4. Click "Save" to store the profile
+3. Configure your desired resolution, refresh rate, and DPI settings for each monitor
+4. Optionally select default playback and recording audio devices for the profile
+5. Choose which audio devices to apply (playback, recording, or both) using the checkboxes
+6. Click "Save" to store the profile
 
 ### Switching Profiles
 - **Quick Switch**: Right-click the system tray icon and select a profile from the list
@@ -108,6 +111,7 @@ DisplayProfileManager/
 - **UI Framework**: WPF (.NET Framework 4.8)
 - **Storage**: JSON files in `%AppData%\DisplayProfileManager\`
 - **Display APIs**: Windows Display Configuration APIs via P/Invoke
+- **Audio APIs**: AudioSwitcher.AudioApi for audio device management
 
 ## 🤝 Contributing
 
@@ -132,9 +136,16 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - [Newtonsoft.Json](https://www.newtonsoft.com/json) - JSON serialization
+- [AudioSwitcher.AudioApi](https://github.com/xenolightning/AudioSwitcher) (v3.0.0) - Audio device management framework
+- [AudioSwitcher.AudioApi.CoreAudio](https://github.com/xenolightning/AudioSwitcher) (v3.0.3) - Windows Core Audio API implementation
 - Windows Display Configuration APIs - Display management functionality
 - [windows-DPI-scaling-sample](https://github.com/lihas/windows-DPI-scaling-sample) - Provided the foundation for DPI scaling functionality. The original C++ implementation was translated to C# and forms the core of our DpiHelper.cs, enabling reliable system-wide DPI changes. Sample code documentation preserved in docs/sample-code/
 - [Claude Code](https://claude.ai/code) - Built in Collaboration with Claude Code. Anthropic's AI assistant helped architect, implement, and refine core features throughout the development process.
+
+### 🤝 Feature Contributors
+- [@Catriks](https://github.com/Catriks) - Requested audio device switching functionality ([#1](https://github.com/zac15987/DisplayProfileManager/issues/1))
+- [@Alienmario](https://github.com/Alienmario) - Recommended AudioSwitcher.AudioApi library and suggested per-device "Don't change" options ([#1](https://github.com/zac15987/DisplayProfileManager/issues/1))
+- [@anodynos](https://github.com/anodynos) - Suggested global hotkey functionality for quick profile switching ([#2](https://github.com/zac15987/DisplayProfileManager/issues/2))
 - The open-source community for inspiration and support
 
 ---

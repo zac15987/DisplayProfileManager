@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -9,6 +10,7 @@ using System.Windows.Media;
 using System.Windows.Shell;
 using DisplayProfileManager.Core;
 using DisplayProfileManager.Helpers;
+using DisplayProfileManager.UI.Controls;
 
 namespace DisplayProfileManager.UI.Windows
 {
@@ -18,6 +20,8 @@ namespace DisplayProfileManager.UI.Windows
         private Profile _profile;
         private bool _isEditMode;
         private List<DisplaySettingControl> _displayControls;
+        private ObservableCollection<AudioHelper.AudioDeviceInfo> _playbackDevices;
+        private ObservableCollection<AudioHelper.AudioDeviceInfo> _captureDevices;
 
         public ProfileEditWindow(Profile profileToEdit = null)
         {
@@ -29,6 +33,16 @@ namespace DisplayProfileManager.UI.Windows
             _profile = profileToEdit ?? new Profile();
 
             InitializeWindow();
+            
+            // Initialize collections before binding
+            _playbackDevices = new ObservableCollection<AudioHelper.AudioDeviceInfo>();
+            _captureDevices = new ObservableCollection<AudioHelper.AudioDeviceInfo>();
+            
+            // Bind collections to ComboBoxes
+            OutputDeviceComboBox.ItemsSource = _playbackDevices;
+            InputDeviceComboBox.ItemsSource = _captureDevices;
+            
+            LoadAudioDevices();
         }
 
         private void InitializeWindow()
@@ -60,6 +74,22 @@ namespace DisplayProfileManager.UI.Windows
                     AddDisplaySettingControl(setting);
                 }
             }
+
+            // Initialize hotkey configuration
+            if (_profile.HotkeyConfig != null)
+            {
+                HotkeyEditor.HotkeyConfig = _profile.HotkeyConfig.Clone();
+                EnableHotkeyCheckBox.IsChecked = _profile.HotkeyConfig.IsEnabled;
+            }
+            else
+            {
+                HotkeyEditor.HotkeyConfig = new HotkeyConfig();
+                EnableHotkeyCheckBox.IsChecked = false;
+            }
+
+            CheckForHotkeyConflicts();
+
+            // Audio settings will be populated in LoadAudioDevices which is called from constructor
         }
 
         private async void DetectDisplaysButton_Click(object sender, RoutedEventArgs e)
@@ -170,6 +200,39 @@ namespace DisplayProfileManager.UI.Windows
                     }
                 }
 
+                // Save audio settings
+                if (_profile.AudioSettings == null)
+                {
+                    _profile.AudioSettings = new AudioSetting();
+                }
+
+                // Save apply flags
+                _profile.AudioSettings.ApplyPlaybackDevice = ApplyOutputDeviceCheckBox.IsChecked ?? false;
+                _profile.AudioSettings.ApplyCaptureDevice = ApplyInputDeviceCheckBox.IsChecked ?? false;
+
+                var selectedOutputDevice = OutputDeviceComboBox.SelectedItem as AudioHelper.AudioDeviceInfo;
+                if (selectedOutputDevice != null)
+                {
+                    _profile.AudioSettings.DefaultPlaybackDeviceId = selectedOutputDevice.Id;
+                    _profile.AudioSettings.PlaybackDeviceName = selectedOutputDevice.SystemName;
+                }
+
+                var selectedInputDevice = InputDeviceComboBox.SelectedItem as AudioHelper.AudioDeviceInfo;
+                if (selectedInputDevice != null)
+                {
+                    _profile.AudioSettings.DefaultCaptureDeviceId = selectedInputDevice.Id;
+                    _profile.AudioSettings.CaptureDeviceName = selectedInputDevice.SystemName;
+                }
+
+                // Save hotkey configuration
+                if (_profile.HotkeyConfig == null)
+                {
+                    _profile.HotkeyConfig = new HotkeyConfig();
+                }
+
+                _profile.HotkeyConfig = HotkeyEditor.HotkeyConfig?.Clone() ?? new HotkeyConfig();
+                _profile.HotkeyConfig.IsEnabled = EnableHotkeyCheckBox.IsChecked ?? false;
+
                 if (DefaultProfileCheckBox.IsChecked == true && !_profile.IsDefault)
                 {
                     _profile.IsDefault = true;
@@ -266,6 +329,18 @@ namespace DisplayProfileManager.UI.Windows
         {
             // Initialize title bar margin state
             UpdateTitleBarMargin();
+            
+            // Disable global profile hotkeys while editing to prevent interference
+            try
+            {
+                var app = Application.Current as App;
+                app?.DisableProfileHotkeys();
+                System.Diagnostics.Debug.WriteLine("Disabled profile hotkeys for ProfileEditWindow");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error disabling profile hotkeys: {ex.Message}");
+            }
         }
 
         private void MinimizeButton_Click(object sender, RoutedEventArgs e)
@@ -321,8 +396,266 @@ namespace DisplayProfileManager.UI.Windows
             }
         }
 
+        private void LoadAudioDevices()
+        {
+            try
+            {
+                // Clear existing collections
+                _playbackDevices.Clear();
+                _captureDevices.Clear();
+
+                AudioHelper.ReInitializeAudioController();
+                
+                // Load playback devices
+                var playbackDevices = AudioHelper.GetPlaybackDevices();
+                foreach (var device in playbackDevices)
+                {
+                    _playbackDevices.Add(device);
+                }
+                
+                // Load capture devices
+                var captureDevices = AudioHelper.GetCaptureDevices();
+                foreach (var device in captureDevices)
+                {
+                    _captureDevices.Add(device);
+                }
+                
+                // Select appropriate devices
+                if (_isEditMode && _profile.AudioSettings != null)
+                {
+                    // Set checkbox states
+                    ApplyOutputDeviceCheckBox.IsChecked = _profile.AudioSettings.ApplyPlaybackDevice;
+                    ApplyInputDeviceCheckBox.IsChecked = _profile.AudioSettings.ApplyCaptureDevice;
+                    
+                    // Enable/disable ComboBoxes based on checkbox states
+                    OutputDeviceComboBox.IsEnabled = _profile.AudioSettings.ApplyPlaybackDevice;
+                    InputDeviceComboBox.IsEnabled = _profile.AudioSettings.ApplyCaptureDevice;
+                    
+                    // If editing, try to select saved devices
+                    if (!string.IsNullOrEmpty(_profile.AudioSettings.DefaultPlaybackDeviceId))
+                    {
+                        var savedPlayback = _playbackDevices.FirstOrDefault(d => d.Id == _profile.AudioSettings.DefaultPlaybackDeviceId);
+                        if (savedPlayback != null)
+                        {
+                            OutputDeviceComboBox.SelectedItem = savedPlayback;
+                        }
+                        else
+                        {
+                            // Saved device not found, select current default
+                            SelectDefaultPlaybackDevice();
+                        }
+                    }
+                    else
+                    {
+                        SelectDefaultPlaybackDevice();
+                    }
+                    
+                    if (!string.IsNullOrEmpty(_profile.AudioSettings.DefaultCaptureDeviceId))
+                    {
+                        var savedCapture = _captureDevices.FirstOrDefault(d => d.Id == _profile.AudioSettings.DefaultCaptureDeviceId);
+                        if (savedCapture != null)
+                        {
+                            InputDeviceComboBox.SelectedItem = savedCapture;
+                        }
+                        else
+                        {
+                            // Saved device not found, select current default
+                            SelectDefaultCaptureDevice();
+                        }
+                    }
+                    else
+                    {
+                        SelectDefaultCaptureDevice();
+                    }
+                }
+                else
+                {
+                    // New profile, checkboxes are unchecked by default (XAML default)
+                    // ComboBoxes are disabled by default (set in XAML)
+                    SelectDefaultPlaybackDevice();
+                    SelectDefaultCaptureDevice();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error loading audio devices: {ex.Message}");
+                StatusTextBlock.Text = "Could not load audio devices";
+            }
+        }
+
+        private void SelectDefaultPlaybackDevice()
+        {
+            var defaultPlayback = AudioHelper.GetDefaultPlaybackDevice();
+            if (defaultPlayback != null)
+            {
+                var deviceInList = _playbackDevices.FirstOrDefault(d => d.Id == defaultPlayback.Id);
+                if (deviceInList != null)
+                {
+                    OutputDeviceComboBox.SelectedItem = deviceInList;
+                }
+                else if (_playbackDevices.Count > 0)
+                {
+                    // Default device not in list, select first available
+                    OutputDeviceComboBox.SelectedIndex = 0;
+                }
+            }
+            else if (_playbackDevices.Count > 0)
+            {
+                // No default device, select first available
+                OutputDeviceComboBox.SelectedIndex = 0;
+            }
+        }
+
+        private void SelectDefaultCaptureDevice()
+        {
+            var defaultCapture = AudioHelper.GetDefaultCaptureDevice();
+            if (defaultCapture != null)
+            {
+                var deviceInList = _captureDevices.FirstOrDefault(d => d.Id == defaultCapture.Id);
+                if (deviceInList != null)
+                {
+                    InputDeviceComboBox.SelectedItem = deviceInList;
+                }
+                else if (_captureDevices.Count > 0)
+                {
+                    // Default device not in list, select first available
+                    InputDeviceComboBox.SelectedIndex = 0;
+                }
+            }
+            else if (_captureDevices.Count > 0)
+            {
+                // No default device, select first available
+                InputDeviceComboBox.SelectedIndex = 0;
+            }
+        }
+
+        private void DetectAudioButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                StatusTextBlock.Text = "Detecting current audio devices...";
+
+                LoadAudioDevices();
+                
+                StatusTextBlock.Text = "Current audio devices detected";
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error detecting audio devices: {ex.Message}");
+                StatusTextBlock.Text = "Error detecting audio devices";
+            }
+        }
+
+        private void OutputDeviceComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (OutputDeviceComboBox.SelectedItem is AudioHelper.AudioDeviceInfo device)
+            {
+                if (!string.IsNullOrEmpty(device.Id))
+                {
+                    StatusTextBlock.Text = $"Output device: {device.SystemName}";
+                }
+            }
+        }
+
+        private void InputDeviceComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (InputDeviceComboBox.SelectedItem is AudioHelper.AudioDeviceInfo device)
+            {
+                if (!string.IsNullOrEmpty(device.Id))
+                {
+                    StatusTextBlock.Text = $"Input device: {device.SystemName}";
+                }
+            }
+        }
+
+        private void ApplyOutputDeviceCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            OutputDeviceComboBox.IsEnabled = true;
+            StatusTextBlock.Text = "Output device will be applied for this profile";
+        }
+
+        private void ApplyOutputDeviceCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            OutputDeviceComboBox.IsEnabled = false;
+            StatusTextBlock.Text = "Output device will not be applied for this profile";
+        }
+
+        private void ApplyInputDeviceCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            InputDeviceComboBox.IsEnabled = true;
+            StatusTextBlock.Text = "Input device will be applied for this profile";
+        }
+
+        private void ApplyInputDeviceCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            InputDeviceComboBox.IsEnabled = false;
+            StatusTextBlock.Text = "Input device will not be applied for this profile";
+        }
+
+        private void HotkeyEditor_HotkeyChanged(object sender, HotkeyConfig e)
+        {
+            CheckForHotkeyConflicts();
+        }
+
+        private void CheckForHotkeyConflicts()
+        {
+            if (HotkeyEditor?.HotkeyConfig == null || 
+                HotkeyEditor.HotkeyConfig.Key == System.Windows.Input.Key.None)
+            {
+                ConflictWarning.Visibility = Visibility.Collapsed;
+                HotkeyEditor.ConflictingProfile = null;
+                return;
+            }
+
+            var conflictingProfile = FindConflictingProfile(HotkeyEditor.HotkeyConfig);
+            if (conflictingProfile != null)
+            {
+                var enabledState = conflictingProfile.HotkeyConfig.IsEnabled ? "" : " (disabled)";
+                ConflictWarning.Text = $"⚠ Already assigned to '{conflictingProfile.Name}'{enabledState}";
+                ConflictWarning.Visibility = Visibility.Visible;
+                HotkeyEditor.ConflictingProfile = conflictingProfile.Name;
+            }
+            else
+            {
+                ConflictWarning.Visibility = Visibility.Collapsed;
+                HotkeyEditor.ConflictingProfile = null;
+            }
+        }
+
+        private Profile FindConflictingProfile(HotkeyConfig hotkey)
+        {
+            var allProfiles = _profileManager.GetAllProfiles();
+            return allProfiles.FirstOrDefault(p => 
+                p.Id != _profile.Id && 
+                p.HotkeyConfig != null && 
+                p.HotkeyConfig.Key != System.Windows.Input.Key.None &&
+                p.HotkeyConfig.Equals(hotkey));
+        }
+
+        private void EnableHotkeyCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            StatusTextBlock.Text = "Global hotkey enabled for this profile";
+        }
+
+        private void EnableHotkeyCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            StatusTextBlock.Text = "Global hotkey disabled for this profile";
+        }
+
         protected override void OnClosed(EventArgs e)
         {
+            // Re-enable global profile hotkeys when closing
+            try
+            {
+                var app = Application.Current as App;
+                app?.EnableProfileHotkeys();
+                System.Diagnostics.Debug.WriteLine("Re-enabled profile hotkeys after ProfileEditWindow closed");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error re-enabling profile hotkeys: {ex.Message}");
+            }
+            
             base.OnClosed(e);
         }
     }
@@ -729,5 +1062,6 @@ namespace DisplayProfileManager.UI.Windows
 
             return true;
         }
+
     }
 }

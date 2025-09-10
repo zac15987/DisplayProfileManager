@@ -27,6 +27,13 @@ namespace DisplayProfileManager.Core
         [JsonProperty("displaySettings")]
         public List<DisplaySetting> DisplaySettings { get; set; } = new List<DisplaySetting>();
 
+        [JsonProperty("audioSettings")]
+        public AudioSetting AudioSettings { get; set; } = new AudioSetting();
+
+        [JsonProperty("hotkeyConfig")]
+        public HotkeyConfig HotkeyConfig { get; set; } = new HotkeyConfig();
+
+
         public Profile()
         {
         }
@@ -120,6 +127,59 @@ namespace DisplayProfileManager.Core
         public override string ToString()
         {
             return $"{DeviceName}: {GetResolutionString()}, DPI: {GetDpiString()}";
+        }
+    }
+
+    public class AudioSetting
+    {
+        [JsonProperty("defaultPlaybackDeviceId")]
+        public string DefaultPlaybackDeviceId { get; set; } = string.Empty;
+
+        [JsonProperty("defaultCaptureDeviceId")]
+        public string DefaultCaptureDeviceId { get; set; } = string.Empty;
+
+        [JsonProperty("playbackDeviceName")]
+        public string PlaybackDeviceName { get; set; } = string.Empty;
+
+        [JsonProperty("captureDeviceName")]
+        public string CaptureDeviceName { get; set; } = string.Empty;
+
+        [JsonProperty("applyPlaybackDevice")]
+        public bool ApplyPlaybackDevice { get; set; } = false;
+
+        [JsonProperty("applyCaptureDevice")]
+        public bool ApplyCaptureDevice { get; set; } = false;
+
+        public AudioSetting()
+        {
+        }
+
+        public AudioSetting(string playbackId, string playbackName, string captureId, string captureName)
+        {
+            DefaultPlaybackDeviceId = playbackId;
+            PlaybackDeviceName = playbackName;
+            DefaultCaptureDeviceId = captureId;
+            CaptureDeviceName = captureName;
+        }
+
+        public bool HasPlaybackDevice()
+        {
+            return !string.IsNullOrEmpty(DefaultPlaybackDeviceId);
+        }
+
+        public bool HasCaptureDevice()
+        {
+            return !string.IsNullOrEmpty(DefaultCaptureDeviceId);
+        }
+
+        public override string ToString()
+        {
+            var parts = new List<string>();
+            if (!string.IsNullOrEmpty(PlaybackDeviceName))
+                parts.Add($"Output: {PlaybackDeviceName}");
+            if (!string.IsNullOrEmpty(CaptureDeviceName))
+                parts.Add($"Input: {CaptureDeviceName}");
+            return parts.Count > 0 ? string.Join(", ", parts) : "No audio devices configured";
         }
     }
 

@@ -30,17 +30,11 @@ namespace DisplayProfileManager.Core
         [JsonProperty("showNotifications")]
         public bool ShowNotifications { get; set; } = true;
 
-        [JsonProperty("checkForUpdates")]
-        public bool CheckForUpdates { get; set; } = true;
-
         [JsonProperty("theme")]
         public string Theme { get; set; } = "System";
 
         [JsonProperty("language")]
         public string Language { get; set; } = "en-US";
-
-        [JsonProperty("version")]
-        public string Version { get; set; } = "1.0.0";
 
         [JsonProperty("firstRun")]
         public bool FirstRun { get; set; } = true;
@@ -388,11 +382,6 @@ namespace DisplayProfileManager.Core
             return _settings.Language;
         }
 
-        public string GetVersion()
-        {
-            return _settings.Version;
-        }
-
         public DateTime GetLastUpdated()
         {
             return _settings.LastUpdated;
@@ -408,5 +397,6 @@ namespace DisplayProfileManager.Core
             _settings.CurrentProfileId = profileId;
             return await SaveSettingsAsync();
         }
+
     }
 }

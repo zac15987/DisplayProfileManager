@@ -1,0 +1,132 @@
+<UserControl x:Class="DisplayProfileManager.UI.Controls.HotkeyEditorControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:converters="clr-namespace:DisplayProfileManager.UI.Converters"
+             mc:Ignorable="d" 
+             d:DesignHeight="30" d:DesignWidth="300">
+    
+    <UserControl.Resources>
+        <Style x:Key="HotkeyTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="Background" Value="{DynamicResource ControlBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="MinHeight" Value="30"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Grid>
+                            <Border x:Name="BorderElement" 
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="3">
+                                <Grid>
+                                    <ScrollViewer x:Name="PART_ContentHost"
+                                                  Padding="{TemplateBinding Padding}"
+                                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+                                    <TextBlock x:Name="PlaceholderText"
+                                               Text="Click to set hotkey..."
+                                               Foreground="{DynamicResource TertiaryTextBrush}"
+                                               VerticalAlignment="Center"
+                                               Margin="{TemplateBinding Padding}"
+                                               IsHitTestVisible="False"
+                                               Visibility="Collapsed"/>
+                                </Grid>
+                            </Border>
+                            <Border x:Name="StatusIcon"
+                                    Width="16" Height="16"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Center"
+                                    Margin="0,0,8,0">
+                                <TextBlock x:Name="IconText" 
+                                           FontSize="14" 
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"/>
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="Text" Value="">
+                                <Setter TargetName="PlaceholderText" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="BorderElement" Property="BorderBrush" Value="{DynamicResource TextBoxFocusBorderBrush}"/>
+                                <Setter TargetName="BorderElement" Property="BorderThickness" Value="2"/>
+                            </Trigger>
+                            <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=IsRecording}" Value="True">
+                                <Setter TargetName="BorderElement" Property="BorderBrush" Value="{DynamicResource TextBoxFocusBorderBrush}"/>
+                                <Setter TargetName="BorderElement" Property="BorderThickness" Value="2"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=HasConflict}" Value="True">
+                                <Setter TargetName="BorderElement" Property="BorderBrush" Value="{DynamicResource DangerButtonBackgroundBrush}"/>
+                                <Setter TargetName="BorderElement" Property="BorderThickness" Value="2"/>
+                                <Setter TargetName="IconText" Property="Text" Value="⚠"/>
+                                <Setter TargetName="IconText" Property="Foreground" Value="{DynamicResource DangerButtonBackgroundBrush}"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=IsValid}" Value="True">
+                                <Setter TargetName="IconText" Property="Text" Value="✓"/>
+                                <Setter TargetName="IconText" Property="Foreground" Value="{DynamicResource SuccessButtonBackgroundBrush}"/>
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <Style x:Key="ClearButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="20"/>
+            <Setter Property="Height" Value="20"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="Transparent" CornerRadius="2">
+                            <TextBlock Text="✕" 
+                                       FontSize="12" 
+                                       Foreground="{DynamicResource SecondaryTextBrush}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource ControlHoverBackgroundBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+    
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        
+        <TextBox x:Name="HotkeyTextBox"
+                 Grid.Column="0"
+                 Style="{StaticResource HotkeyTextBoxStyle}"
+                 IsReadOnly="True"
+                 Focusable="True"
+                 Text="{Binding HotkeyText, RelativeSource={RelativeSource AncestorType=UserControl}, Mode=OneWay}"
+                 PreviewKeyDown="HotkeyTextBox_PreviewKeyDown"
+                 PreviewKeyUp="HotkeyTextBox_PreviewKeyUp"
+                 GotFocus="HotkeyTextBox_GotFocus"
+                 LostFocus="HotkeyTextBox_LostFocus"
+                 MouseDown="HotkeyTextBox_MouseDown"/>
+        
+        <Button x:Name="ClearButton"
+                Grid.Column="1"
+                Style="{StaticResource ClearButtonStyle}"
+                Margin="4,0,0,0"
+                ToolTip="Clear hotkey (ESC)"
+                Click="ClearButton_Click"
+                Visibility="{Binding HasHotkey, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={x:Static converters:BooleanToVisibilityConverter.Instance}}"/>
+    </Grid>
+</UserControl>

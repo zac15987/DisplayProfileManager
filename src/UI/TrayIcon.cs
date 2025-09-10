@@ -87,7 +87,16 @@ namespace DisplayProfileManager.UI
                 
                 foreach (var profile in profiles.OrderBy(p => p.Name))
                 {
-                    var profileItem = new ToolStripMenuItem(profile.Name);
+                    var profileDisplayName = profile.Name;
+                    
+                    // Add hotkey display if profile has one
+                    if (profile.HotkeyConfig?.IsEnabled == true && 
+                        profile.HotkeyConfig.Key != System.Windows.Input.Key.None)
+                    {
+                        profileDisplayName += $" ({profile.HotkeyConfig})";
+                    }
+                    
+                    var profileItem = new ToolStripMenuItem(profileDisplayName);
                     profileItem.Tag = profile;
                     profileItem.Click += OnProfileMenuItemClick;
                     
@@ -95,7 +104,14 @@ namespace DisplayProfileManager.UI
                     {
                         profileItem.Checked = true;
                     }
-                    
+
+                    // Indicate disabled hotkey
+                    if (profile.HotkeyConfig?.IsEnabled == false && 
+                        profile.HotkeyConfig.Key != System.Windows.Input.Key.None)
+                    {
+                        // do nothing here for now
+                    }
+
                     profilesMenuItem.DropDownItems.Add(profileItem);
                 }
                 
@@ -204,10 +220,7 @@ namespace DisplayProfileManager.UI
 
         private void OnAboutClick(object sender, EventArgs e)
         {
-            var aboutMessage = "Display Profile Manager v1.0\n\n" +
-                              "Manage display resolution and DPI scaling profiles.\n\n" +
-                              "Right-click the tray icon to switch between profiles.\n" +
-                              "Double-click to open the management window.";
+            var aboutMessage = Helpers.AboutHelper.GetAboutMessage();
 
             System.Windows.MessageBox.Show(aboutMessage, "About Display Profile Manager", 
                 MessageBoxButton.OK, MessageBoxImage.Information);
