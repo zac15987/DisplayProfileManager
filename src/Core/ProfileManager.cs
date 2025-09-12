@@ -170,6 +170,9 @@ namespace DisplayProfileManager.Core
                 {
                     var displays = DisplayHelper.GetDisplays();
                     
+                    // Get current topology to determine enabled/disabled state
+                    var topology = DisplayConfigHelper.GetCurrentDisplayTopology();
+                    
                     if (DpiHelper.GetPathsAndModes(out var paths, out var modes))
                     {
                         foreach (var display in displays)
@@ -183,8 +186,20 @@ namespace DisplayProfileManager.Core
                                 Height = display.Height,
                                 Frequency = display.Frequency,
                                 DpiScaling = 100,
-                                IsPrimary = display.IsPrimary
+                                IsPrimary = display.IsPrimary,
+                                IsEnabled = true // Default to true
                             };
+
+                            // Find matching topology info to get enabled state and path index
+                            var topologyInfo = topology.FirstOrDefault(t => 
+                                t.DeviceName.Equals(display.DeviceName, StringComparison.OrdinalIgnoreCase));
+                            
+                            if (topologyInfo != null)
+                            {
+                                setting.IsEnabled = topologyInfo.IsEnabled;
+                                setting.PathIndex = topologyInfo.PathIndex;
+                                setting.TargetId = topologyInfo.TargetId;
+                            }
 
                             foreach (var path in paths)
                             {
@@ -217,7 +232,56 @@ namespace DisplayProfileManager.Core
             {
                 bool success = true;
 
-                foreach (var setting in profile.DisplaySettings)
+                // Step 1: Apply display topology (enable/disable monitors)
+                if (profile.DisplaySettings.Count > 0)
+                {
+                    System.Diagnostics.Debug.WriteLine("Applying display topology...");
+                    
+                    // Get current topology
+                    var currentTopology = DisplayConfigHelper.GetCurrentDisplayTopology();
+                    
+                    // Update topology based on profile settings
+                    foreach (var setting in profile.DisplaySettings)
+                    {
+                        var display = currentTopology.FirstOrDefault(d => 
+                            d.DeviceName.Equals(setting.DeviceName, StringComparison.OrdinalIgnoreCase));
+                        
+                        if (display != null)
+                        {
+                            display.IsEnabled = setting.IsEnabled;
+                            System.Diagnostics.Debug.WriteLine($"Setting {setting.DeviceName} to {(setting.IsEnabled ? "Enabled" : "Disabled")}");
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Display {setting.DeviceName} not found in current topology");
+                        }
+                    }
+                    
+                    // Validate and apply topology
+                    if (DisplayConfigHelper.ValidateDisplayTopology(currentTopology))
+                    {
+                        bool topologyApplied = DisplayConfigHelper.ApplyDisplayTopology(currentTopology);
+                        if (!topologyApplied)
+                        {
+                            System.Diagnostics.Debug.WriteLine("Failed to apply display topology");
+                            success = false;
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine("Display topology applied successfully");
+                            
+                            // Wait for topology changes to take effect
+                            await Task.Delay(1000);
+                        }
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine("Invalid display topology - skipping topology changes");
+                    }
+                }
+
+                // Step 2: Apply resolution, refresh rate, and DPI for enabled displays only
+                foreach (var setting in profile.DisplaySettings.Where(s => s.IsEnabled))
                 {
                     try
                     {

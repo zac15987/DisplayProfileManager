@@ -668,6 +668,7 @@ namespace DisplayProfileManager.UI.Windows
         private ComboBox _refreshRateComboBox;
         private ComboBox _dpiComboBox;
         private CheckBox _primaryCheckBox;
+        private CheckBox _enabledCheckBox;
         private Button _removeButton;
 
         public event EventHandler RemoveRequested;
@@ -685,6 +686,7 @@ namespace DisplayProfileManager.UI.Windows
             var headerGrid = new Grid();
             headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             var headerText = new TextBlock
             {
@@ -697,6 +699,21 @@ namespace DisplayProfileManager.UI.Windows
             Grid.SetColumn(headerText, 0);
             headerGrid.Children.Add(headerText);
 
+            // Add Enable/Disable checkbox
+            _enabledCheckBox = new CheckBox
+            {
+                Content = "Enabled",
+                IsChecked = _setting.IsEnabled,
+                FontSize = 14,
+                Margin = new Thickness(0, 0, 16, 8),
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = (Brush)Application.Current.Resources["PrimaryTextBrush"]
+            };
+            _enabledCheckBox.Checked += EnabledCheckBox_CheckedChanged;
+            _enabledCheckBox.Unchecked += EnabledCheckBox_CheckedChanged;
+            Grid.SetColumn(_enabledCheckBox, 1);
+            headerGrid.Children.Add(_enabledCheckBox);
+
             _removeButton = new Button
             {
                 Content = "✕",
@@ -708,7 +725,7 @@ namespace DisplayProfileManager.UI.Windows
                 Cursor = System.Windows.Input.Cursors.Hand
             };
             _removeButton.Click += (s, e) => RemoveRequested?.Invoke(this, EventArgs.Empty);
-            Grid.SetColumn(_removeButton, 1);
+            Grid.SetColumn(_removeButton, 2);
             headerGrid.Children.Add(_removeButton);
 
             mainPanel.Children.Add(headerGrid);
@@ -809,6 +826,70 @@ namespace DisplayProfileManager.UI.Windows
             mainPanel.Children.Add(separator);
 
             Content = mainPanel;
+            
+            // Set initial control states based on enabled status
+            UpdateControlStates();
+        }
+
+        private void EnabledCheckBox_CheckedChanged(object sender, RoutedEventArgs e)
+        {
+            _setting.IsEnabled = _enabledCheckBox.IsChecked ?? true;
+            UpdateControlStates();
+        }
+
+        private void UpdateControlStates()
+        {
+            bool isEnabled = _setting.IsEnabled;
+            
+            // Enable/disable controls based on the display's enabled state
+            _deviceComboBox.IsEnabled = isEnabled;
+            _resolutionComboBox.IsEnabled = isEnabled;
+            _refreshRateComboBox.IsEnabled = isEnabled;
+            _dpiComboBox.IsEnabled = isEnabled;
+            _primaryCheckBox.IsEnabled = isEnabled;
+            
+            // Update opacity to provide visual feedback
+            double opacity = isEnabled ? 1.0 : 0.5;
+            _deviceComboBox.Opacity = opacity;
+            _resolutionComboBox.Opacity = opacity;
+            _refreshRateComboBox.Opacity = opacity;
+            _dpiComboBox.Opacity = opacity;
+            _primaryCheckBox.Opacity = opacity;
+            
+            // Ensure at least one display remains enabled
+            var parent = Parent as Panel;
+            if (parent != null && !isEnabled)
+            {
+                int enabledCount = 0;
+                foreach (var child in parent.Children)
+                {
+                    if (child is DisplaySettingControl control && control._setting.IsEnabled)
+                    {
+                        enabledCount++;
+                    }
+                }
+                
+                // If this would be the last enabled display, prevent disabling
+                if (enabledCount == 0)
+                {
+                    _enabledCheckBox.IsChecked = true;
+                    _setting.IsEnabled = true;
+                    MessageBox.Show("At least one display must remain enabled.", "Display Configuration", 
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                    
+                    // Re-enable controls
+                    _deviceComboBox.IsEnabled = true;
+                    _resolutionComboBox.IsEnabled = true;
+                    _refreshRateComboBox.IsEnabled = true;
+                    _dpiComboBox.IsEnabled = true;
+                    _primaryCheckBox.IsEnabled = true;
+                    _deviceComboBox.Opacity = 1.0;
+                    _resolutionComboBox.Opacity = 1.0;
+                    _refreshRateComboBox.Opacity = 1.0;
+                    _dpiComboBox.Opacity = 1.0;
+                    _primaryCheckBox.Opacity = 1.0;
+                }
+            }
         }
 
         private void PopulateResolutionComboBox()
@@ -1021,8 +1102,11 @@ namespace DisplayProfileManager.UI.Windows
                 Frequency = frequency,
                 DpiScaling = dpiScaling,
                 IsPrimary = _primaryCheckBox.IsChecked == true,
+                IsEnabled = _enabledCheckBox.IsChecked == true,
                 AdapterId = _setting.AdapterId,
-                SourceId = _setting.SourceId
+                SourceId = _setting.SourceId,
+                PathIndex = _setting.PathIndex,
+                TargetId = _setting.TargetId
             };
         }
 

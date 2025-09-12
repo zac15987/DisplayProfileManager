@@ -166,6 +166,7 @@
     <Compile Include="src\Helpers\AutoStartHelper.cs" />
     <Compile Include="src\UI\Converters\BooleanToVisibilityConverter.cs" />
     <Compile Include="src\Helpers\DisplayHelper.cs" />
+    <Compile Include="src\Helpers\DisplayConfigHelper.cs" />
     <Compile Include="src\Helpers\DpiHelper.cs" />
     <Compile Include="src\Helpers\GlobalHotkeyHelper.cs" />
     <Compile Include="src\Helpers\ThemeHelper.cs" />

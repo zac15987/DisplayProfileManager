@@ -101,6 +101,15 @@ namespace DisplayProfileManager.Core
         [JsonProperty("sourceId")]
         public uint SourceId { get; set; } = 0;
 
+        [JsonProperty("isEnabled")]
+        public bool IsEnabled { get; set; } = true;
+
+        [JsonProperty("pathIndex")]
+        public uint PathIndex { get; set; } = 0;
+
+        [JsonProperty("targetId")]
+        public uint TargetId { get; set; } = 0;
+
         public DisplaySetting()
         {
         }
@@ -126,7 +135,8 @@ namespace DisplayProfileManager.Core
 
         public override string ToString()
         {
-            return $"{DeviceName}: {GetResolutionString()}, DPI: {GetDpiString()}";
+            var enabledStatus = IsEnabled ? "Enabled" : "Disabled";
+            return $"{DeviceName}: {GetResolutionString()}, DPI: {GetDpiString()} [{enabledStatus}]";
         }
     }
 
