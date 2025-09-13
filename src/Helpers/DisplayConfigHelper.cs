@@ -456,12 +456,12 @@ namespace DisplayProfileManager.Helpers
             return displays;
         }
 
-        public static bool ApplyDisplayTopology(List<DisplayConfigInfo> topology)
+        public static bool ApplyDisplayTopology(List<DisplayConfigInfo> displayConfigs)
         {
             try
             {
                 // Validate that at least one display will remain enabled
-                if (!topology.Any(d => d.IsEnabled))
+                if (!displayConfigs.Any(d => d.IsEnabled))
                 {
                     Debug.WriteLine("Cannot disable all displays - at least one must remain enabled");
                     return false;
@@ -500,7 +500,7 @@ namespace DisplayProfileManager.Helpers
                 }
 
                 // Update path flags based on topology settings
-                foreach (var displayInfo in topology)
+                foreach (var displayInfo in displayConfigs)
                 {
                     if (displayInfo.PathIndex < pathCount)
                     {

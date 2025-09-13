@@ -237,36 +237,28 @@ namespace DisplayProfileManager.Core
             {
                 bool success = true;
 
-                // Step 1: Apply display topology (enable/disable monitors)
+                // Step 1: Apply display config (enable/disable monitors)
                 if (profile.DisplaySettings.Count > 0)
                 {
                     System.Diagnostics.Debug.WriteLine("Applying display topology...");
-                    
-                    // Get current topology
-                    var currentTopology = DisplayConfigHelper.GetDisplayConfigs();
-                    
-                    // Update topology based on profile settings
+
+                    var currentDisplayConfig = new List<DisplayConfigHelper.DisplayConfigInfo>();
+
                     foreach (var setting in profile.DisplaySettings)
                     {
-                        var display = currentTopology.FirstOrDefault(d => 
-                            d.DeviceName.Equals(setting.DeviceName, StringComparison.OrdinalIgnoreCase));
-                        
-                        if (display != null)
-                        {
-                            display.IsEnabled = setting.IsEnabled;
-                            System.Diagnostics.Debug.WriteLine($"Setting {setting.DeviceName} to {(setting.IsEnabled ? "Enabled" : "Disabled")}");
-                        }
-                        else
-                        {
-                            System.Diagnostics.Debug.WriteLine($"Display {setting.DeviceName} not found in current topology");
-                        }
+                        DisplayConfigHelper.DisplayConfigInfo displayConfigInfo = new DisplayConfigHelper.DisplayConfigInfo();
+                        displayConfigInfo.DeviceName = setting.DeviceName;
+                        displayConfigInfo.IsEnabled = setting.IsEnabled;
+                        displayConfigInfo.PathIndex = setting.PathIndex;
+
+                        currentDisplayConfig.Add(displayConfigInfo);
                     }
-                    
+
                     // Validate and apply topology
-                    if (DisplayConfigHelper.ValidateDisplayTopology(currentTopology))
+                    if (DisplayConfigHelper.ValidateDisplayTopology(currentDisplayConfig))
                     {
-                        bool topologyApplied = DisplayConfigHelper.ApplyDisplayTopology(currentTopology);
-                        if (!topologyApplied)
+                        bool displayConfigApplied = DisplayConfigHelper.ApplyDisplayTopology(currentDisplayConfig);
+                        if (!displayConfigApplied)
                         {
                             System.Diagnostics.Debug.WriteLine("Failed to apply display topology");
                             success = false;
