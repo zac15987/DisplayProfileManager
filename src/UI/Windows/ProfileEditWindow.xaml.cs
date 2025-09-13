@@ -42,8 +42,7 @@ namespace DisplayProfileManager.UI.Windows
             // Bind collections to ComboBoxes
             OutputDeviceComboBox.ItemsSource = _playbackDevices;
             InputDeviceComboBox.ItemsSource = _captureDevices;
-            
-            LoadAudioDevices();
+
         }
 
         private void InitializeWindow()
@@ -314,6 +313,22 @@ namespace DisplayProfileManager.UI.Windows
                 {
                     return false;
                 }
+            }
+
+            if(ApplyOutputDeviceCheckBox.IsChecked == true && OutputDeviceComboBox.SelectedItem == null)
+            {
+                MessageBox.Show("Please select an audio output device.", "Validation Error",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                ApplyOutputDeviceCheckBox.Focus();
+                return false;
+            }
+
+            if (ApplyInputDeviceCheckBox.IsChecked == true && InputDeviceComboBox.SelectedItem == null)
+            {
+                MessageBox.Show("Please select an audio input device.", "Validation Error",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                ApplyInputDeviceCheckBox.Focus();
+                return false;
             }
 
             return true;
@@ -1073,16 +1088,13 @@ namespace DisplayProfileManager.UI.Windows
 
             var selectedItem = _deviceComboBox.SelectedItem as ComboBoxItem;
             var deviceName = selectedItem?.Tag?.ToString() ?? "";
-            
-            // Get the display info to populate ReadableDeviceName
-            var displays = DisplayHelper.GetDisplays();
-            var display = displays.FirstOrDefault(d => d.DeviceName == deviceName);
-            
+            var readableDeviceName = selectedItem?.Content?.ToString() ?? "";
+
             return new DisplaySetting
             {
                 DeviceName = deviceName,
                 DeviceString = _setting.DeviceString,
-                ReadableDeviceName = display?.ReadableDeviceName ?? selectedItem?.Content?.ToString() ?? "",
+                ReadableDeviceName = readableDeviceName,
                 Width = width,
                 Height = height,
                 Frequency = frequency,

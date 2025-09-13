@@ -58,12 +58,11 @@ namespace DisplayProfileManager.UI.Windows
             _profileManager.ProfileApplied += OnProfileApplied;
         }
 
-        private async void LoadProfiles()
+        private void LoadProfiles()
         {
             try
             {
                 StatusTextBlock.Text = "Loading profiles...";
-                await _profileManager.LoadProfilesAsync();
                 RefreshProfilesList();
                 StatusTextBlock.Text = "Ready";
             }
