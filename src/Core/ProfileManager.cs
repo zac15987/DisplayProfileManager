@@ -119,7 +119,7 @@ namespace DisplayProfileManager.Core
         {
             try
             {
-                var filePath = GetProfileFilePath(profile.Id);
+                var filePath = GetProfileFilePath(profile.Name);
                 var json = JsonConvert.SerializeObject(profile, Formatting.Indented);
                 await Task.Run(() => File.WriteAllText(filePath, json));
                 return true;
