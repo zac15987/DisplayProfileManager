@@ -307,16 +307,15 @@ namespace DisplayProfileManager.Helpers
 
         #region Public Classes
 
-        public class DisplayTopologyInfo
+        public class DisplayConfigInfo
         {
             public string DeviceName { get; set; } = string.Empty;
             public string FriendlyName { get; set; } = string.Empty;
             public bool IsEnabled { get; set; }
             public bool IsAvailable { get; set; }
-            public bool IsPrimary { get; set; }
             public int Width { get; set; }
             public int Height { get; set; }
-            public int RefreshRate { get; set; }
+            public double RefreshRate { get; set; }
             public LUID AdapterId { get; set; }
             public uint SourceId { get; set; }
             public uint TargetId { get; set; }
@@ -328,9 +327,9 @@ namespace DisplayProfileManager.Helpers
 
         #region Public Methods
 
-        public static List<DisplayTopologyInfo> GetCurrentDisplayTopology()
+        public static List<DisplayConfigInfo> GetDisplayConfigs()
         {
-            var displays = new List<DisplayTopologyInfo>();
+            var displays = new List<DisplayConfigInfo>();
 
             try
             {
@@ -339,7 +338,7 @@ namespace DisplayProfileManager.Helpers
 
                 // Get buffer sizes for all paths (including inactive)
                 int result = GetDisplayConfigBufferSizes(
-                    QueryDisplayConfigFlags.QDC_ALL_PATHS,
+                    QueryDisplayConfigFlags.QDC_ONLY_ACTIVE_PATHS,
                     out pathCount,
                     out modeCount);
 
@@ -354,7 +353,7 @@ namespace DisplayProfileManager.Helpers
 
                 // Query all display paths
                 result = QueryDisplayConfig(
-                    QueryDisplayConfigFlags.QDC_ALL_PATHS,
+                    QueryDisplayConfigFlags.QDC_ONLY_ACTIVE_PATHS,
                     ref pathCount,
                     paths,
                     ref modeCount,
@@ -367,10 +366,6 @@ namespace DisplayProfileManager.Helpers
                     return displays;
                 }
 
-                // Get existing display devices for correlation
-                var existingDisplays = DisplayHelper.GetDisplays();
-                var primaryDisplay = existingDisplays.FirstOrDefault(d => d.IsPrimary);
-
                 // Process each path
                 for (uint i = 0; i < pathCount; i++)
                 {
@@ -380,7 +375,7 @@ namespace DisplayProfileManager.Helpers
                     if (!path.targetInfo.targetAvailable)
                         continue;
 
-                    var topologyInfo = new DisplayTopologyInfo
+                    var topologyInfo = new DisplayConfigInfo
                     {
                         PathIndex = i,
                         IsEnabled = (path.flags & (uint)DisplayConfigPathInfoFlags.DISPLAYCONFIG_PATH_ACTIVE) != 0,
@@ -436,25 +431,8 @@ namespace DisplayProfileManager.Helpers
                             var refreshRate = targetMode.modeInfo.targetMode.targetVideoSignalInfo.vSyncFreq;
                             if (refreshRate.Denominator != 0)
                             {
-                                topologyInfo.RefreshRate = (int)(refreshRate.Numerator / refreshRate.Denominator);
-                            }
-                        }
-                    }
-
-                    // Correlate with existing display info to determine primary
-                    if (!string.IsNullOrEmpty(topologyInfo.DeviceName))
-                    {
-                        var matchingDisplay = existingDisplays.FirstOrDefault(d => 
-                            d.DeviceName.Equals(topologyInfo.DeviceName, StringComparison.OrdinalIgnoreCase));
-                        
-                        if (matchingDisplay != null)
-                        {
-                            topologyInfo.IsPrimary = matchingDisplay.IsPrimary;
-                            
-                            // Use the readable name from existing display if available
-                            if (!string.IsNullOrEmpty(matchingDisplay.ReadableDeviceName))
-                            {
-                                topologyInfo.FriendlyName = matchingDisplay.ReadableDeviceName;
+                                double hz = (double)refreshRate.Numerator / refreshRate.Denominator;
+                                topologyInfo.RefreshRate = Math.Round(hz, 2);
                             }
                         }
                     }
@@ -466,7 +444,7 @@ namespace DisplayProfileManager.Helpers
                 foreach (var display in displays)
                 {
                     Debug.WriteLine($"  Display: {display.DeviceName} ({display.FriendlyName}) - " +
-                                  $"Enabled: {display.IsEnabled}, Primary: {display.IsPrimary}, " +
+                                  $"Enabled: {display.IsEnabled}, " +
                                   $"Resolution: {display.Width}x{display.Height}@{display.RefreshRate}Hz");
                 }
             }
@@ -478,7 +456,7 @@ namespace DisplayProfileManager.Helpers
             return displays;
         }
 
-        public static bool ApplyDisplayTopology(List<DisplayTopologyInfo> topology)
+        public static bool ApplyDisplayTopology(List<DisplayConfigInfo> topology)
         {
             try
             {
@@ -585,7 +563,7 @@ namespace DisplayProfileManager.Helpers
 
         public static bool EnableDisplay(string deviceName)
         {
-            var topology = GetCurrentDisplayTopology();
+            var topology = GetDisplayConfigs();
             var display = topology.FirstOrDefault(d => 
                 d.DeviceName.Equals(deviceName, StringComparison.OrdinalIgnoreCase));
             
@@ -607,7 +585,7 @@ namespace DisplayProfileManager.Helpers
 
         public static bool DisableDisplay(string deviceName)
         {
-            var topology = GetCurrentDisplayTopology();
+            var topology = GetDisplayConfigs();
             var display = topology.FirstOrDefault(d => 
                 d.DeviceName.Equals(deviceName, StringComparison.OrdinalIgnoreCase));
             
@@ -634,7 +612,7 @@ namespace DisplayProfileManager.Helpers
             return ApplyDisplayTopology(topology);
         }
 
-        public static bool ValidateDisplayTopology(List<DisplayTopologyInfo> topology)
+        public static bool ValidateDisplayTopology(List<DisplayConfigInfo> topology)
         {
             // Ensure at least one display is enabled
             if (!topology.Any(d => d.IsEnabled))

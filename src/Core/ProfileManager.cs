@@ -1,10 +1,10 @@
+using DisplayProfileManager.Helpers;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
-using DisplayProfileManager.Helpers;
 
 namespace DisplayProfileManager.Core
 {
@@ -168,50 +168,57 @@ namespace DisplayProfileManager.Core
 
                 try
                 {
-                    var displays = DisplayHelper.GetDisplays();
+                    List<DisplayHelper.DisplayInfo> displays = DisplayHelper.GetDisplays();
+
+                    // Get monitor information using WMI
+                    List<DisplayHelper.MonitorInfo> monitors = DisplayHelper.GetMonitorsFromWMI();
+
+                    // Get display configs using QueueDisplayConfig
+                    List<DisplayConfigHelper.DisplayConfigInfo> displayConfigs = DisplayConfigHelper.GetDisplayConfigs();
                     
-                    // Get current topology to determine enabled/disabled state
-                    var topology = DisplayConfigHelper.GetCurrentDisplayTopology();
-                    
-                    if (DpiHelper.GetPathsAndModes(out var paths, out var modes))
+                    if (displays.Count > 0 &&
+                        monitors.Count > 0 &&
+                        displayConfigs.Count > 0)
                     {
-                        foreach (var display in displays)
+                        for (int i = 0; i < displays.Count; i++)
                         {
-                            var setting = new DisplaySetting
+                            var foundConfig = displayConfigs.Find(x => x.DeviceName == displays[i].DeviceName);
+
+                            if (foundConfig == null)
                             {
-                                DeviceName = display.DeviceName,
-                                DeviceString = display.DeviceString,
-                                ReadableDeviceName = display.ReadableDeviceName,
-                                Width = display.Width,
-                                Height = display.Height,
-                                Frequency = display.Frequency,
-                                DpiScaling = 100,
-                                IsPrimary = display.IsPrimary,
-                                IsEnabled = true // Default to true
+                                continue;
+                            }
+
+                            var foundMonitor = monitors.Find(x => x.DeviceID.Contains($"UID{foundConfig.TargetId}"));
+
+                            if (foundMonitor == null)
+                            {
+                                continue;
+                            }
+
+                            DpiHelper.LUID adapterId = new DpiHelper.LUID()
+                            {
+                                HighPart = foundConfig.AdapterId.HighPart,
+                                LowPart = foundConfig.AdapterId.LowPart,
                             };
+                            DpiHelper.DPIScalingInfo dpiInfo = DpiHelper.GetDPIScalingInfo(adapterId, foundConfig.SourceId);
 
-                            // Find matching topology info to get enabled state and path index
-                            var topologyInfo = topology.FirstOrDefault(t => 
-                                t.DeviceName.Equals(display.DeviceName, StringComparison.OrdinalIgnoreCase));
-                            
-                            if (topologyInfo != null)
-                            {
-                                setting.IsEnabled = topologyInfo.IsEnabled;
-                                setting.PathIndex = topologyInfo.PathIndex;
-                                setting.TargetId = topologyInfo.TargetId;
-                            }
-
-                            foreach (var path in paths)
-                            {
-                                var dpiInfo = DpiHelper.GetDPIScalingInfo(path.sourceInfo.adapterId, path.sourceInfo.id);
-                                if (dpiInfo.IsInitialized)
-                                {
-                                    setting.DpiScaling = dpiInfo.Current;
-                                    setting.AdapterId = $"{path.sourceInfo.adapterId.HighPart:X8}{path.sourceInfo.adapterId.LowPart:X8}";
-                                    setting.SourceId = path.sourceInfo.id;
-                                    break;
-                                }
-                            }
+                            DisplaySetting setting = new DisplaySetting();
+                            setting.DeviceName = displays[i].DeviceName;
+                            setting.DeviceString = displays[i].DeviceString;
+                            setting.ReadableDeviceName = foundMonitor.Name;
+                            setting.Width = foundConfig.Width;
+                            setting.Height = foundConfig.Height;
+                            setting.Frequency = displays[i].Frequency;
+                            setting.DpiScaling = dpiInfo.IsInitialized ? dpiInfo.Current : 100;
+                            setting.DpiScalingMax = dpiInfo.IsInitialized ? dpiInfo.Maximum : 100;
+                            setting.DpiScalingMin = dpiInfo.IsInitialized ? dpiInfo.Minimum : 100;
+                            setting.IsPrimary = displays[i].IsPrimary;
+                            setting.AdapterId = $"{foundConfig.AdapterId.HighPart:X8}{foundConfig.AdapterId.LowPart:X8}";
+                            setting.SourceId = foundConfig.SourceId;
+                            setting.IsEnabled = foundConfig.IsEnabled;
+                            setting.PathIndex = foundConfig.PathIndex;
+                            setting.TargetId = foundConfig.TargetId;
 
                             settings.Add(setting);
                         }
@@ -238,7 +245,7 @@ namespace DisplayProfileManager.Core
                     System.Diagnostics.Debug.WriteLine("Applying display topology...");
                     
                     // Get current topology
-                    var currentTopology = DisplayConfigHelper.GetCurrentDisplayTopology();
+                    var currentTopology = DisplayConfigHelper.GetDisplayConfigs();
                     
                     // Update topology based on profile settings
                     foreach (var setting in profile.DisplaySettings)

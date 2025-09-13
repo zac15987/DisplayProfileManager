@@ -154,10 +154,6 @@ namespace DisplayProfileManager.Helpers
             var displayDevice = new DISPLAY_DEVICE();
             displayDevice.cb = Marshal.SizeOf(displayDevice);
 
-            // Get monitor information using WMI and registry
-            var monitors = GetMonitorsFromWMI();
-            var registryMapping = GetMonitorMappingFromRegistry();
-
             uint deviceIndex = 0;
             while (EnumDisplayDevices(null, deviceIndex, ref displayDevice, 0))
             {
@@ -178,7 +174,8 @@ namespace DisplayProfileManager.Helpers
                             Frequency = devMode.dmDisplayFrequency,
                             BitsPerPixel = devMode.dmBitsPerPel,
                             IsPrimary = (displayDevice.StateFlags & DisplayDeviceStateFlags.PrimaryDevice) != 0,
-                            DevMode = devMode
+                            DevMode = devMode,
+                            ReadableDeviceName = displayDevice.DeviceName
                         };
 
                         // Debug: Log display device details
@@ -186,7 +183,7 @@ namespace DisplayProfileManager.Helpers
                             $"String={displayDevice.DeviceString}, DeviceID={displayDevice.DeviceID}, Primary={displayInfo.IsPrimary}");
 
                         // Get readable name using registry mapping and WMI correlation
-                        displayInfo.ReadableDeviceName = GetReadableMonitorNameFromWMI(displayInfo, monitors, registryMapping);
+                        //displayInfo.ReadableDeviceName = GetReadableMonitorNameFromWMI(displayInfo, monitors, registryMapping);
 
                         displays.Add(displayInfo);
                     }
@@ -270,28 +267,6 @@ namespace DisplayProfileManager.Helpers
             }
 
             int result = ChangeDisplaySettings(ref devMode, CDS_UPDATEREGISTRY);
-            return result == DISP_CHANGE_SUCCESSFUL;
-        }
-
-        public static bool TestResolution(string deviceName, int width, int height, int frequency = 0)
-        {
-            var devMode = new DEVMODE();
-            devMode.dmSize = (short)Marshal.SizeOf(devMode);
-
-            if (!EnumDisplaySettings(deviceName, ENUM_CURRENT_SETTINGS, ref devMode))
-                return false;
-
-            devMode.dmPelsWidth = width;
-            devMode.dmPelsHeight = height;
-            devMode.dmFields = 0x80000 | 0x100000;
-
-            if (frequency > 0)
-            {
-                devMode.dmDisplayFrequency = frequency;
-                devMode.dmFields |= 0x400000;
-            }
-
-            int result = ChangeDisplaySettings(ref devMode, CDS_TEST);
             return result == DISP_CHANGE_SUCCESSFUL;
         }
 
@@ -403,7 +378,7 @@ namespace DisplayProfileManager.Helpers
             return sortedRates;
         }
 
-        private static List<MonitorInfo> GetMonitorsFromWMI()
+        public static List<MonitorInfo> GetMonitorsFromWMI()
         {
             var monitors = new List<MonitorInfo>();
             
@@ -430,37 +405,9 @@ namespace DisplayProfileManager.Helpers
                             System.Diagnostics.Debug.WriteLine($"WMI Monitor: Name='{monitor.Name}', DeviceID='{monitor.DeviceID}', PnPDeviceID='{monitor.PnPDeviceID}'");
                             
                             // Filter out non-monitor devices
-                            if (!string.IsNullOrEmpty(monitor.Name) && 
-                                !monitor.Name.Contains("NVIDIA") && 
-                                !monitor.Name.Contains("AMD") &&
-                                !monitor.Name.Contains("Intel"))
+                            if (!string.IsNullOrEmpty(monitor.Name))
                             {
                                 monitors.Add(monitor);
-                            }
-                        }
-                    }
-                }
-                
-                // Also try Win32_DesktopMonitor
-                using (var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_DesktopMonitor"))
-                {
-                    using (var collection = searcher.Get())
-                    {
-                        foreach (ManagementObject obj in collection)
-                        {
-                            var name = obj["Name"]?.ToString() ?? "";
-                            var deviceID = obj["DeviceID"]?.ToString() ?? "";
-                            
-                            System.Diagnostics.Debug.WriteLine($"WMI DesktopMonitor: Name='{name}', DeviceID='{deviceID}'");
-                            
-                            if (!string.IsNullOrEmpty(name) && !monitors.Any(m => m.Name == name))
-                            {
-                                monitors.Add(new MonitorInfo
-                                {
-                                    Name = name,
-                                    DeviceID = deviceID,
-                                    Description = obj["Description"]?.ToString() ?? ""
-                                });
                             }
                         }
                     }
@@ -921,86 +868,6 @@ namespace DisplayProfileManager.Helpers
                 System.Diagnostics.Debug.WriteLine($"    ❌ Error extracting WMI monitor ID: {ex.Message}");
                 return string.Empty;
             }
-        }
-
-        private static string ParseDeviceInstanceForMonitor(string deviceInstanceId)
-        {
-            try
-            {
-                // Extract vendor and device IDs from PCI device string
-                // Example: PCI\VEN_10DE&DEV_2D19&SUBSYS_60031458&REV_A1
-                if (deviceInstanceId.StartsWith("PCI\\"))
-                {
-                    var parts = deviceInstanceId.Split('\\')[1].Split('&');
-                    foreach (var part in parts)
-                    {
-                        if (part.StartsWith("VEN_"))
-                        {
-                            string vendorId = part.Substring(4);
-                            string friendlyVendor = GetFriendlyVendorName(vendorId);
-                            if (!string.IsNullOrEmpty(friendlyVendor))
-                            {
-                                return $"{friendlyVendor} Display";
-                            }
-                        }
-                    }
-                }
-                
-                return string.Empty;
-            }
-            catch
-            {
-                return string.Empty;
-            }
-        }
-
-        private static string GetFriendlyVendorName(string vendorId)
-        {
-            var vendorMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                { "10DE", "NVIDIA" },
-                { "1002", "AMD" },
-                { "8086", "Intel" },
-                { "1414", "Microsoft" }
-            };
-            
-            return vendorMap.TryGetValue(vendorId, out string friendlyName) ? friendlyName : "";
-        }
-
-
-        private static string GetFriendlyManufacturerName(string pnpId)
-        {
-            // Common monitor manufacturer PNP IDs
-            var manufacturerMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                { "ACI", "ASUS" },
-                { "ACR", "Acer" },
-                { "AOC", "AOC" },
-                { "APP", "Apple" },
-                { "AUO", "AU Optronics" },
-                { "BNQ", "BenQ" },
-                { "BOE", "BOE" },
-                { "CMN", "Chi Mei" },
-                { "DEL", "Dell" },
-                { "GSM", "LG" },
-                { "HPN", "HP" },
-                { "HSD", "HannStar" },
-                { "HWP", "HP" },
-                { "LEN", "Lenovo" },
-                { "LGD", "LG Display" },
-                { "MEI", "Panasonic" },
-                { "MSI", "MSI" },
-                { "NEC", "NEC" },
-                { "PHL", "Philips" },
-                { "SAM", "Samsung" },
-                { "SDC", "Samsung Display" },
-                { "SEC", "Samsung" },
-                { "SHP", "Sharp" },
-                { "SNY", "Sony" },
-                { "VSC", "ViewSonic" }
-            };
-
-            return manufacturerMap.TryGetValue(pnpId, out string friendlyName) ? friendlyName : pnpId;
         }
 
         private static (object timestampObj, object setIdObj) ReadRegistryValuesWithFallback(Microsoft.Win32.RegistryKey config, string configName)

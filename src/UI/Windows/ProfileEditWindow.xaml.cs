@@ -918,11 +918,17 @@ namespace DisplayProfileManager.UI.Windows
 
         private void PopulateDpiComboBox()
         {
-            var dpiValues = new[] { "100%", "125%", "150%", "175%", "200%", "225%", "250%", "300%" };
-            
-            foreach (var dpi in dpiValues)
+            uint start = _setting.DpiScalingMin;
+            uint end = _setting.DpiScalingMax;
+            uint step = 25;
+
+            uint[] dpiValues = Enumerable.Range(0, (int)((end - start) / step) + 1)
+                                   .Select(i => start + (uint)i * step)
+                                   .ToArray();
+
+            foreach (uint dpi in dpiValues)
             {
-                _dpiComboBox.Items.Add(dpi);
+                _dpiComboBox.Items.Add($"{dpi}%");
             }
 
             var currentDpi = $"{_setting.DpiScaling}%";
@@ -972,28 +978,21 @@ namespace DisplayProfileManager.UI.Windows
         private void PopulateDeviceComboBox()
         {
             _deviceComboBox.Items.Clear();
-            
-            // Get all available displays
-            var displays = DisplayHelper.GetDisplays();
-            
-            // Create a custom class for ComboBox items to store both readable and system names
-            foreach (var display in displays)
+
+            var item = new ComboBoxItem
             {
-                var item = new ComboBoxItem
-                {
-                    Content = display.ReadableDeviceName,
-                    Tag = display.DeviceName, // Store system device name in Tag
-                    ToolTip = $"{display.ReadableDeviceName}\n{display.DeviceName}"
-                };
-                _deviceComboBox.Items.Add(item);
-                
-                // Select current device
-                if (display.DeviceName == _setting.DeviceName)
-                {
-                    _deviceComboBox.SelectedItem = item;
-                }
+                Content = _setting.ReadableDeviceName,
+                Tag = _setting.DeviceName, // Store system device name in Tag
+                ToolTip = $"{_setting.ReadableDeviceName}\n{_setting.DeviceName}"
+            };
+            _deviceComboBox.Items.Add(item);
+
+            // Select current device
+            if (_setting.DeviceName == _setting.DeviceName)
+            {
+                _deviceComboBox.SelectedItem = item;
             }
-            
+
             // If no selection was made (device not found), select first item
             if (_deviceComboBox.SelectedItem == null && _deviceComboBox.Items.Count > 0)
             {
