@@ -1,3 +1,7 @@
+using DisplayProfileManager.Core;
+using DisplayProfileManager.Helpers;
+using DisplayProfileManager.Properties;
+using DisplayProfileManager.UI.Controls;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -8,9 +12,6 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shell;
-using DisplayProfileManager.Core;
-using DisplayProfileManager.Helpers;
-using DisplayProfileManager.UI.Controls;
 
 namespace DisplayProfileManager.UI.Windows
 {
@@ -725,8 +726,10 @@ namespace DisplayProfileManager.UI.Windows
                 Cursor = System.Windows.Input.Cursors.Hand
             };
             _removeButton.Click += (s, e) => RemoveRequested?.Invoke(this, EventArgs.Empty);
-            Grid.SetColumn(_removeButton, 2);
-            headerGrid.Children.Add(_removeButton);
+
+            // remove button will be removed someday
+            //Grid.SetColumn(_removeButton, 2);
+            //headerGrid.Children.Add(_removeButton);
 
             mainPanel.Children.Add(headerGrid);
 
@@ -918,13 +921,7 @@ namespace DisplayProfileManager.UI.Windows
 
         private void PopulateDpiComboBox()
         {
-            uint start = _setting.DpiScalingMin;
-            uint end = _setting.DpiScalingMax;
-            uint step = 25;
-
-            uint[] dpiValues = Enumerable.Range(0, (int)((end - start) / step) + 1)
-                                   .Select(i => start + (uint)i * step)
-                                   .ToArray();
+            uint[] dpiValues = DpiHelper.GetSupportedDPIScalingOnly(_setting.AdapterId, _setting.SourceId);
 
             foreach (uint dpi in dpiValues)
             {
@@ -965,12 +962,6 @@ namespace DisplayProfileManager.UI.Windows
             {
                 // If current refresh rate is not in supported list, add it and select it
                 _refreshRateComboBox.Items.Insert(0, currentRefreshRate);
-                _refreshRateComboBox.SelectedIndex = 0;
-            }
-            else
-            {
-                // Fallback if no refresh rates found
-                _refreshRateComboBox.Items.Add("60Hz");
                 _refreshRateComboBox.SelectedIndex = 0;
             }
         }
@@ -1039,12 +1030,8 @@ namespace DisplayProfileManager.UI.Windows
                     _refreshRateComboBox.Items.Add($"{rate}Hz");
                 }
 
-                // Select the highest refresh rate by default, or 60Hz if available
-                if (_refreshRateComboBox.Items.Contains("60Hz"))
-                {
-                    _refreshRateComboBox.SelectedItem = "60Hz";
-                }
-                else if (_refreshRateComboBox.Items.Count > 0)
+                // Select the highest refresh rate by default
+                if (_refreshRateComboBox.Items.Count > 0)
                 {
                     _refreshRateComboBox.SelectedIndex = 0; // Select the highest (first) rate
                 }

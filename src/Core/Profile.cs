@@ -92,12 +92,6 @@ namespace DisplayProfileManager.Core
         [JsonProperty("dpiScaling")]
         public uint DpiScaling { get; set; } = 100;
 
-        [JsonProperty("dpiScalingMax")]
-        public uint DpiScalingMax { get; set; } = 100;
-
-        [JsonProperty("dpiScalingMin")]
-        public uint DpiScalingMin { get; set; } = 100;
-
         [JsonProperty("isPrimary")]
         public bool IsPrimary { get; set; } = false;
 

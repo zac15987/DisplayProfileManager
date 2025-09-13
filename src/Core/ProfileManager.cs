@@ -210,9 +210,7 @@ namespace DisplayProfileManager.Core
                             setting.Width = foundConfig.Width;
                             setting.Height = foundConfig.Height;
                             setting.Frequency = displays[i].Frequency;
-                            setting.DpiScaling = dpiInfo.IsInitialized ? dpiInfo.Current : 100;
-                            setting.DpiScalingMax = dpiInfo.IsInitialized ? dpiInfo.Maximum : 100;
-                            setting.DpiScalingMin = dpiInfo.IsInitialized ? dpiInfo.Minimum : 100;
+                            setting.DpiScaling = dpiInfo.Current;
                             setting.IsPrimary = displays[i].IsPrimary;
                             setting.AdapterId = $"{foundConfig.AdapterId.HighPart:X8}{foundConfig.AdapterId.LowPart:X8}";
                             setting.SourceId = foundConfig.SourceId;
@@ -411,26 +409,7 @@ namespace DisplayProfileManager.Core
             }
         }
 
-        private DpiHelper.LUID ParseAdapterId(string adapterIdString)
-        {
-            try
-            {
-                if (adapterIdString.Length >= 8)
-                {
-                    var highPart = Convert.ToInt32(adapterIdString.Substring(0, 8), 16);
-                    var lowPart = Convert.ToUInt32(adapterIdString.Substring(8), 16);
-                    
-                    return new DpiHelper.LUID { HighPart = highPart, LowPart = lowPart };
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error parsing adapter ID: {ex.Message}");
-            }
-            
-            return new DpiHelper.LUID();
-        }
-
+        // remove this in the future
         private (DpiHelper.LUID adapterId, uint sourceId, bool found) GetCurrentAdapterInfo(string deviceName)
         {
             try

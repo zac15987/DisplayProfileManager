@@ -270,56 +270,12 @@ namespace DisplayProfileManager.Helpers
             return result == DISP_CHANGE_SUCCESSFUL;
         }
 
-        public static DisplayInfo GetPrimaryDisplay()
+        public static List<string> GetSupportedResolutionsOnly(string deviceName)
         {
-            var displays = GetDisplays();
-            return displays.Find(d => d.IsPrimary);
-        }
-
-        public static DisplayInfo GetCurrentDisplaySettings()
-        {
-            var primaryDisplay = GetPrimaryDisplay();
-            if (primaryDisplay != null)
-            {
-                return primaryDisplay;
-            }
-
-            var screen = Screen.PrimaryScreen;
-            return new DisplayInfo
-            {
-                DeviceName = "Primary",
-                DeviceString = "Primary Display",
-                Width = screen.Bounds.Width,
-                Height = screen.Bounds.Height,
-                Frequency = 60,
-                BitsPerPixel = 32,
-                IsPrimary = true
-            };
-        }
-
-        public static List<string> GetSupportedResolutionsOnly(string deviceName = null)
-        {
-            // If no device name specified, use primary display
+            // If no device name specified, use hardcode resolutions
             if (string.IsNullOrEmpty(deviceName))
             {
-                var primaryDisplay = GetPrimaryDisplay();
-                if (primaryDisplay != null)
-                {
-                    deviceName = primaryDisplay.DeviceName;
-                }
-                else
-                {
-                    // Fallback for when we can't detect primary display
-                    var displays = GetDisplays();
-                    if (displays.Count > 0)
-                    {
-                        deviceName = displays[0].DeviceName;
-                    }
-                    else
-                    {
-                        return new List<string> { "1920x1080", "1366x768", "1280x720" }; // Basic fallback
-                    }
-                }
+                return new List<string> { "1920x1080", "1366x768", "1280x720" }; // Basic fallback
             }
 
             var allResolutions = GetAvailableResolutions(deviceName);
@@ -350,8 +306,7 @@ namespace DisplayProfileManager.Helpers
         {
             if (string.IsNullOrEmpty(deviceName))
             {
-                var primaryDisplay = GetPrimaryDisplay();
-                deviceName = primaryDisplay?.DeviceName ?? "";
+                return new List<int>();
             }
 
             var refreshRates = new HashSet<int>();
@@ -367,13 +322,6 @@ namespace DisplayProfileManager.Helpers
 
             var sortedRates = refreshRates.ToList();
             sortedRates.Sort((a, b) => b.CompareTo(a)); // Descending order (highest first)
-            
-            // Ensure we have at least 60Hz as a fallback
-            if (!sortedRates.Contains(60))
-            {
-                sortedRates.Add(60);
-                sortedRates.Sort((a, b) => b.CompareTo(a));
-            }
 
             return sortedRates;
         }

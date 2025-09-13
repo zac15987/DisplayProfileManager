@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -294,6 +295,40 @@ namespace DisplayProfileManager.Helpers
             modes.AddRange(modeArray);
 
             return true;
+        }
+
+        public static uint[] GetSupportedDPIScalingOnly(string adapterId, uint sourceID)
+        {
+            LUID adapterIdStruct = GetLUIDFromString(adapterId);
+
+            DPIScalingInfo dpiInfo = GetDPIScalingInfo(adapterIdStruct, sourceID);
+
+            uint start = dpiInfo.Minimum;
+            uint end = dpiInfo.Maximum;
+            uint step = 25;
+
+            uint[] dpiValues = Enumerable.Range(0, (int)((end - start) / step) + 1)
+                                   .Select(i => start + (uint)i * step)
+                                   .ToArray();
+
+            return dpiValues;
+        }
+
+        public static LUID GetLUIDFromString(string adapterId)
+        {
+            string highPartHex = adapterId.Substring(0, 8);
+            uint highPart = Convert.ToUInt32(highPartHex, 16);
+
+            string lowPartHex = adapterId.Substring(8, 8);
+            uint lowPart = Convert.ToUInt32(lowPartHex, 16);
+
+            LUID adapterIdStruct = new LUID
+            {
+                HighPart = (int)highPart,
+                LowPart = lowPart
+            };
+
+            return adapterIdStruct;
         }
 
         public static DPIScalingInfo GetDPIScalingInfo(LUID adapterId, uint sourceId)
