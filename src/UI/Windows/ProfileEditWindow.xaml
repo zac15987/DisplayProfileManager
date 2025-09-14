@@ -66,14 +66,6 @@
             </Style.Triggers>
         </Style>
 
-        <Style x:Key="ModernTextBoxStyle" TargetType="TextBox">
-            <Setter Property="Background" Value="{DynamicResource TextBoxBackgroundBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource TextBoxBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="8"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="FontFamily" Value="Segoe UI"/>
-        </Style>
 
 
         <Style x:Key="ModernTextBlockStyle" TargetType="TextBlock">
@@ -191,8 +183,7 @@
                         <TextBlock Text="Profile Name*" Style="{StaticResource LabelTextBlockStyle}"/>
                         <TextBox Name="ProfileNameTextBox" 
                                  Style="{StaticResource ModernTextBoxStyle}" 
-                                 MaxLength="50"
-                                 Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                 MaxLength="50"/>
                     </StackPanel>
 
                     <StackPanel Grid.Column="2">
@@ -210,8 +201,7 @@
                              Style="{StaticResource ModernTextBoxStyle}" 
                              Height="60" TextWrapping="Wrap" 
                              VerticalScrollBarVisibility="Auto" 
-                             AcceptsReturn="True"
-                             Foreground="{DynamicResource PrimaryTextBrush}"/>
+                             AcceptsReturn="True"/>
                 </StackPanel>
 
                 <!-- Global Hotkey Section -->
@@ -270,9 +260,6 @@
                         <Button Name="DetectDisplaysButton" Content="Detect Current" 
                                 Style="{StaticResource SecondaryButtonStyle}" 
                                 Margin="0,0,8,0" Click="DetectDisplaysButton_Click"/>
-                        <Button Name="AddDisplayButton" Content="+ Add Display" 
-                                Style="{StaticResource ModernButtonStyle}" 
-                                Click="AddDisplayButton_Click"/>
                     </StackPanel>
                 </Grid>
 

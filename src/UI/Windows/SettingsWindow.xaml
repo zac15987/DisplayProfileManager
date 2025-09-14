@@ -78,14 +78,6 @@
             </Style.Triggers>
         </Style>
 
-        <Style x:Key="ModernTextBoxStyle" TargetType="TextBox">
-            <Setter Property="Background" Value="{DynamicResource TextBoxBackgroundBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource TextBoxBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="8"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="FontFamily" Value="Segoe UI"/>
-        </Style>
 
 
         <Style x:Key="ModernCheckBoxStyle" TargetType="CheckBox">

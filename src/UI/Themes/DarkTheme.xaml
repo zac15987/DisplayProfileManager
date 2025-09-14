@@ -92,6 +92,17 @@
                       Opacity="0.2" 
                       Color="Black"/>
                       
+    <!-- TextBox Styles -->
+    <Style x:Key="ModernTextBoxStyle" TargetType="TextBox">
+        <Setter Property="Background" Value="{DynamicResource TextBoxBackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource TextBoxBorderBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="8"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+    </Style>
+    
     <!-- ComboBox Styles -->
     <Style x:Key="ModernComboBoxStyle" TargetType="ComboBox">
         <Setter Property="Background" Value="{DynamicResource ComboBoxBackgroundBrush}"/>

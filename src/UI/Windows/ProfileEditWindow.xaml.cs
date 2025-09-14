@@ -123,21 +123,6 @@ namespace DisplayProfileManager.UI.Windows
             }
         }
 
-        private void AddDisplayButton_Click(object sender, RoutedEventArgs e)
-        {
-            var newSetting = new DisplaySetting
-            {
-                DeviceName = "New Display",
-                Width = 1920,
-                Height = 1080,
-                Frequency = 60,
-                DpiScaling = 100
-            };
-
-            AddDisplaySettingControl(newSetting);
-            StatusTextBlock.Text = "New display setting added";
-        }
-
         private void AddDisplaySettingControl(DisplaySetting setting)
         {
             if (DisplaySettingsPanel.Children.Count == 1 && 
@@ -147,34 +132,8 @@ namespace DisplayProfileManager.UI.Windows
             }
 
             var control = new DisplaySettingControl(setting);
-            control.RemoveRequested += OnDisplaySettingRemoved;
             _displayControls.Add(control);
             DisplaySettingsPanel.Children.Add(control);
-        }
-
-        private void OnDisplaySettingRemoved(object sender, EventArgs e)
-        {
-            if (sender is DisplaySettingControl control)
-            {
-                control.RemoveRequested -= OnDisplaySettingRemoved;
-                _displayControls.Remove(control);
-                DisplaySettingsPanel.Children.Remove(control);
-
-                if (_displayControls.Count == 0)
-                {
-                    DisplaySettingsPanel.Children.Add(new TextBlock
-                    {
-                        Text = "No display settings configured. Click 'Detect Current' to auto-configure or 'Add Display' to manually add displays.",
-                        Style = (Style)FindResource("ModernTextBlockStyle"),
-                        Foreground = (Brush)Application.Current.Resources["TertiaryTextBrush"],
-                        TextAlignment = TextAlignment.Center,
-                        TextWrapping = TextWrapping.Wrap,
-                        Margin = new Thickness(32)
-                    });
-                }
-
-                StatusTextBlock.Text = "Display setting removed";
-            }
         }
 
         private async void SaveButton_Click(object sender, RoutedEventArgs e)
@@ -679,15 +638,12 @@ namespace DisplayProfileManager.UI.Windows
     public class DisplaySettingControl : UserControl
     {
         private DisplaySetting _setting;
-        private ComboBox _deviceComboBox;
+        private TextBox _deviceTextBox;
         private ComboBox _resolutionComboBox;
         private ComboBox _refreshRateComboBox;
         private ComboBox _dpiComboBox;
         private CheckBox _primaryCheckBox;
         private CheckBox _enabledCheckBox;
-        private Button _removeButton;
-
-        public event EventHandler RemoveRequested;
 
         public DisplaySettingControl(DisplaySetting setting)
         {
@@ -730,22 +686,6 @@ namespace DisplayProfileManager.UI.Windows
             Grid.SetColumn(_enabledCheckBox, 1);
             headerGrid.Children.Add(_enabledCheckBox);
 
-            _removeButton = new Button
-            {
-                Content = "✕",
-                Width = 24,
-                Height = 24,
-                Background = (Brush)Application.Current.Resources["SecondaryButtonBackgroundBrush"],
-                Foreground = (Brush)Application.Current.Resources["SecondaryButtonForegroundBrush"],
-                BorderThickness = new Thickness(0),
-                Cursor = System.Windows.Input.Cursors.Hand
-            };
-            _removeButton.Click += (s, e) => RemoveRequested?.Invoke(this, EventArgs.Empty);
-
-            // remove button will be removed someday
-            //Grid.SetColumn(_removeButton, 2);
-            //headerGrid.Children.Add(_removeButton);
-
             mainPanel.Children.Add(headerGrid);
 
             var contentGrid = new Grid();
@@ -760,16 +700,13 @@ namespace DisplayProfileManager.UI.Windows
 
             var devicePanel = new StackPanel();
             devicePanel.Children.Add(new TextBlock { Text = "Monitor", FontWeight = FontWeights.Medium, Margin = new Thickness(0, 0, 0, 4), Foreground = (Brush)Application.Current.Resources["PrimaryTextBrush"] });
-            _deviceComboBox = new ComboBox
+            _deviceTextBox = new TextBox
             {
-                Padding = new Thickness(8),
-                BorderBrush = (Brush)Application.Current.Resources["ComboBoxBorderBrush"],
-                BorderThickness = new Thickness(1),
-                Style = (Style)Application.Current.Resources["ModernComboBoxStyle"]
+                Style = (Style)Application.Current.Resources["ModernTextBoxStyle"],
+                IsReadOnly = true
             };
-            _deviceComboBox.SelectionChanged += DeviceComboBox_SelectionChanged;
             PopulateDeviceComboBox();
-            devicePanel.Children.Add(_deviceComboBox);
+            devicePanel.Children.Add(_deviceTextBox);
             Grid.SetColumn(devicePanel, 0);
             Grid.SetRow(devicePanel, 0);
             contentGrid.Children.Add(devicePanel);
@@ -858,9 +795,9 @@ namespace DisplayProfileManager.UI.Windows
         private void UpdateControlStates()
         {
             bool isEnabled = _setting.IsEnabled;
-            
+
             // Enable/disable controls based on the display's enabled state
-            _deviceComboBox.IsEnabled = isEnabled;
+            _deviceTextBox.IsEnabled = isEnabled;
             _resolutionComboBox.IsEnabled = isEnabled;
             _refreshRateComboBox.IsEnabled = isEnabled;
             _dpiComboBox.IsEnabled = isEnabled;
@@ -868,7 +805,7 @@ namespace DisplayProfileManager.UI.Windows
             
             // Update opacity to provide visual feedback
             double opacity = isEnabled ? 1.0 : 0.5;
-            _deviceComboBox.Opacity = opacity;
+            _deviceTextBox.Opacity = opacity;
             _resolutionComboBox.Opacity = opacity;
             _refreshRateComboBox.Opacity = opacity;
             _dpiComboBox.Opacity = opacity;
@@ -894,14 +831,14 @@ namespace DisplayProfileManager.UI.Windows
                     _setting.IsEnabled = true;
                     MessageBox.Show("At least one display must remain enabled.", "Display Configuration", 
                         MessageBoxButton.OK, MessageBoxImage.Information);
-                    
+
                     // Re-enable controls
-                    _deviceComboBox.IsEnabled = true;
+                    _deviceTextBox.IsEnabled = true;
                     _resolutionComboBox.IsEnabled = true;
                     _refreshRateComboBox.IsEnabled = true;
                     _dpiComboBox.IsEnabled = true;
                     _primaryCheckBox.IsEnabled = true;
-                    _deviceComboBox.Opacity = 1.0;
+                    _deviceTextBox.Opacity = 1.0;
                     _resolutionComboBox.Opacity = 1.0;
                     _refreshRateComboBox.Opacity = 1.0;
                     _dpiComboBox.Opacity = 1.0;
@@ -983,45 +920,9 @@ namespace DisplayProfileManager.UI.Windows
 
         private void PopulateDeviceComboBox()
         {
-            _deviceComboBox.Items.Clear();
-
-            var item = new ComboBoxItem
-            {
-                Content = _setting.ReadableDeviceName,
-                Tag = _setting.DeviceName, // Store system device name in Tag
-                ToolTip = $"{_setting.ReadableDeviceName}\n{_setting.DeviceName}"
-            };
-            _deviceComboBox.Items.Add(item);
-
-            // Select current device
-            if (_setting.DeviceName == _setting.DeviceName)
-            {
-                _deviceComboBox.SelectedItem = item;
-            }
-
-            // If no selection was made (device not found), select first item
-            if (_deviceComboBox.SelectedItem == null && _deviceComboBox.Items.Count > 0)
-            {
-                _deviceComboBox.SelectedIndex = 0;
-            }
-        }
-
-        private void DeviceComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (_deviceComboBox.SelectedItem == null || _resolutionComboBox == null)
-                return;
-
-            var selectedItem = _deviceComboBox.SelectedItem as ComboBoxItem;
-            var deviceName = selectedItem?.Tag?.ToString();
-            
-            if (!string.IsNullOrEmpty(deviceName))
-            {
-                // Update the setting's device name
-                _setting.DeviceName = deviceName;
-                
-                // Repopulate resolution combo box for the new device
-                PopulateResolutionComboBox();
-            }
+            _deviceTextBox.Text = _setting.ReadableDeviceName;
+            _deviceTextBox.Tag = _setting.DeviceName;
+            _deviceTextBox.ToolTip = $"{_setting.ReadableDeviceName}\n{_setting.DeviceName}\n{_setting.TargetId}";
         }
 
         private void ResolutionComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -1086,9 +987,8 @@ namespace DisplayProfileManager.UI.Windows
             if (!int.TryParse(refreshRateText.Replace("Hz", ""), out int frequency))
                 frequency = 60; // Fallback to 60Hz
 
-            var selectedItem = _deviceComboBox.SelectedItem as ComboBoxItem;
-            var deviceName = selectedItem?.Tag?.ToString() ?? "";
-            var readableDeviceName = selectedItem?.Content?.ToString() ?? "";
+            var deviceName = _deviceTextBox?.Tag?.ToString() ?? "";
+            var readableDeviceName = _deviceTextBox?.Text?.ToString() ?? "";
 
             return new DisplaySetting
             {
@@ -1112,11 +1012,11 @@ namespace DisplayProfileManager.UI.Windows
 
         public bool ValidateInput()
         {
-            if (_deviceComboBox.SelectedItem == null)
+            if (_deviceTextBox.Text == null)
             {
                 MessageBox.Show("Please select a monitor for all displays.", "Validation Error", 
                     MessageBoxButton.OK, MessageBoxImage.Warning);
-                _deviceComboBox.Focus();
+                _deviceTextBox.Focus();
                 return false;
             }
 
