@@ -238,7 +238,7 @@ namespace DisplayProfileManager.Core
             try
             {
                 bool success = true;
-
+                
                 // Step 1: Apply display config (enable/disable monitors)
                 if (profile.DisplaySettings.Count > 0)
                 {
@@ -274,7 +274,7 @@ namespace DisplayProfileManager.Core
                             System.Diagnostics.Debug.WriteLine("Display topology applied successfully");
                             
                             // Wait for topology changes to take effect
-                            await Task.Delay(1000);
+                            //await Task.Delay(1000);
                         }
                     }
                     else
@@ -282,40 +282,30 @@ namespace DisplayProfileManager.Core
                         System.Diagnostics.Debug.WriteLine("Invalid display topology - skipping topology changes");
                     }
                 }
-
+                
                 // Step 2: Apply resolution, refresh rate, and DPI for enabled displays only
-                foreach (var setting in profile.DisplaySettings.Where(s => s.IsEnabled))
+                List<DisplaySetting> displaySettings = profile.DisplaySettings.Where(s => s.IsEnabled).ToList();
+                foreach (var setting in displaySettings)
                 {
                     try
                     {
                         bool resolutionChanged = DisplayHelper.ChangeResolution(
-                            setting.DeviceName, 
-                            setting.Width, 
-                            setting.Height, 
+                            setting.DeviceName,
+                            setting.Width,
+                            setting.Height,
                             setting.Frequency);
 
-                        if (resolutionChanged)
-                        {
-                            var (adapterId, sourceId, found) = GetCurrentAdapterInfo(setting.DeviceName);
-                            
-                            if (found)
-                            {
-                                bool dpiChanged = DpiHelper.SetDPIScaling(adapterId, sourceId, setting.DpiScaling);
-                                
-                                if (!dpiChanged)
-                                {
-                                    System.Diagnostics.Debug.WriteLine($"Failed to set DPI scaling for {setting.DeviceName}");
-                                }
-                            }
-                            else
-                            {
-                                System.Diagnostics.Debug.WriteLine($"Could not find current adapter info for {setting.DeviceName}, skipping DPI change");
-                            }
-                        }
-                        else if (!resolutionChanged)
+                        if (!resolutionChanged)
                         {
                             System.Diagnostics.Debug.WriteLine($"Failed to change resolution for {setting.DeviceName}");
                             success = false;
+                        }
+
+                        bool dpiChanged = DpiHelper.SetDPIScaling(setting.AdapterId, setting.SourceId, setting.DpiScaling);
+
+                        if (!dpiChanged)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Failed to set DPI scaling for {setting.DeviceName}");
                         }
                     }
                     catch (Exception ex)
@@ -326,7 +316,7 @@ namespace DisplayProfileManager.Core
                 }
 
                 // Apply audio settings after display settings
-                if (success && profile.AudioSettings != null)
+                if (profile.AudioSettings != null)
                 {
                     try
                     {

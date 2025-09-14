@@ -368,9 +368,11 @@ namespace DisplayProfileManager.Helpers
             return dpiInfo;
         }
 
-        public static bool SetDPIScaling(LUID adapterId, uint sourceId, uint dpiPercentToSet)
+        public static bool SetDPIScaling(string adapterId, uint sourceId, uint dpiPercentToSet)
         {
-            var dpiScalingInfo = GetDPIScalingInfo(adapterId, sourceId);
+            LUID adapterIdStruct = GetLUIDFromString(adapterId);
+
+            var dpiScalingInfo = GetDPIScalingInfo(adapterIdStruct, sourceId);
 
             if (dpiPercentToSet == dpiScalingInfo.Current)
                 return true;
@@ -386,7 +388,7 @@ namespace DisplayProfileManager.Helpers
             {
                 if (DpiVals[i] == dpiPercentToSet)
                     idx1 = i;
-                if (DpiVals[i] == dpiScalingInfo.Recommended)
+                if (DpiVals[i] == dpiScalingInfo.Minimum)
                     idx2 = i;
             }
 
@@ -401,7 +403,7 @@ namespace DisplayProfileManager.Helpers
                 {
                     type = DISPLAYCONFIG_DEVICE_INFO_TYPE_CUSTOM.DISPLAYCONFIG_DEVICE_INFO_SET_DPI_SCALE,
                     size = (uint)Marshal.SizeOf<DISPLAYCONFIG_SOURCE_DPI_SCALE_SET>(),
-                    adapterId = adapterId,
+                    adapterId = adapterIdStruct,
                     id = sourceId
                 },
                 scaleRel = dpiRelativeVal

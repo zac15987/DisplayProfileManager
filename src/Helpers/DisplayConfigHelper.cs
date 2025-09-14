@@ -520,11 +520,6 @@ namespace DisplayProfileManager.Helpers
                         paths[foundPathIndex].flags &= ~(uint)DisplayConfigPathInfoFlags.DISPLAYCONFIG_PATH_ACTIVE;
                     }
 
-                    // Set monitor position
-                    var modeInfoIndex = paths[foundPathIndex].sourceInfo.modeInfoIdx;
-                    modes[modeInfoIndex].modeInfo.sourceMode.position.x = displayInfo.DisplayPositionX;
-                    modes[modeInfoIndex].modeInfo.sourceMode.position.y = displayInfo.DisplayPositionY;
-
                     Debug.WriteLine($"Setting targetId {displayInfo.TargetId} ({displayInfo.DeviceName}, Path:{foundPathIndex}) " +
                                   $"flags to: 0x{paths[foundPathIndex].flags:X} (Enabled: {displayInfo.IsEnabled})");
 
@@ -562,6 +557,18 @@ namespace DisplayProfileManager.Helpers
                 }
 
                 Debug.WriteLine("Display topology applied successfully");
+
+
+                bool displayPositionApplied = ApplyDisplayPosition(displayConfigs);
+                if (!displayPositionApplied)
+                {
+                    Debug.WriteLine("Failed to apply display position");
+                }
+                else
+                {
+                    Debug.WriteLine("Display position applied successfully");
+                }
+
                 return true;
             }
             catch (Exception ex)
@@ -571,55 +578,99 @@ namespace DisplayProfileManager.Helpers
             }
         }
 
-        public static bool EnableDisplay(string deviceName)
+        public static bool ApplyDisplayPosition(List<DisplayConfigInfo> displayConfigs)
         {
-            var topology = GetDisplayConfigs();
-            var display = topology.FirstOrDefault(d => 
-                d.DeviceName.Equals(deviceName, StringComparison.OrdinalIgnoreCase));
-            
-            if (display == null)
+            try
             {
-                Debug.WriteLine($"Display {deviceName} not found");
-                return false;
-            }
+                uint pathCount = 0;
+                uint modeCount = 0;
 
-            if (display.IsEnabled)
-            {
-                Debug.WriteLine($"Display {deviceName} is already enabled");
+                // Get current configuration
+                int result = GetDisplayConfigBufferSizes(
+                    QueryDisplayConfigFlags.QDC_ALL_PATHS,
+                    out pathCount,
+                    out modeCount);
+
+                if (result != ERROR_SUCCESS)
+                {
+                    Debug.WriteLine($"GetDisplayConfigBufferSizes failed with error: {result}");
+                    return false;
+                }
+
+                var paths = new DISPLAYCONFIG_PATH_INFO[pathCount];
+                var modes = new DISPLAYCONFIG_MODE_INFO[modeCount];
+
+                result = QueryDisplayConfig(
+                    QueryDisplayConfigFlags.QDC_ALL_PATHS,
+                    ref pathCount,
+                    paths,
+                    ref modeCount,
+                    modes,
+                    IntPtr.Zero);
+
+                if (result != ERROR_SUCCESS)
+                {
+                    Debug.WriteLine($"QueryDisplayConfig failed with error: {result}");
+                    return false;
+                }
+
+                // Set monitor position based on displayConfigs
+                foreach (var displayInfo in displayConfigs)
+                {
+                    if(!displayInfo.IsEnabled)
+                        continue;
+
+                    var foundPathIndex = Array.FindIndex(paths,
+                        x => (x.targetInfo.id == displayInfo.TargetId) && (x.sourceInfo.id == displayInfo.SourceId));
+
+                    // Set monitor position
+                    var modeInfoIndex = paths[foundPathIndex].sourceInfo.modeInfoIdx;
+                    modes[modeInfoIndex].modeInfo.sourceMode.position.x = displayInfo.DisplayPositionX;
+                    modes[modeInfoIndex].modeInfo.sourceMode.position.y = displayInfo.DisplayPositionY;
+
+                    Debug.WriteLine($"Setting targetId {displayInfo.TargetId} ({displayInfo.DeviceName}, Path:{foundPathIndex}) " +
+                                  $"flags to: 0x{paths[foundPathIndex].flags:X} (Enabled: {displayInfo.IsEnabled})");
+
+                }
+
+                // Apply the monitor position
+                result = SetDisplayConfig(
+                    pathCount,
+                    paths,
+                    modeCount,
+                    modes,
+                    SetDisplayConfigFlags.SDC_APPLY |
+                    SetDisplayConfigFlags.SDC_USE_SUPPLIED_DISPLAY_CONFIG |
+                    SetDisplayConfigFlags.SDC_ALLOW_CHANGES |
+                    SetDisplayConfigFlags.SDC_SAVE_TO_DATABASE);
+
+                if (result != ERROR_SUCCESS)
+                {
+                    Debug.WriteLine($"Applying display position failed with error: {result}");
+
+                    // Try to provide more specific error information
+                    switch (result)
+                    {
+                        case ERROR_INVALID_PARAMETER:
+                            Debug.WriteLine("Invalid parameter - configuration may be invalid");
+                            break;
+                        case ERROR_GEN_FAILURE:
+                            Debug.WriteLine("General failure - display configuration may not be supported");
+                            break;
+                        default:
+                            Debug.WriteLine($"Unknown error code: {result}");
+                            break;
+                    }
+                    return false;
+                }
+
                 return true;
             }
-
-            display.IsEnabled = true;
-            return ApplyDisplayTopology(topology);
-        }
-
-        public static bool DisableDisplay(string deviceName)
-        {
-            var topology = GetDisplayConfigs();
-            var display = topology.FirstOrDefault(d => 
-                d.DeviceName.Equals(deviceName, StringComparison.OrdinalIgnoreCase));
-            
-            if (display == null)
+            catch (Exception ex)
             {
-                Debug.WriteLine($"Display {deviceName} not found");
+                Debug.WriteLine($"Error applying display position: {ex.Message}");
                 return false;
             }
-
-            if (!display.IsEnabled)
-            {
-                Debug.WriteLine($"Display {deviceName} is already disabled");
-                return true;
-            }
-
-            // Check if this is the only enabled display
-            if (topology.Count(d => d.IsEnabled) <= 1)
-            {
-                Debug.WriteLine($"Cannot disable {deviceName} - it's the only enabled display");
-                return false;
-            }
-
-            display.IsEnabled = false;
-            return ApplyDisplayTopology(topology);
         }
 
         public static bool ValidateDisplayTopology(List<DisplayConfigInfo> topology)

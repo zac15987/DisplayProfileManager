@@ -12,7 +12,10 @@ namespace DisplayProfileManager.Helpers
         #region P/Invoke Declarations
 
         [DllImport("user32.dll")]
-        private static extern int ChangeDisplaySettings(ref DEVMODE devMode, int flags);
+        private static extern int ChangeDisplaySettings(ref DEVMODE devMode, ChangeDisplaySettingsFlags flags);
+
+        [DllImport("user32.dll")]
+        private static extern int ChangeDisplaySettingsEx(string deviceName, ref DEVMODE devMode, IntPtr hwnd, ChangeDisplaySettingsFlags flags, IntPtr lParam);
 
         [DllImport("user32.dll")]
         private static extern bool EnumDisplaySettings(string deviceName, int modeNum, ref DEVMODE devMode);
@@ -25,9 +28,6 @@ namespace DisplayProfileManager.Helpers
         #region Constants
 
         private const int ENUM_CURRENT_SETTINGS = -1;
-        private const int CDS_UPDATEREGISTRY = 0x01;
-        private const int CDS_TEST = 0x02;
-        private const int DISP_CHANGE_SUCCESSFUL = 0;
 
         #endregion
 
@@ -36,7 +36,13 @@ namespace DisplayProfileManager.Helpers
         [StructLayout(LayoutKind.Sequential)]
         public struct DEVMODE
         {
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+            public const int DM_DISPLAYFREQUENCY = 0x400000;
+            public const int DM_PELSWIDTH = 0x80000;
+            public const int DM_PELSHEIGHT = 0x100000;
+            private const int CCHDEVICENAME = 32;
+            private const int CCHFORMNAME = 32;
+
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = CCHDEVICENAME)]
             public string dmDeviceName;
             public short dmSpecVersion;
             public short dmDriverVersion;
@@ -52,7 +58,7 @@ namespace DisplayProfileManager.Helpers
             public short dmYResolution;
             public short dmTTOption;
             public short dmCollate;
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = CCHFORMNAME)]
             public string dmFormName;
             public short dmLogPixels;
             public short dmBitsPerPel;
@@ -99,6 +105,35 @@ namespace DisplayProfileManager.Helpers
             ModesPruned = 0x8000000,
             Remote = 0x4000000,
             Disconnect = 0x2000000
+        }
+
+        [Flags]
+        public enum ChangeDisplaySettingsFlags : uint
+        {
+            CDS_UPDATEREGISTRY = 0x00000001,
+            CDS_TEST = 0x00000002,
+            CDS_FULLSCREEN = 0x00000004,
+            CDS_GLOBAL = 0x00000008,
+            CDS_SET_PRIMARY = 0x00000010,
+            CDS_VIDEOPARAMETERS = 0x00000020,
+            CDS_ENABLE_UNSAFE_MODES = 0x00000100,
+            CDS_DISABLE_UNSAFE_MODES = 0x00000200,
+            CDS_RESET = 0x40000000,
+            CDS_RESET_EX = 0x20000000,
+            CDS_NORESET = 0x10000000,
+        }
+
+        // Return codes
+        public enum DISP_CHANGE : int
+        {
+            SUCCESSFUL = 0,
+            RESTART = 1,
+            FAILED = -1,
+            BADMODE = -2,
+            NOTUPDATED = -3,
+            BADFLAGS = -4,
+            BADPARAM = -5,
+            BADDUALVIEW = -6
         }
 
         #endregion
@@ -256,18 +291,25 @@ namespace DisplayProfileManager.Helpers
             if (!EnumDisplaySettings(deviceName, ENUM_CURRENT_SETTINGS, ref devMode))
                 return false;
 
+            if (devMode.dmPelsWidth == width &&
+                devMode.dmPelsHeight == height &&
+                devMode.dmDisplayFrequency == frequency)
+            {
+                return true;
+            }
+
             devMode.dmPelsWidth = width;
             devMode.dmPelsHeight = height;
-            devMode.dmFields = 0x80000 | 0x100000;
+            devMode.dmFields = DEVMODE.DM_PELSWIDTH | DEVMODE.DM_PELSHEIGHT;
 
             if (frequency > 0)
             {
                 devMode.dmDisplayFrequency = frequency;
-                devMode.dmFields |= 0x400000;
+                devMode.dmFields |= DEVMODE.DM_DISPLAYFREQUENCY;
             }
 
-            int result = ChangeDisplaySettings(ref devMode, CDS_UPDATEREGISTRY);
-            return result == DISP_CHANGE_SUCCESSFUL;
+            int result = ChangeDisplaySettingsEx(deviceName, ref devMode, IntPtr.Zero, ChangeDisplaySettingsFlags.CDS_UPDATEREGISTRY, IntPtr.Zero);
+            return result == (int)DISP_CHANGE.SUCCESSFUL;
         }
 
         public static List<string> GetSupportedResolutionsOnly(string deviceName)
