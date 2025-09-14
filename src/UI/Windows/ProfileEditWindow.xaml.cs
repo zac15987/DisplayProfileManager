@@ -1104,7 +1104,9 @@ namespace DisplayProfileManager.UI.Windows
                 AdapterId = _setting.AdapterId,
                 SourceId = _setting.SourceId,
                 PathIndex = _setting.PathIndex,
-                TargetId = _setting.TargetId
+                TargetId = _setting.TargetId,
+                DisplayPositionX = _setting.DisplayPositionX,
+                DisplayPositionY = _setting.DisplayPositionY
             };
         }
 

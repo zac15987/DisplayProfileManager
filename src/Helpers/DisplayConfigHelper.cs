@@ -321,6 +321,8 @@ namespace DisplayProfileManager.Helpers
             public uint TargetId { get; set; }
             public uint PathIndex { get; set; }
             public DisplayConfigVideoOutputTechnology OutputTechnology { get; set; }
+            public int DisplayPositionX { get; set; }
+            public int DisplayPositionY { get; set; }
         }
 
         #endregion
@@ -336,7 +338,7 @@ namespace DisplayProfileManager.Helpers
                 uint pathCount = 0;
                 uint modeCount = 0;
 
-                // Get buffer sizes for all paths (including inactive)
+                // Get buffer sizes for active paths
                 int result = GetDisplayConfigBufferSizes(
                     QueryDisplayConfigFlags.QDC_ONLY_ACTIVE_PATHS,
                     out pathCount,
@@ -351,7 +353,7 @@ namespace DisplayProfileManager.Helpers
                 var paths = new DISPLAYCONFIG_PATH_INFO[pathCount];
                 var modes = new DISPLAYCONFIG_MODE_INFO[modeCount];
 
-                // Query all display paths
+                // Query active display paths
                 result = QueryDisplayConfig(
                     QueryDisplayConfigFlags.QDC_ONLY_ACTIVE_PATHS,
                     ref pathCount,
@@ -375,7 +377,7 @@ namespace DisplayProfileManager.Helpers
                     if (!path.targetInfo.targetAvailable)
                         continue;
 
-                    var topologyInfo = new DisplayConfigInfo
+                    var displayConfig = new DisplayConfigInfo
                     {
                         PathIndex = i,
                         IsEnabled = (path.flags & (uint)DisplayConfigPathInfoFlags.DISPLAYCONFIG_PATH_ACTIVE) != 0,
@@ -396,7 +398,7 @@ namespace DisplayProfileManager.Helpers
                     result = DisplayConfigGetDeviceInfo(ref sourceName);
                     if (result == ERROR_SUCCESS)
                     {
-                        topologyInfo.DeviceName = sourceName.viewGdiDeviceName;
+                        displayConfig.DeviceName = sourceName.viewGdiDeviceName;
                     }
 
                     // Get target device name (monitor friendly name)
@@ -409,21 +411,23 @@ namespace DisplayProfileManager.Helpers
                     result = DisplayConfigGetDeviceInfo(ref targetName);
                     if (result == ERROR_SUCCESS)
                     {
-                        topologyInfo.FriendlyName = targetName.monitorFriendlyDeviceName;
+                        displayConfig.FriendlyName = targetName.monitorFriendlyDeviceName;
                     }
 
                     // Get resolution and refresh rate if display is active
-                    if (topologyInfo.IsEnabled && path.sourceInfo.modeInfoIdx != DISPLAYCONFIG_PATH_MODE_IDX_INVALID)
+                    if (displayConfig.IsEnabled && path.sourceInfo.modeInfoIdx != DISPLAYCONFIG_PATH_MODE_IDX_INVALID)
                     {
                         var sourceMode = modes[path.sourceInfo.modeInfoIdx];
                         if (sourceMode.infoType == DisplayConfigModeInfoType.DISPLAYCONFIG_MODE_INFO_TYPE_SOURCE)
                         {
-                            topologyInfo.Width = (int)sourceMode.modeInfo.sourceMode.width;
-                            topologyInfo.Height = (int)sourceMode.modeInfo.sourceMode.height;
+                            displayConfig.Width = (int)sourceMode.modeInfo.sourceMode.width;
+                            displayConfig.Height = (int)sourceMode.modeInfo.sourceMode.height;
+                            displayConfig.DisplayPositionX = sourceMode.modeInfo.sourceMode.position.x;
+                            displayConfig.DisplayPositionY = sourceMode.modeInfo.sourceMode.position.y;
                         }
                     }
 
-                    if (topologyInfo.IsEnabled && path.targetInfo.modeInfoIdx != DISPLAYCONFIG_PATH_MODE_IDX_INVALID)
+                    if (displayConfig.IsEnabled && path.targetInfo.modeInfoIdx != DISPLAYCONFIG_PATH_MODE_IDX_INVALID)
                     {
                         var targetMode = modes[path.targetInfo.modeInfoIdx];
                         if (targetMode.infoType == DisplayConfigModeInfoType.DISPLAYCONFIG_MODE_INFO_TYPE_TARGET)
@@ -432,12 +436,12 @@ namespace DisplayProfileManager.Helpers
                             if (refreshRate.Denominator != 0)
                             {
                                 double hz = (double)refreshRate.Numerator / refreshRate.Denominator;
-                                topologyInfo.RefreshRate = Math.Round(hz, 2);
+                                displayConfig.RefreshRate = Math.Round(hz, 2);
                             }
                         }
                     }
 
-                    displays.Add(topologyInfo);
+                    displays.Add(displayConfig);
                 }
 
                 Debug.WriteLine($"GetCurrentDisplayTopology found {displays.Count} displays");
@@ -502,22 +506,28 @@ namespace DisplayProfileManager.Helpers
                 // Update path flags based on topology settings
                 foreach (var displayInfo in displayConfigs)
                 {
-                    if (displayInfo.PathIndex < pathCount)
-                    {
-                        if (displayInfo.IsEnabled)
-                        {
-                            // Enable the display
-                            paths[displayInfo.PathIndex].flags |= (uint)DisplayConfigPathInfoFlags.DISPLAYCONFIG_PATH_ACTIVE;
-                        }
-                        else
-                        {
-                            // Disable the display
-                            paths[displayInfo.PathIndex].flags &= ~(uint)DisplayConfigPathInfoFlags.DISPLAYCONFIG_PATH_ACTIVE;
-                        }
+                    var foundPathIndex = Array.FindIndex(paths, 
+                        x => (x.targetInfo.id == displayInfo.TargetId) && (x.sourceInfo.id == displayInfo.SourceId));
 
-                        Debug.WriteLine($"Setting path {displayInfo.PathIndex} ({displayInfo.DeviceName}) " +
-                                      $"flags to: 0x{paths[displayInfo.PathIndex].flags:X} (Enabled: {displayInfo.IsEnabled})");
+                    if (displayInfo.IsEnabled)
+                    {
+                        // Enable the display
+                        paths[foundPathIndex].flags |= (uint)DisplayConfigPathInfoFlags.DISPLAYCONFIG_PATH_ACTIVE;
                     }
+                    else
+                    {
+                        // Disable the display
+                        paths[foundPathIndex].flags &= ~(uint)DisplayConfigPathInfoFlags.DISPLAYCONFIG_PATH_ACTIVE;
+                    }
+
+                    // Set monitor position
+                    var modeInfoIndex = paths[foundPathIndex].sourceInfo.modeInfoIdx;
+                    modes[modeInfoIndex].modeInfo.sourceMode.position.x = displayInfo.DisplayPositionX;
+                    modes[modeInfoIndex].modeInfo.sourceMode.position.y = displayInfo.DisplayPositionY;
+
+                    Debug.WriteLine($"Setting targetId {displayInfo.TargetId} ({displayInfo.DeviceName}, Path:{foundPathIndex}) " +
+                                  $"flags to: 0x{paths[foundPathIndex].flags:X} (Enabled: {displayInfo.IsEnabled})");
+
                 }
 
                 // Apply the new configuration

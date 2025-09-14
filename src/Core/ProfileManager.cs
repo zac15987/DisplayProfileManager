@@ -119,7 +119,7 @@ namespace DisplayProfileManager.Core
         {
             try
             {
-                var filePath = GetProfileFilePath(profile.Name);
+                var filePath = GetProfileFilePath(profile.Id);
                 var json = JsonConvert.SerializeObject(profile, Formatting.Indented);
                 await Task.Run(() => File.WriteAllText(filePath, json));
                 return true;
@@ -217,6 +217,8 @@ namespace DisplayProfileManager.Core
                             setting.IsEnabled = foundConfig.IsEnabled;
                             setting.PathIndex = foundConfig.PathIndex;
                             setting.TargetId = foundConfig.TargetId;
+                            setting.DisplayPositionX = foundConfig.DisplayPositionX;
+                            setting.DisplayPositionY = foundConfig.DisplayPositionY;
 
                             settings.Add(setting);
                         }
@@ -250,6 +252,10 @@ namespace DisplayProfileManager.Core
                         displayConfigInfo.DeviceName = setting.DeviceName;
                         displayConfigInfo.IsEnabled = setting.IsEnabled;
                         displayConfigInfo.PathIndex = setting.PathIndex;
+                        displayConfigInfo.TargetId = setting.TargetId;
+                        displayConfigInfo.SourceId = setting.SourceId;
+                        displayConfigInfo.DisplayPositionX = setting.DisplayPositionX;
+                        displayConfigInfo.DisplayPositionY = setting.DisplayPositionY;
 
                         currentDisplayConfig.Add(displayConfigInfo);
                     }

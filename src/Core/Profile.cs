@@ -110,17 +110,14 @@ namespace DisplayProfileManager.Core
         [JsonProperty("targetId")]
         public uint TargetId { get; set; } = 0;
 
+        [JsonProperty("displayPositionX")]
+        public int DisplayPositionX { get; set; } = 0;
+
+        [JsonProperty("displayPositionY")]
+        public int DisplayPositionY { get; set; } = 0;
+
         public DisplaySetting()
         {
-        }
-
-        public DisplaySetting(string deviceName, int width, int height, uint dpiScaling, int frequency = 60)
-        {
-            DeviceName = deviceName;
-            Width = width;
-            Height = height;
-            DpiScaling = dpiScaling;
-            Frequency = frequency;
         }
 
         public string GetResolutionString()
