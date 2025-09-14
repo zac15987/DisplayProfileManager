@@ -397,45 +397,6 @@ namespace DisplayProfileManager.Core
             }
         }
 
-        // remove this in the future
-        private (DpiHelper.LUID adapterId, uint sourceId, bool found) GetCurrentAdapterInfo(string deviceName)
-        {
-            try
-            {
-                if (!DpiHelper.GetPathsAndModes(out var paths, out var modes))
-                {
-                    System.Diagnostics.Debug.WriteLine("Failed to get display paths and modes");
-                    return (new DpiHelper.LUID(), 0, false);
-                }
-
-                var displays = DisplayHelper.GetDisplays();
-                var displayIndex = -1;
-                
-                for (int i = 0; i < displays.Count; i++)
-                {
-                    if (displays[i].DeviceName == deviceName)
-                    {
-                        displayIndex = i;
-                        break;
-                    }
-                }
-                
-                if (displayIndex >= 0 && displayIndex < paths.Count)
-                {
-                    var path = paths[displayIndex];
-                    return (path.sourceInfo.adapterId, path.sourceInfo.id, true);
-                }
-                
-                System.Diagnostics.Debug.WriteLine($"Could not find matching display path for {deviceName}");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error getting current adapter info for {deviceName}: {ex.Message}");
-            }
-            
-            return (new DpiHelper.LUID(), 0, false);
-        }
-
         public List<Profile> GetAllProfiles()
         {
             return _profiles.ToList();
