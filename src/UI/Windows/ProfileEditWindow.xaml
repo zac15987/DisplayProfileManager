@@ -257,9 +257,13 @@
                                FontSize="16" VerticalAlignment="Center"/>
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal">
-                        <Button Name="DetectDisplaysButton" Content="Detect Current" 
-                                Style="{StaticResource SecondaryButtonStyle}" 
+                        <Button Name="DetectDisplaysButton" Content="Detect Current"
+                                Style="{StaticResource SecondaryButtonStyle}"
                                 Margin="0,0,8,0" Click="DetectDisplaysButton_Click"/>
+                        <Button Name="IdentifyDisplaysButton" Content="Identify"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Click="IdentifyDisplaysButton_Click"
+                                ToolTip="Show monitor numbers on each display"/>
                     </StackPanel>
                 </Grid>
 

@@ -82,9 +82,7 @@ namespace DisplayProfileManager.Helpers
 
         public static uint[] GetSupportedDPIScalingOnly(string adapterId, uint sourceID)
         {
-            LUID adapterIdStruct = GetLUIDFromString(adapterId);
-
-            DPIScalingInfo dpiInfo = GetDPIScalingInfo(adapterIdStruct, sourceID);
+            DPIScalingInfo dpiInfo = GetDPIScalingInfo(adapterId, sourceID);
 
             uint start = dpiInfo.Minimum;
             uint end = dpiInfo.Maximum;
@@ -114,8 +112,10 @@ namespace DisplayProfileManager.Helpers
             return adapterIdStruct;
         }
 
-        public static DPIScalingInfo GetDPIScalingInfo(LUID adapterId, uint sourceId)
+        public static DPIScalingInfo GetDPIScalingInfo(string adapterId, uint sourceId)
         {
+            var adapterIdStruct = GetLUIDFromString(adapterId);
+
             var dpiInfo = new DPIScalingInfo();
 
             var requestPacket = new DISPLAYCONFIG_SOURCE_DPI_SCALE_GET
@@ -124,7 +124,7 @@ namespace DisplayProfileManager.Helpers
                 {
                     type = DISPLAYCONFIG_DEVICE_INFO_TYPE_CUSTOM.DISPLAYCONFIG_DEVICE_INFO_GET_DPI_SCALE,
                     size = (uint)Marshal.SizeOf<DISPLAYCONFIG_SOURCE_DPI_SCALE_GET>(),
-                    adapterId = adapterId,
+                    adapterId = adapterIdStruct,
                     id = sourceId
                 }
             };
@@ -153,9 +153,7 @@ namespace DisplayProfileManager.Helpers
 
         public static bool SetDPIScaling(string adapterId, uint sourceId, uint dpiPercentToSet)
         {
-            LUID adapterIdStruct = GetLUIDFromString(adapterId);
-
-            var dpiScalingInfo = GetDPIScalingInfo(adapterIdStruct, sourceId);
+            var dpiScalingInfo = GetDPIScalingInfo(adapterId, sourceId);
 
             if (dpiPercentToSet == dpiScalingInfo.Current)
                 return true;
@@ -179,6 +177,8 @@ namespace DisplayProfileManager.Helpers
                 return false;
 
             int dpiRelativeVal = idx1 - idx2;
+
+            var adapterIdStruct = GetLUIDFromString(adapterId);
 
             var setPacket = new DISPLAYCONFIG_SOURCE_DPI_SCALE_SET
             {

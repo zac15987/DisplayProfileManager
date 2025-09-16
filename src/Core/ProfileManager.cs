@@ -196,12 +196,8 @@ namespace DisplayProfileManager.Core
                                 continue;
                             }
 
-                            DpiHelper.LUID adapterId = new DpiHelper.LUID()
-                            {
-                                HighPart = foundConfig.AdapterId.HighPart,
-                                LowPart = foundConfig.AdapterId.LowPart,
-                            };
-                            DpiHelper.DPIScalingInfo dpiInfo = DpiHelper.GetDPIScalingInfo(adapterId, foundConfig.SourceId);
+                            string adpaterIdText = $"{foundConfig.AdapterId.HighPart:X8}{foundConfig.AdapterId.LowPart:X8}";
+                            DpiHelper.DPIScalingInfo dpiInfo = DpiHelper.GetDPIScalingInfo(adpaterIdText, foundConfig.SourceId);
 
                             DisplaySetting setting = new DisplaySetting();
                             setting.DeviceName = displays[i].DeviceName;
@@ -212,7 +208,7 @@ namespace DisplayProfileManager.Core
                             setting.Frequency = displays[i].Frequency;
                             setting.DpiScaling = dpiInfo.Current;
                             setting.IsPrimary = displays[i].IsPrimary;
-                            setting.AdapterId = $"{foundConfig.AdapterId.HighPart:X8}{foundConfig.AdapterId.LowPart:X8}";
+                            setting.AdapterId = adpaterIdText;
                             setting.SourceId = foundConfig.SourceId;
                             setting.IsEnabled = foundConfig.IsEnabled;
                             setting.PathIndex = foundConfig.PathIndex;

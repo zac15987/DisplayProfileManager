@@ -125,15 +125,96 @@ namespace DisplayProfileManager.UI.Windows
 
         private void AddDisplaySettingControl(DisplaySetting setting)
         {
-            if (DisplaySettingsPanel.Children.Count == 1 && 
+            if (DisplaySettingsPanel.Children.Count == 1 &&
                 DisplaySettingsPanel.Children[0] is TextBlock)
             {
                 DisplaySettingsPanel.Children.Clear();
             }
 
-            var control = new DisplaySettingControl(setting);
+            // Calculate monitor index (1-based)
+            int monitorIndex = _displayControls.Count + 1;
+            var control = new DisplaySettingControl(setting, monitorIndex);
             _displayControls.Add(control);
             DisplaySettingsPanel.Children.Add(control);
+        }
+
+        private async void IdentifyDisplaysButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                StatusTextBlock.Text = "Identifying monitors...";
+                IdentifyDisplaysButton.IsEnabled = false;
+
+                uint maxDPIScaling = 100;
+
+                List<DisplaySetting> displaySettings = new List<DisplaySetting>();
+
+                if(_displayControls.Count > 0)
+                {
+                    foreach (var control in _displayControls)
+                    {
+                        var setting = control.GetDisplaySetting();
+                        if (setting.IsEnabled)
+                        {
+                            // Use the existing DpiHelper to get the current DPI scaling
+                            var dpiInfo = DpiHelper.GetDPIScalingInfo(setting.AdapterId, setting.SourceId);
+
+                            if (dpiInfo.IsInitialized)
+                            {
+                                if (dpiInfo.Current > maxDPIScaling)
+                                {
+                                    maxDPIScaling = dpiInfo.Current;
+                                }
+                            }
+                        }
+
+                        displaySettings.Add(setting);
+                    }
+                }
+                else // Get current display to show the index
+                {
+                    displaySettings = await _profileManager.GetCurrentDisplaySettingsAsync();
+
+                    foreach(var setting in displaySettings)
+                    {
+                        if (setting.DpiScaling > maxDPIScaling)
+                        {
+                            maxDPIScaling = setting.DpiScaling;
+                        }
+                    }
+                }
+
+                var identifyWindows = new List<MonitorIdentifyWindow>();
+
+                int index = 1;
+                foreach (var setting in displaySettings)
+                {
+                    if (setting.IsEnabled)
+                    {
+                        var identifyWindow = new MonitorIdentifyWindow(setting, index, maxDPIScaling);
+                        identifyWindows.Add(identifyWindow);
+                    }
+                    index++;
+                }
+
+                // Show all identify windows
+                foreach (var window in identifyWindows)
+                {
+                    window.Show();
+                }
+
+                StatusTextBlock.Text = $"Showing identifiers on {identifyWindows.Count} monitor(s)";
+            }
+            catch (Exception ex)
+            {
+                StatusTextBlock.Text = "Error identifying displays";
+                MessageBox.Show($"Error identifying displays: {ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                IdentifyDisplaysButton.IsEnabled = true;
+            }
         }
 
         private async void SaveButton_Click(object sender, RoutedEventArgs e)
@@ -638,6 +719,7 @@ namespace DisplayProfileManager.UI.Windows
     public class DisplaySettingControl : UserControl
     {
         private DisplaySetting _setting;
+        private int _monitorIndex;
         private TextBox _deviceTextBox;
         private ComboBox _resolutionComboBox;
         private ComboBox _refreshRateComboBox;
@@ -645,9 +727,10 @@ namespace DisplayProfileManager.UI.Windows
         private CheckBox _primaryCheckBox;
         private CheckBox _enabledCheckBox;
 
-        public DisplaySettingControl(DisplaySetting setting)
+        public DisplaySettingControl(DisplaySetting setting, int monitorIndex = 1)
         {
             _setting = setting;
+            _monitorIndex = monitorIndex;
             InitializeControl();
         }
 
@@ -662,7 +745,7 @@ namespace DisplayProfileManager.UI.Windows
 
             var headerText = new TextBlock
             {
-                Text = "Display Configuration",
+                Text = $"Monitor {_monitorIndex}",
                 FontWeight = FontWeights.Medium,
                 FontSize = 14,
                 Margin = new Thickness(0, 0, 0, 8),

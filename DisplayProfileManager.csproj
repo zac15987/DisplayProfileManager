@@ -137,6 +137,10 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Page Include="src\UI\Windows\MonitorIdentifyWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="src\UI\Windows\CloseConfirmationDialog.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -183,6 +187,10 @@
     <Compile Include="src\Core\Profile.cs" />
     <Compile Include="src\UI\Windows\ProfileEditWindow.xaml.cs">
       <DependentUpon>ProfileEditWindow.xaml</DependentUpon>
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="src\UI\Windows\MonitorIdentifyWindow.xaml.cs">
+      <DependentUpon>MonitorIdentifyWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="src\UI\Windows\CloseConfirmationDialog.xaml.cs">
