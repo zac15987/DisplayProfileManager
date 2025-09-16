@@ -1,15 +1,11 @@
 using DisplayProfileManager.Core;
 using DisplayProfileManager.Helpers;
-using DisplayProfileManager.Properties;
-using DisplayProfileManager.UI.Controls;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shell;
 
@@ -151,13 +147,14 @@ namespace DisplayProfileManager.UI.Windows
 
                 if(_displayControls.Count > 0)
                 {
-                    foreach (var control in _displayControls)
+                    displaySettings = _profile.DisplaySettings;
+
+                    foreach (var setting in displaySettings)
                     {
-                        var setting = control.GetDisplaySetting();
                         if (setting.IsEnabled)
                         {
                             // Use the existing DpiHelper to get the current DPI scaling
-                            var dpiInfo = DpiHelper.GetDPIScalingInfo(setting.AdapterId, setting.SourceId);
+                            var dpiInfo = DpiHelper.GetDPIScalingInfo(setting.DeviceName);
 
                             if (dpiInfo.IsInitialized)
                             {
@@ -167,8 +164,6 @@ namespace DisplayProfileManager.UI.Windows
                                 }
                             }
                         }
-
-                        displaySettings.Add(setting);
                     }
                 }
                 else // Get current display to show the index
@@ -191,8 +186,11 @@ namespace DisplayProfileManager.UI.Windows
                 {
                     if (setting.IsEnabled)
                     {
-                        var identifyWindow = new MonitorIdentifyWindow(setting, index, maxDPIScaling);
-                        identifyWindows.Add(identifyWindow);
+                        if (DisplayHelper.IsMonitorConnected(setting.DeviceName))
+                        {
+                            var identifyWindow = new MonitorIdentifyWindow(setting, index, maxDPIScaling);
+                            identifyWindows.Add(identifyWindow);
+                        }
                     }
                     index++;
                 }
@@ -956,7 +954,7 @@ namespace DisplayProfileManager.UI.Windows
 
         private void PopulateDpiComboBox()
         {
-            uint[] dpiValues = DpiHelper.GetSupportedDPIScalingOnly(_setting.AdapterId, _setting.SourceId);
+            uint[] dpiValues = DpiHelper.GetSupportedDPIScalingOnly(_setting.DeviceName);
 
             foreach (uint dpi in dpiValues)
             {

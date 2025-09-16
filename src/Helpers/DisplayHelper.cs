@@ -402,6 +402,14 @@ namespace DisplayProfileManager.Helpers
             return monitors;
         }
 
+        public static bool IsMonitorConnected(string deviceName)
+        {
+            var devMode = new DEVMODE();
+            devMode.dmSize = (short)Marshal.SizeOf(devMode);
+
+            return EnumDisplaySettings(deviceName, ENUM_CURRENT_SETTINGS, ref devMode);
+        }
+
         #endregion
     }
 }

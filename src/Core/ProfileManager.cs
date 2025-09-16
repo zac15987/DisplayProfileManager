@@ -197,7 +197,7 @@ namespace DisplayProfileManager.Core
                             }
 
                             string adpaterIdText = $"{foundConfig.AdapterId.HighPart:X8}{foundConfig.AdapterId.LowPart:X8}";
-                            DpiHelper.DPIScalingInfo dpiInfo = DpiHelper.GetDPIScalingInfo(adpaterIdText, foundConfig.SourceId);
+                            DpiHelper.DPIScalingInfo dpiInfo = DpiHelper.GetDPIScalingInfo(displays[i].DeviceName);
 
                             DisplaySetting setting = new DisplaySetting();
                             setting.DeviceName = displays[i].DeviceName;
@@ -283,31 +283,38 @@ namespace DisplayProfileManager.Core
                 List<DisplaySetting> displaySettings = profile.DisplaySettings.Where(s => s.IsEnabled).ToList();
                 foreach (var setting in displaySettings)
                 {
-                    try
+                    if(DisplayHelper.IsMonitorConnected(setting.DeviceName))
                     {
-                        bool resolutionChanged = DisplayHelper.ChangeResolution(
-                            setting.DeviceName,
-                            setting.Width,
-                            setting.Height,
-                            setting.Frequency);
-
-                        if (!resolutionChanged)
+                        try
                         {
-                            System.Diagnostics.Debug.WriteLine($"Failed to change resolution for {setting.DeviceName}");
+                            bool resolutionChanged = DisplayHelper.ChangeResolution(
+                                setting.DeviceName,
+                                setting.Width,
+                                setting.Height,
+                                setting.Frequency);
+
+                            if (!resolutionChanged)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Failed to change resolution for {setting.DeviceName}");
+                                success = false;
+                            }
+
+                            bool dpiChanged = DpiHelper.SetDPIScaling(setting.DeviceName, setting.DpiScaling);
+
+                            if (!dpiChanged)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Failed to set DPI scaling for {setting.DeviceName}");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Error applying setting for {setting.DeviceName}: {ex.Message}");
                             success = false;
                         }
-
-                        bool dpiChanged = DpiHelper.SetDPIScaling(setting.AdapterId, setting.SourceId, setting.DpiScaling);
-
-                        if (!dpiChanged)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"Failed to set DPI scaling for {setting.DeviceName}");
-                        }
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        System.Diagnostics.Debug.WriteLine($"Error applying setting for {setting.DeviceName}: {ex.Message}");
-                        success = false;
+                        System.Diagnostics.Debug.WriteLine($"{setting.DeviceName} is not connected now");
                     }
                 }
 

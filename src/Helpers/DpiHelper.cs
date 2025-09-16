@@ -1,6 +1,10 @@
+using DisplayProfileManager.Core;
+using DisplayProfileManager.Properties;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace DisplayProfileManager.Helpers
 {
@@ -74,15 +78,17 @@ namespace DisplayProfileManager.Helpers
             public uint Current { get; set; } = 100;
             public uint Recommended { get; set; } = 100;
             public bool IsInitialized { get; set; } = false;
+            public LUID AdapterId { get; set; }
+            public uint SourceId { get; set; }
         }
 
         #endregion
 
         #region Public Methods
 
-        public static uint[] GetSupportedDPIScalingOnly(string adapterId, uint sourceID)
+        public static uint[] GetSupportedDPIScalingOnly(string deviceName)
         {
-            DPIScalingInfo dpiInfo = GetDPIScalingInfo(adapterId, sourceID);
+            DPIScalingInfo dpiInfo = GetDPIScalingInfo(deviceName);
 
             uint start = dpiInfo.Minimum;
             uint end = dpiInfo.Maximum;
@@ -112,48 +118,107 @@ namespace DisplayProfileManager.Helpers
             return adapterIdStruct;
         }
 
-        public static DPIScalingInfo GetDPIScalingInfo(string adapterId, uint sourceId)
+        //public static DPIScalingInfo GetDPIScalingInfo(string adapterId, uint sourceId)
+        //{
+        //    var adapterIdStruct = GetLUIDFromString(adapterId);
+
+        //    var dpiInfo = new DPIScalingInfo();
+
+        //    var requestPacket = new DISPLAYCONFIG_SOURCE_DPI_SCALE_GET
+        //    {
+        //        header = new DISPLAYCONFIG_DEVICE_INFO_HEADER
+        //        {
+        //            type = DISPLAYCONFIG_DEVICE_INFO_TYPE_CUSTOM.DISPLAYCONFIG_DEVICE_INFO_GET_DPI_SCALE,
+        //            size = (uint)Marshal.SizeOf<DISPLAYCONFIG_SOURCE_DPI_SCALE_GET>(),
+        //            adapterId = adapterIdStruct,
+        //            id = sourceId
+        //        }
+        //    };
+
+        //    int result = DisplayConfigGetDeviceInfo(ref requestPacket.header);
+        //    if (result == 0)
+        //    {
+        //        if (requestPacket.curScaleRel < requestPacket.minScaleRel)
+        //            requestPacket.curScaleRel = requestPacket.minScaleRel;
+        //        else if (requestPacket.curScaleRel > requestPacket.maxScaleRel)
+        //            requestPacket.curScaleRel = requestPacket.maxScaleRel;
+
+        //        int minAbs = Math.Abs(requestPacket.minScaleRel);
+        //        if (DpiVals.Length >= minAbs + requestPacket.maxScaleRel + 1)
+        //        {
+        //            dpiInfo.Current = DpiVals[minAbs + requestPacket.curScaleRel];
+        //            dpiInfo.Recommended = DpiVals[minAbs];
+        //            dpiInfo.Maximum = DpiVals[minAbs + requestPacket.maxScaleRel];
+        //            dpiInfo.Minimum = DpiVals[0];
+        //            dpiInfo.IsInitialized = true;
+        //        }
+        //    }
+
+        //    return dpiInfo;
+        //}
+
+        public static DPIScalingInfo GetDPIScalingInfo(string deviceName)
         {
-            var adapterIdStruct = GetLUIDFromString(adapterId);
+            // Get display configs using QueueDisplayConfig
+            List<DisplayConfigHelper.DisplayConfigInfo> displayConfigs = DisplayConfigHelper.GetDisplayConfigs();
+
+            DisplayConfigHelper.DisplayConfigInfo foundConfig = null;
+
+            if (displayConfigs.Count > 0)
+            {
+                foundConfig = displayConfigs.Find(x => x.DeviceName == deviceName);
+            }
 
             var dpiInfo = new DPIScalingInfo();
 
-            var requestPacket = new DISPLAYCONFIG_SOURCE_DPI_SCALE_GET
+            if (foundConfig != null)
             {
-                header = new DISPLAYCONFIG_DEVICE_INFO_HEADER
+                LUID adapterId = new LUID()
                 {
-                    type = DISPLAYCONFIG_DEVICE_INFO_TYPE_CUSTOM.DISPLAYCONFIG_DEVICE_INFO_GET_DPI_SCALE,
-                    size = (uint)Marshal.SizeOf<DISPLAYCONFIG_SOURCE_DPI_SCALE_GET>(),
-                    adapterId = adapterIdStruct,
-                    id = sourceId
-                }
-            };
+                    LowPart = foundConfig.AdapterId.LowPart,
+                    HighPart = foundConfig.AdapterId.HighPart
+                };
 
-            int result = DisplayConfigGetDeviceInfo(ref requestPacket.header);
-            if (result == 0)
-            {
-                if (requestPacket.curScaleRel < requestPacket.minScaleRel)
-                    requestPacket.curScaleRel = requestPacket.minScaleRel;
-                else if (requestPacket.curScaleRel > requestPacket.maxScaleRel)
-                    requestPacket.curScaleRel = requestPacket.maxScaleRel;
-
-                int minAbs = Math.Abs(requestPacket.minScaleRel);
-                if (DpiVals.Length >= minAbs + requestPacket.maxScaleRel + 1)
+                var requestPacket = new DISPLAYCONFIG_SOURCE_DPI_SCALE_GET
                 {
-                    dpiInfo.Current = DpiVals[minAbs + requestPacket.curScaleRel];
-                    dpiInfo.Recommended = DpiVals[minAbs];
-                    dpiInfo.Maximum = DpiVals[minAbs + requestPacket.maxScaleRel];
-                    dpiInfo.Minimum = DpiVals[0];
-                    dpiInfo.IsInitialized = true;
+                    header = new DISPLAYCONFIG_DEVICE_INFO_HEADER
+                    {
+                        type = DISPLAYCONFIG_DEVICE_INFO_TYPE_CUSTOM.DISPLAYCONFIG_DEVICE_INFO_GET_DPI_SCALE,
+                        size = (uint)Marshal.SizeOf<DISPLAYCONFIG_SOURCE_DPI_SCALE_GET>(),
+                        adapterId = adapterId,
+                        id = foundConfig.SourceId
+                    }
+                };
+
+                int result = DisplayConfigGetDeviceInfo(ref requestPacket.header);
+                if (result == 0)
+                {
+                    if (requestPacket.curScaleRel < requestPacket.minScaleRel)
+                        requestPacket.curScaleRel = requestPacket.minScaleRel;
+                    else if (requestPacket.curScaleRel > requestPacket.maxScaleRel)
+                        requestPacket.curScaleRel = requestPacket.maxScaleRel;
+
+                    int minAbs = Math.Abs(requestPacket.minScaleRel);
+                    if (DpiVals.Length >= minAbs + requestPacket.maxScaleRel + 1)
+                    {
+                        dpiInfo.Current = DpiVals[minAbs + requestPacket.curScaleRel];
+                        dpiInfo.Recommended = DpiVals[minAbs];
+                        dpiInfo.Maximum = DpiVals[minAbs + requestPacket.maxScaleRel];
+                        dpiInfo.Minimum = DpiVals[0];
+                        dpiInfo.IsInitialized = true;
+                        dpiInfo.AdapterId = adapterId;
+                        dpiInfo.SourceId = foundConfig.SourceId;
+                    }
                 }
             }
 
             return dpiInfo;
         }
 
-        public static bool SetDPIScaling(string adapterId, uint sourceId, uint dpiPercentToSet)
+
+        public static bool SetDPIScaling(string deviceName, uint dpiPercentToSet)
         {
-            var dpiScalingInfo = GetDPIScalingInfo(adapterId, sourceId);
+            var dpiScalingInfo = GetDPIScalingInfo(deviceName);
 
             if (dpiPercentToSet == dpiScalingInfo.Current)
                 return true;
@@ -178,16 +243,14 @@ namespace DisplayProfileManager.Helpers
 
             int dpiRelativeVal = idx1 - idx2;
 
-            var adapterIdStruct = GetLUIDFromString(adapterId);
-
             var setPacket = new DISPLAYCONFIG_SOURCE_DPI_SCALE_SET
             {
                 header = new DISPLAYCONFIG_DEVICE_INFO_HEADER
                 {
                     type = DISPLAYCONFIG_DEVICE_INFO_TYPE_CUSTOM.DISPLAYCONFIG_DEVICE_INFO_SET_DPI_SCALE,
                     size = (uint)Marshal.SizeOf<DISPLAYCONFIG_SOURCE_DPI_SCALE_SET>(),
-                    adapterId = adapterIdStruct,
-                    id = sourceId
+                    adapterId = dpiScalingInfo.AdapterId,
+                    id = dpiScalingInfo.SourceId
                 },
                 scaleRel = dpiRelativeVal
             };

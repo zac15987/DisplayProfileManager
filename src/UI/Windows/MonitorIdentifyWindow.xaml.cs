@@ -29,7 +29,7 @@ namespace DisplayProfileManager.UI.Windows
                 double scalingFactor = 1.0; // Default to no scaling if DPI detection fails
 
                 // Use the existing DpiHelper to get the current DPI scaling
-                var dpiInfo = DpiHelper.GetDPIScalingInfo(displaySetting.AdapterId, displaySetting.SourceId);
+                var dpiInfo = DpiHelper.GetDPIScalingInfo(displaySetting.DeviceName);
 
                 if (dpiInfo.IsInitialized)
                 {
