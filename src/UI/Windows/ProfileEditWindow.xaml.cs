@@ -149,6 +149,18 @@ namespace DisplayProfileManager.UI.Windows
                 {
                     displaySettings = _profile.DisplaySettings;
 
+                    if(displaySettings.Count == 0)
+                    {
+                        foreach (var control in _displayControls)
+                        {
+                            var setting = control.GetDisplaySetting();
+                            if (setting != null)
+                            {
+                                displaySettings.Add(setting);
+                            }
+                        }
+                    }
+
                     foreach (var setting in displaySettings)
                     {
                         if (setting.IsEnabled)
