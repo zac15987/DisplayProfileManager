@@ -1,5 +1,6 @@
 using DisplayProfileManager.Core;
 using DisplayProfileManager.Helpers;
+using DisplayProfileManager.Properties;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -96,9 +97,21 @@ namespace DisplayProfileManager.UI.Windows
                 DetectDisplaysButton.IsEnabled = false;
 
                 var currentSettings = await _profileManager.GetCurrentDisplaySettingsAsync();
-                
+
                 DisplaySettingsPanel.Children.Clear();
                 _displayControls.Clear();
+
+                // Ensure at least one monitor is marked as primary
+                bool hasPrimary = currentSettings.Any(s => s.IsPrimary && s.IsEnabled);
+                if (!hasPrimary)
+                {
+                    // Mark the first enabled monitor as primary
+                    var firstEnabled = currentSettings.FirstOrDefault(s => s.IsEnabled);
+                    if (firstEnabled != null)
+                    {
+                        firstEnabled.IsPrimary = true;
+                    }
+                }
 
                 foreach (var setting in currentSettings)
                 {
@@ -142,6 +155,8 @@ namespace DisplayProfileManager.UI.Windows
                 IdentifyDisplaysButton.IsEnabled = false;
 
                 uint maxDPIScaling = 100;
+                //int maxResolution = 0;
+                //string maxResolution
 
                 List<DisplaySetting> displaySettings = new List<DisplaySetting>();
 
@@ -161,22 +176,36 @@ namespace DisplayProfileManager.UI.Windows
                         }
                     }
 
-                    foreach (var setting in displaySettings)
-                    {
-                        if (setting.IsEnabled)
-                        {
-                            // Use the existing DpiHelper to get the current DPI scaling
-                            var dpiInfo = DpiHelper.GetDPIScalingInfo(setting.DeviceName);
+                    var maxResolutionMonitor = displaySettings.OrderByDescending(r => r.Width * r.Height).First();
+                    var dpiInfo = DpiHelper.GetDPIScalingInfo(maxResolutionMonitor.DeviceName);
 
-                            if (dpiInfo.IsInitialized)
-                            {
-                                if (dpiInfo.Current > maxDPIScaling)
-                                {
-                                    maxDPIScaling = dpiInfo.Current;
-                                }
-                            }
-                        }
+                    if (dpiInfo.IsInitialized)
+                    {
+                        maxDPIScaling = dpiInfo.Current;
                     }
+
+
+                    //foreach (var setting in maxResolutionMonitors)
+                    //{
+                    //    if (setting.IsEnabled)
+                    //    {
+                    //        if((setting.Width * setting.Height) > maxResolution)
+                    //        {
+                    //            maxResolution = setting.Width * setting.Height;
+                    //        }
+
+                    //        // Use the existing DpiHelper to get the current DPI scaling
+                    //        var dpiInfo = DpiHelper.GetDPIScalingInfo(setting.DeviceName);
+
+                    //        if (dpiInfo.IsInitialized)
+                    //        {
+                    //            if (dpiInfo.Current > maxDPIScaling)
+                    //            {
+                    //                maxDPIScaling = dpiInfo.Current;
+                    //            }
+                    //        }
+                    //    }
+                    //}
                 }
                 else // Get current display to show the index
                 {
@@ -858,6 +887,8 @@ namespace DisplayProfileManager.UI.Windows
                 FontSize = 14,
                 Foreground = (Brush)Application.Current.Resources["PrimaryTextBrush"]
             };
+            _primaryCheckBox.Checked += PrimaryCheckBox_Checked;
+            _primaryCheckBox.Unchecked += PrimaryCheckBox_Unchecked;
             primaryPanel.Children.Add(_primaryCheckBox);
             Grid.SetColumn(primaryPanel, 4);
             Grid.SetRow(primaryPanel, 2);
@@ -895,7 +926,7 @@ namespace DisplayProfileManager.UI.Windows
             _refreshRateComboBox.IsEnabled = isEnabled;
             _dpiComboBox.IsEnabled = isEnabled;
             _primaryCheckBox.IsEnabled = isEnabled;
-            
+
             // Update opacity to provide visual feedback
             double opacity = isEnabled ? 1.0 : 0.5;
             _deviceTextBox.Opacity = opacity;
@@ -903,7 +934,7 @@ namespace DisplayProfileManager.UI.Windows
             _refreshRateComboBox.Opacity = opacity;
             _dpiComboBox.Opacity = opacity;
             _primaryCheckBox.Opacity = opacity;
-            
+
             // Ensure at least one display remains enabled
             var parent = Parent as Panel;
             if (parent != null && !isEnabled)
@@ -916,13 +947,13 @@ namespace DisplayProfileManager.UI.Windows
                         enabledCount++;
                     }
                 }
-                
+
                 // If this would be the last enabled display, prevent disabling
                 if (enabledCount == 0)
                 {
                     _enabledCheckBox.IsChecked = true;
                     _setting.IsEnabled = true;
-                    MessageBox.Show("At least one display must remain enabled.", "Display Configuration", 
+                    MessageBox.Show("At least one display must remain enabled.", "Display Configuration",
                         MessageBoxButton.OK, MessageBoxImage.Information);
 
                     // Re-enable controls
@@ -936,6 +967,23 @@ namespace DisplayProfileManager.UI.Windows
                     _refreshRateComboBox.Opacity = 1.0;
                     _dpiComboBox.Opacity = 1.0;
                     _primaryCheckBox.Opacity = 1.0;
+                }
+            }
+
+            // If disabling a primary monitor, assign primary to another enabled monitor
+            if (!isEnabled && _setting.IsPrimary && parent != null)
+            {
+                _primaryCheckBox.IsChecked = false;
+                _setting.IsPrimary = false;
+
+                // Find another enabled monitor to make primary
+                foreach (var child in parent.Children)
+                {
+                    if (child is DisplaySettingControl control && control._setting.IsEnabled)
+                    {
+                        control.SetPrimary(true);
+                        break;
+                    }
                 }
             }
         }
@@ -1131,13 +1179,119 @@ namespace DisplayProfileManager.UI.Windows
 
             if (_dpiComboBox.SelectedItem == null)
             {
-                MessageBox.Show("Please select a DPI scaling for all displays.", "Validation Error", 
+                MessageBox.Show("Please select a DPI scaling for all displays.", "Validation Error",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
                 _dpiComboBox.Focus();
                 return false;
             }
 
+            // Validate primary monitor selection for enabled displays
+            if (_setting.IsEnabled)
+            {
+                var parent = Parent as Panel;
+                if (parent != null)
+                {
+                    bool hasPrimary = false;
+                    foreach (var child in parent.Children)
+                    {
+                        if (child is DisplaySettingControl control && control._setting.IsEnabled && control._setting.IsPrimary)
+                        {
+                            hasPrimary = true;
+                            break;
+                        }
+                    }
+
+                    if (!hasPrimary)
+                    {
+                        MessageBox.Show("At least one enabled display must be set as primary.", "Validation Error",
+                            MessageBoxButton.OK, MessageBoxImage.Warning);
+                        _primaryCheckBox.Focus();
+                        return false;
+                    }
+                }
+            }
+
             return true;
+        }
+
+        private void PrimaryCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            // When this monitor is set as primary, uncheck all others
+            _setting.IsPrimary = true;
+
+            var parent = Parent as Panel;
+            if (parent != null)
+            {
+                foreach (var child in parent.Children)
+                {
+                    if (child is DisplaySettingControl control && control != this)
+                    {
+                        control._primaryCheckBox.IsChecked = false;
+                        control._setting.IsPrimary = false;
+                    }
+                }
+            }
+        }
+
+        private void PrimaryCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            // Prevent unchecking if this is the last primary among enabled monitors
+            var parent = Parent as Panel;
+            if (parent != null)
+            {
+                int primaryCount = 0;
+                foreach (var child in parent.Children)
+                {
+                    if (child is DisplaySettingControl control && control != this)
+                    {
+                        if (control._primaryCheckBox.IsChecked == true && control._setting.IsEnabled)
+                        {
+                            primaryCount++;
+                        }
+                    }
+                }
+
+                // If no other enabled monitors are primary, prevent unchecking
+                if (primaryCount == 0 && _setting.IsEnabled)
+                {
+                    _primaryCheckBox.IsChecked = true;
+                    MessageBox.Show("At least one enabled display must be set as primary.",
+                                   "Display Configuration",
+                                   MessageBoxButton.OK,
+                                   MessageBoxImage.Information);
+                    return;
+                }
+            }
+            _setting.IsPrimary = false;
+        }
+
+        public void SetPrimary(bool isPrimary)
+        {
+            // Set this control's primary status without triggering events
+            _primaryCheckBox.Checked -= PrimaryCheckBox_Checked;
+            _primaryCheckBox.Unchecked -= PrimaryCheckBox_Unchecked;
+
+            _primaryCheckBox.IsChecked = isPrimary;
+            _setting.IsPrimary = isPrimary;
+
+            _primaryCheckBox.Checked += PrimaryCheckBox_Checked;
+            _primaryCheckBox.Unchecked += PrimaryCheckBox_Unchecked;
+
+            // If setting as primary, uncheck all others
+            if (isPrimary)
+            {
+                var parent = Parent as Panel;
+                if (parent != null)
+                {
+                    foreach (var child in parent.Children)
+                    {
+                        if (child is DisplaySettingControl control && control != this)
+                        {
+                            control.SetPrimary(false);
+                        }
+                    }
+                }
+            }
         }
 
     }

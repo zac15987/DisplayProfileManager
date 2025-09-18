@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Diagnostics;
 
 namespace DisplayProfileManager.Helpers
 {
@@ -323,6 +323,7 @@ namespace DisplayProfileManager.Helpers
             public DisplayConfigVideoOutputTechnology OutputTechnology { get; set; }
             public int DisplayPositionX { get; set; }
             public int DisplayPositionY { get; set; }
+            public bool IsPrimary { get; set; }
         }
 
         #endregion
@@ -617,9 +618,6 @@ namespace DisplayProfileManager.Helpers
                 // Set monitor position based on displayConfigs
                 foreach (var displayInfo in displayConfigs)
                 {
-                    if(!displayInfo.IsEnabled)
-                        continue;
-
                     var foundPathIndex = Array.FindIndex(paths,
                         x => (x.targetInfo.id == displayInfo.TargetId) && (x.sourceInfo.id == displayInfo.SourceId));
 
@@ -628,8 +626,8 @@ namespace DisplayProfileManager.Helpers
                     modes[modeInfoIndex].modeInfo.sourceMode.position.x = displayInfo.DisplayPositionX;
                     modes[modeInfoIndex].modeInfo.sourceMode.position.y = displayInfo.DisplayPositionY;
 
-                    Debug.WriteLine($"Setting targetId {displayInfo.TargetId} ({displayInfo.DeviceName}, Path:{foundPathIndex}) " +
-                                  $"flags to: 0x{paths[foundPathIndex].flags:X} (Enabled: {displayInfo.IsEnabled})");
+                    Debug.WriteLine($"Setting targetId {displayInfo.TargetId} ({displayInfo.DeviceName}, " +
+                                  $"position to: X:{displayInfo.DisplayPositionX} Y:{displayInfo.DisplayPositionY}");
 
                 }
 
@@ -693,6 +691,88 @@ namespace DisplayProfileManager.Helpers
             }
 
             return true;
+        }
+
+        public static bool SetPrimaryDisplay(List<DisplayConfigInfo> displayConfigs)
+        {
+            try
+            {
+                // Step 1: Find the new primary display
+                var newPrimary = displayConfigs.FirstOrDefault(d => d.IsPrimary == true);
+                if (newPrimary == null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Primary display not found");
+                    return false;
+                }
+
+                System.Diagnostics.Debug.WriteLine($"Setting primary display: {newPrimary.DeviceName} - {newPrimary.FriendlyName}");
+
+                // Step 3: Calculate offset to move new primary to (0,0)
+                int offsetX = -newPrimary.DisplayPositionX;
+                int offsetY = -newPrimary.DisplayPositionY;
+
+                System.Diagnostics.Debug.WriteLine($"Current primary position: ({newPrimary.DisplayPositionX}, {newPrimary.DisplayPositionY})");
+                System.Diagnostics.Debug.WriteLine($"Offset to apply: ({offsetX}, {offsetY})");
+
+                // Step 4: Stage changes for ALL displays with adjusted positions
+                foreach (var displayConfig in displayConfigs)
+                {
+                    if (displayConfig.IsPrimary)
+                    {
+                        displayConfig.DisplayPositionX = 0;
+                        displayConfig.DisplayPositionY = 0;
+                    }
+                    else
+                    {
+                        int newX = displayConfig.DisplayPositionX + offsetX;
+                        int newY = displayConfig.DisplayPositionY + offsetY;
+
+                        displayConfig.DisplayPositionX = newX;
+                        displayConfig.DisplayPositionY = newY;
+
+                        System.Diagnostics.Debug.WriteLine($"Moving {displayConfig.DeviceName} from ({displayConfig.DisplayPositionX},{displayConfig.DisplayPositionY}) to ({newX},{newY})");
+                    }
+                }
+
+
+                // Check for any disconnected displays
+                bool allDisplayConnected = true;
+                foreach (var displayConfig in displayConfigs)
+                {
+                    if (!DisplayHelper.IsMonitorConnected(displayConfig.DeviceName))
+                    {
+                        allDisplayConnected = false;
+                    }
+                }
+
+
+                // If a display is not connected, skip setting the position and leave it to the second call of the method to set the position.
+                // Otherwise, an error will occur
+                // The position to be set has already been configured in the above steps
+                if (!allDisplayConnected)
+                {
+                    return true;
+                }
+
+
+                // Step 5: Apply all staged changes at once
+                bool displayPositionApplied = ApplyDisplayPosition(displayConfigs);
+                if (displayPositionApplied)
+                {
+                    Debug.WriteLine($"Successfully set {newPrimary.DeviceName} as primary display");
+                }
+                else
+                {
+                    Debug.WriteLine($"Failed to apply all display changes");
+                }
+
+                return displayPositionApplied;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error setting primary display: {ex.Message}");
+                return false;
+            }
         }
 
         #endregion

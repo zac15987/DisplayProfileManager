@@ -33,14 +33,27 @@ namespace DisplayProfileManager.UI.Windows
 
                 if (dpiInfo.IsInitialized)
                 {
-                    if(maxDPIScaling == dpiInfo.Current)
+                    if (maxDPIScaling == 100)
                     {
-                        scalingFactor = (double)dpiInfo.Current / 100;
+                        scalingFactor = 1.0;
                     }
                     else
                     {
                         scalingFactor = (double)maxDPIScaling / dpiInfo.Current;
                     }
+
+
+
+                    //scalingFactor = (double)maxDPIScaling / dpiInfo.Current;
+
+                    //if (maxDPIScaling == dpiInfo.Current)
+                    //{
+                    //    scalingFactor = (double)dpiInfo.Current / 100;
+                    //}
+                    //else
+                    //{
+                    //    scalingFactor = (double)maxDPIScaling / dpiInfo.Current;
+                    //}
                 }
 
                 // Screen.Bounds are in physical pixels, convert to WPF logical units using actual DPI scaling

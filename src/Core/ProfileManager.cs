@@ -234,11 +234,10 @@ namespace DisplayProfileManager.Core
             try
             {
                 bool success = true;
-                
+
                 // Step 1: Apply display config (enable/disable monitors)
                 if (profile.DisplaySettings.Count > 0)
                 {
-                    System.Diagnostics.Debug.WriteLine("Applying display topology...");
 
                     var currentDisplayConfig = new List<DisplayConfigHelper.DisplayConfigInfo>();
 
@@ -252,6 +251,8 @@ namespace DisplayProfileManager.Core
                         displayConfigInfo.SourceId = setting.SourceId;
                         displayConfigInfo.DisplayPositionX = setting.DisplayPositionX;
                         displayConfigInfo.DisplayPositionY = setting.DisplayPositionY;
+                        displayConfigInfo.FriendlyName = setting.ReadableDeviceName;
+                        displayConfigInfo.IsPrimary = setting.IsPrimary;
 
                         currentDisplayConfig.Add(displayConfigInfo);
                     }
@@ -259,6 +260,22 @@ namespace DisplayProfileManager.Core
                     // Validate and apply topology
                     if (DisplayConfigHelper.ValidateDisplayTopology(currentDisplayConfig))
                     {
+                        // Set primary monitor first (must be done before topology changes)
+                        System.Diagnostics.Debug.WriteLine("Setting primary display...");
+                        bool primaryChanged = DisplayConfigHelper.SetPrimaryDisplay(currentDisplayConfig);
+                        if (!primaryChanged)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Failed to set primary display");
+                            success = false;
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine("Set primary display successfully");
+                        }
+
+
+                        System.Diagnostics.Debug.WriteLine("Applying display topology...");
+
                         bool displayConfigApplied = DisplayConfigHelper.ApplyDisplayTopology(currentDisplayConfig);
                         if (!displayConfigApplied)
                         {
@@ -268,9 +285,6 @@ namespace DisplayProfileManager.Core
                         else
                         {
                             System.Diagnostics.Debug.WriteLine("Display topology applied successfully");
-                            
-                            // Wait for topology changes to take effect
-                            //await Task.Delay(1000);
                         }
                     }
                     else
