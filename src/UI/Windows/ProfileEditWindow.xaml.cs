@@ -1023,6 +1023,11 @@ namespace DisplayProfileManager.UI.Windows
                 _refreshRateComboBox.Items.Insert(0, currentRefreshRate);
                 _refreshRateComboBox.SelectedIndex = 0;
             }
+            else if(_refreshRateComboBox.Items.Count == 0)
+            {
+                _refreshRateComboBox.Items.Add(currentRefreshRate);
+                _refreshRateComboBox.SelectedIndex = 0;
+            }
         }
 
         private void PopulateDeviceComboBox()
