@@ -674,6 +674,68 @@ namespace DisplayProfileManager.Core
             return hotkeys;
         }
 
+        public Profile DuplicateProfile(string profileId)
+        {
+            var sourceProfile = GetProfile(profileId);
+            if (sourceProfile == null)
+                return null;
+
+            // Create new profile with duplicated data
+            var duplicatedProfile = new Profile
+            {
+                Id = Guid.NewGuid().ToString(),
+                Name = GetUniqueProfileName(sourceProfile.Name),
+                Description = sourceProfile.Description,
+                IsDefault = false, // Never duplicate as default
+                CreatedDate = DateTime.Now,
+                LastModifiedDate = DateTime.Now,
+                DisplaySettings = sourceProfile.DisplaySettings.Select(ds => new DisplaySetting
+                {
+                    DeviceName = ds.DeviceName,
+                    DeviceString = ds.DeviceString,
+                    ReadableDeviceName = ds.ReadableDeviceName,
+                    Width = ds.Width,
+                    Height = ds.Height,
+                    Frequency = ds.Frequency,
+                    DpiScaling = ds.DpiScaling,
+                    IsPrimary = ds.IsPrimary,
+                    AdapterId = ds.AdapterId,
+                    SourceId = ds.SourceId,
+                    IsEnabled = ds.IsEnabled,
+                    PathIndex = ds.PathIndex,
+                    TargetId = ds.TargetId,
+                    DisplayPositionX = ds.DisplayPositionX,
+                    DisplayPositionY = ds.DisplayPositionY
+                }).ToList(),
+                AudioSettings = sourceProfile.AudioSettings != null ? new AudioSetting
+                {
+                    DefaultPlaybackDeviceId = sourceProfile.AudioSettings.DefaultPlaybackDeviceId,
+                    PlaybackDeviceName = sourceProfile.AudioSettings.PlaybackDeviceName,
+                    DefaultCaptureDeviceId = sourceProfile.AudioSettings.DefaultCaptureDeviceId,
+                    CaptureDeviceName = sourceProfile.AudioSettings.CaptureDeviceName,
+                    ApplyPlaybackDevice = sourceProfile.AudioSettings.ApplyPlaybackDevice,
+                    ApplyCaptureDevice = sourceProfile.AudioSettings.ApplyCaptureDevice
+                } : new AudioSetting(),
+                HotkeyConfig = new HotkeyConfig() // Clear hotkey to avoid conflicts
+            };
+
+            return duplicatedProfile;
+        }
+
+        public async Task<Profile> DuplicateProfileAsync(string profileId)
+        {
+            var duplicatedProfile = DuplicateProfile(profileId);
+            if (duplicatedProfile == null)
+                return null;
+
+            if (await AddProfileAsync(duplicatedProfile))
+            {
+                return duplicatedProfile;
+            }
+
+            return null;
+        }
+
         private readonly SettingsManager _settingsManager = SettingsManager.Instance;
     }
 }

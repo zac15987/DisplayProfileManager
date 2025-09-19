@@ -111,6 +111,7 @@ namespace DisplayProfileManager.UI.Windows
                 
                 ApplyProfileButton.IsEnabled = false;
                 EditProfileButton.IsEnabled = false;
+                DuplicateProfileButton.IsEnabled = false;
                 DeleteProfileButton.IsEnabled = false;
                 ExportProfileButton.IsEnabled = false;
                 return;
@@ -299,6 +300,7 @@ namespace DisplayProfileManager.UI.Windows
 
             ApplyProfileButton.IsEnabled = true;
             EditProfileButton.IsEnabled = true;
+            DuplicateProfileButton.IsEnabled = true;
             DeleteProfileButton.IsEnabled = true;
             ExportProfileButton.IsEnabled = true;
         }
@@ -376,8 +378,57 @@ namespace DisplayProfileManager.UI.Windows
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error opening profile editor: {ex.Message}", "Error", 
+                MessageBox.Show($"Error opening profile editor: {ex.Message}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async void DuplicateProfileButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedProfile == null) return;
+
+            try
+            {
+                StatusTextBlock.Text = $"Duplicating profile: {_selectedProfile.Name}...";
+                DuplicateProfileButton.IsEnabled = false;
+
+                var duplicatedProfile = await _profileManager.DuplicateProfileAsync(_selectedProfile.Id);
+
+                if (duplicatedProfile != null)
+                {
+                    StatusTextBlock.Text = $"Profile duplicated successfully: {duplicatedProfile.Name}";
+
+                    // Refresh the profile list
+                    RefreshProfilesList();
+
+                    // Select the newly duplicated profile
+                    var duplicatedViewModel = _profileViewModels.FirstOrDefault(vm => vm.Profile.Id == duplicatedProfile.Id);
+                    if (duplicatedViewModel != null)
+                    {
+                        ProfilesListBox.SelectedItem = duplicatedViewModel;
+                    }
+
+                    // Open edit window for immediate customization
+                    var editWindow = new ProfileEditWindow(duplicatedProfile);
+                    editWindow.Owner = this;
+                    editWindow.ShowDialog();
+                }
+                else
+                {
+                    StatusTextBlock.Text = "Error duplicating profile";
+                    MessageBox.Show("Failed to duplicate the profile. Please try again.", "Error",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusTextBlock.Text = "Error duplicating profile";
+                MessageBox.Show($"Error duplicating profile: {ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                DuplicateProfileButton.IsEnabled = true;
             }
         }
 
