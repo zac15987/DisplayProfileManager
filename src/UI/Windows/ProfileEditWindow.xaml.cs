@@ -1,9 +1,9 @@
 using DisplayProfileManager.Core;
 using DisplayProfileManager.Helpers;
-using DisplayProfileManager.Properties;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -154,10 +154,6 @@ namespace DisplayProfileManager.UI.Windows
                 StatusTextBlock.Text = "Identifying monitors...";
                 IdentifyDisplaysButton.IsEnabled = false;
 
-                uint maxDPIScaling = 100;
-                //int maxResolution = 0;
-                //string maxResolution
-
                 List<DisplaySetting> displaySettings = new List<DisplaySetting>();
 
                 if(_displayControls.Count > 0)
@@ -175,49 +171,10 @@ namespace DisplayProfileManager.UI.Windows
                             }
                         }
                     }
-
-                    var maxResolutionMonitor = displaySettings.OrderByDescending(r => r.Width * r.Height).First();
-                    var dpiInfo = DpiHelper.GetDPIScalingInfo(maxResolutionMonitor.DeviceName);
-
-                    if (dpiInfo.IsInitialized)
-                    {
-                        maxDPIScaling = dpiInfo.Current;
-                    }
-
-
-                    //foreach (var setting in maxResolutionMonitors)
-                    //{
-                    //    if (setting.IsEnabled)
-                    //    {
-                    //        if((setting.Width * setting.Height) > maxResolution)
-                    //        {
-                    //            maxResolution = setting.Width * setting.Height;
-                    //        }
-
-                    //        // Use the existing DpiHelper to get the current DPI scaling
-                    //        var dpiInfo = DpiHelper.GetDPIScalingInfo(setting.DeviceName);
-
-                    //        if (dpiInfo.IsInitialized)
-                    //        {
-                    //            if (dpiInfo.Current > maxDPIScaling)
-                    //            {
-                    //                maxDPIScaling = dpiInfo.Current;
-                    //            }
-                    //        }
-                    //    }
-                    //}
                 }
                 else // Get current display to show the index
                 {
                     displaySettings = await _profileManager.GetCurrentDisplaySettingsAsync();
-
-                    foreach(var setting in displaySettings)
-                    {
-                        if (setting.DpiScaling > maxDPIScaling)
-                        {
-                            maxDPIScaling = setting.DpiScaling;
-                        }
-                    }
                 }
 
                 var identifyWindows = new List<MonitorIdentifyWindow>();
@@ -229,8 +186,15 @@ namespace DisplayProfileManager.UI.Windows
                     {
                         if (DisplayHelper.IsMonitorConnected(setting.DeviceName))
                         {
-                            var identifyWindow = new MonitorIdentifyWindow(setting, index, maxDPIScaling);
-                            identifyWindows.Add(identifyWindow);
+                            var targetScreen = System.Windows.Forms.Screen.AllScreens.FirstOrDefault(x => x.DeviceName == setting.DeviceName);
+
+                            if (targetScreen != null)
+                            {
+                                // Pass raw physical pixel coordinates directly
+                                // MonitorIdentifyWindow will use SetWindowPos to handle positioning correctly
+                                var identifyWindow = new MonitorIdentifyWindow(index, targetScreen.Bounds.Left, targetScreen.Bounds.Top);
+                                identifyWindows.Add(identifyWindow);
+                            }
                         }
                     }
                     index++;
@@ -240,6 +204,8 @@ namespace DisplayProfileManager.UI.Windows
                 foreach (var window in identifyWindows)
                 {
                     window.Show();
+
+                    Debug.WriteLine($"Index: {window.MonitorIndex}, Pos: Left:{window.Left}, Top:{window.Top}");
                 }
 
                 StatusTextBlock.Text = $"Showing identifiers on {identifyWindows.Count} monitor(s)";
