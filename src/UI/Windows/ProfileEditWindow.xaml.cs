@@ -30,8 +30,6 @@ namespace DisplayProfileManager.UI.Windows
             _isEditMode = profileToEdit != null;
             _profile = profileToEdit ?? new Profile();
 
-            InitializeWindow();
-            
             // Initialize collections before binding
             _playbackDevices = new ObservableCollection<AudioHelper.AudioDeviceInfo>();
             _captureDevices = new ObservableCollection<AudioHelper.AudioDeviceInfo>();
@@ -40,6 +38,7 @@ namespace DisplayProfileManager.UI.Windows
             OutputDeviceComboBox.ItemsSource = _playbackDevices;
             InputDeviceComboBox.ItemsSource = _captureDevices;
 
+            InitializeWindow();
         }
 
         private void InitializeWindow()
@@ -87,6 +86,7 @@ namespace DisplayProfileManager.UI.Windows
             CheckForHotkeyConflicts();
 
             // Audio settings will be populated in LoadAudioDevices which is called from constructor
+            LoadAudioDevices(false);
         }
 
         private async void DetectDisplaysButton_Click(object sender, RoutedEventArgs e)
@@ -457,7 +457,7 @@ namespace DisplayProfileManager.UI.Windows
             }
         }
 
-        private void LoadAudioDevices()
+        private void LoadAudioDevices(bool reInitialize)
         {
             try
             {
@@ -465,7 +465,10 @@ namespace DisplayProfileManager.UI.Windows
                 _playbackDevices.Clear();
                 _captureDevices.Clear();
 
-                AudioHelper.ReInitializeAudioController();
+                if(reInitialize)
+                {
+                    AudioHelper.ReInitializeAudioController();
+                }
                 
                 // Load playback devices
                 var playbackDevices = AudioHelper.GetPlaybackDevices();
@@ -596,7 +599,7 @@ namespace DisplayProfileManager.UI.Windows
             {
                 StatusTextBlock.Text = "Detecting current audio devices...";
 
-                LoadAudioDevices();
+                LoadAudioDevices(true);
                 
                 StatusTextBlock.Text = "Current audio devices detected";
             }

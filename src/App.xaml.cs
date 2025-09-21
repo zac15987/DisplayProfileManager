@@ -287,6 +287,9 @@ namespace DisplayProfileManager
             
             // Initialize theme system
             ThemeHelper.InitializeTheme();
+
+            // Initialize audio system
+            AudioHelper.InitializeAudio();
             
             // Initialize global hotkeys
             InitializeGlobalHotkeys();
