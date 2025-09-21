@@ -71,6 +71,7 @@ namespace DisplayProfileManager.UI.Windows
                 VersionTextBlock.Text = Helpers.AboutHelper.GetInformationalVersion();
                 SettingsPathTextBlock.Text = Helpers.AboutHelper.GetSettingsPath();
                 LoadCommunityFeatures();
+                LoadContributors();
             }
             catch (Exception ex)
             {
@@ -562,6 +563,120 @@ namespace DisplayProfileManager.UI.Windows
                 });
                 
                 CommunityFeaturesPanel.Children.Add(hotkeyFeaturePanel);
+
+                // Monitor disable/enable feature line
+                var monitorDisableFeaturePanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+
+                monitorDisableFeaturePanel.Children.Add(new TextBlock
+                {
+                    Text = "Monitor disable/enable feature requested by ",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+
+                var xtrillaLink = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run(AboutHelper.Community.XtrillaName))
+                {
+                    NavigateUri = new Uri(AboutHelper.Community.XtrillaUrl),
+                    Foreground = (System.Windows.Media.Brush)FindResource("LinkBrush")
+                };
+                xtrillaLink.RequestNavigate += Hyperlink_RequestNavigate;
+
+                monitorDisableFeaturePanel.Children.Add(new TextBlock(xtrillaLink)
+                {
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+
+                monitorDisableFeaturePanel.Children.Add(new TextBlock
+                {
+                    Text = " (",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+
+                var monitorDisableIssueLink = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run("Issue #4"))
+                {
+                    NavigateUri = new Uri(AboutHelper.Community.MonitorDisableIssueUrl),
+                    Foreground = (System.Windows.Media.Brush)FindResource("LinkBrush")
+                };
+                monitorDisableIssueLink.RequestNavigate += Hyperlink_RequestNavigate;
+
+                monitorDisableFeaturePanel.Children.Add(new TextBlock(monitorDisableIssueLink)
+                {
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+
+                monitorDisableFeaturePanel.Children.Add(new TextBlock
+                {
+                    Text = ")",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+
+                CommunityFeaturesPanel.Children.Add(monitorDisableFeaturePanel);
+
+                // Multi-monitor switching improvements line
+                var monitorSwitchingFeaturePanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+
+                monitorSwitchingFeaturePanel.Children.Add(new TextBlock
+                {
+                    Text = "Multi-monitor switching improvements reported by ",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+
+                var alienmarioLink2 = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run(AboutHelper.Community.AlienmarioName))
+                {
+                    NavigateUri = new Uri(AboutHelper.Community.AlienmarioUrl),
+                    Foreground = (System.Windows.Media.Brush)FindResource("LinkBrush")
+                };
+                alienmarioLink2.RequestNavigate += Hyperlink_RequestNavigate;
+
+                monitorSwitchingFeaturePanel.Children.Add(new TextBlock(alienmarioLink2)
+                {
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+
+                monitorSwitchingFeaturePanel.Children.Add(new TextBlock
+                {
+                    Text = " (",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+
+                var monitorSwitchingIssueLink = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run("Issue #5"))
+                {
+                    NavigateUri = new Uri(AboutHelper.Community.MonitorSwitchingIssueUrl),
+                    Foreground = (System.Windows.Media.Brush)FindResource("LinkBrush")
+                };
+                monitorSwitchingIssueLink.RequestNavigate += Hyperlink_RequestNavigate;
+
+                monitorSwitchingFeaturePanel.Children.Add(new TextBlock(monitorSwitchingIssueLink)
+                {
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+
+                monitorSwitchingFeaturePanel.Children.Add(new TextBlock
+                {
+                    Text = ")",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+
+                CommunityFeaturesPanel.Children.Add(monitorSwitchingFeaturePanel);
             }
             catch (Exception ex)
             {
@@ -581,6 +696,68 @@ namespace DisplayProfileManager.UI.Windows
                 Debug.WriteLine($"Error opening URL: {ex.Message}");
                 MessageBox.Show($"Could not open link: {e.Uri.AbsoluteUri}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        private void LoadContributors()
+        {
+            try
+            {
+                ContributorsPanel.Children.Clear();
+
+                // Create contributor entries dynamically using AboutHelper data
+                var contributors = new[]
+                {
+                    new { Name = AboutHelper.Community.CatriksName, Url = AboutHelper.Community.CatriksUrl, Description = "Feature request for audio device switching" },
+                    new { Name = AboutHelper.Community.AlienmarioName, Url = AboutHelper.Community.AlienmarioUrl, Description = "AudioSwitcher recommendation, design suggestions, and multi-monitor switching feedback" },
+                    new { Name = AboutHelper.Community.AnodynosName, Url = AboutHelper.Community.AnodynosUrl, Description = "Feature request for global hotkey functionality" },
+                    new { Name = AboutHelper.Community.XtrillaName, Url = AboutHelper.Community.XtrillaUrl, Description = "Feature request for monitor disable/enable in profiles" }
+                };
+
+                foreach (var contributor in contributors)
+                {
+                    var contributorPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+
+                    // Add bullet point
+                    contributorPanel.Children.Add(new TextBlock
+                    {
+                        Text = "• ",
+                        Style = (Style)FindResource("ModernTextBlockStyle"),
+                        FontSize = 12,
+                        Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                    });
+
+                    // Add contributor name as hyperlink
+                    var contributorLink = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run(contributor.Name))
+                    {
+                        NavigateUri = new Uri(contributor.Url),
+                        Foreground = (System.Windows.Media.Brush)FindResource("LinkBrush")
+                    };
+                    contributorLink.RequestNavigate += Hyperlink_RequestNavigate;
+
+                    contributorPanel.Children.Add(new TextBlock(contributorLink)
+                    {
+                        Style = (Style)FindResource("ModernTextBlockStyle"),
+                        FontSize = 12,
+                        Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                    });
+
+                    // Add description
+                    contributorPanel.Children.Add(new TextBlock
+                    {
+                        Text = " - " + contributor.Description,
+                        Style = (Style)FindResource("ModernTextBlockStyle"),
+                        FontSize = 12,
+                        Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush"),
+                        TextWrapping = TextWrapping.Wrap
+                    });
+
+                    ContributorsPanel.Children.Add(contributorPanel);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error loading contributors: {ex.Message}");
             }
         }
 

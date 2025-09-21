@@ -19,6 +19,12 @@ A lightweight Windows desktop application for managing display profiles with qui
 - 🖼️ **Per-Monitor Configuration** - Different settings for multi-monitor setups
 - 🔊 **Audio Device Switching** - Automatically switch default playback and recording devices with profiles
 - 🔄 **System Tray Profile Switching** - Instantly switch display profiles directly from the system tray
+- ⚡ **Global Hotkeys** - Assign keyboard shortcuts to instantly switch between profiles
+- 🎯 **Monitor Enable/Disable** - Selectively disable or enable monitors within profiles
+- 📍 **Display Position Tracking** - Save and restore monitor positions and arrangements
+- 🖥️ **Primary Display Management** - Control which monitor is set as primary
+- 📋 **Profile Duplication** - Quickly duplicate existing profiles for easy modifications
+- 🔍 **Monitor Identification Overlay** - Visual overlay to identify monitors during configuration
 
 ## 📸 Screenshots
 
@@ -157,8 +163,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ### 🤝 Feature Contributors
 - [@Catriks](https://github.com/Catriks) - Requested audio device switching functionality ([#1](https://github.com/zac15987/DisplayProfileManager/issues/1))
-- [@Alienmario](https://github.com/Alienmario) - Recommended AudioSwitcher.AudioApi library and suggested per-device "Don't change" options ([#1](https://github.com/zac15987/DisplayProfileManager/issues/1))
+- [@Alienmario](https://github.com/Alienmario) - Recommended AudioSwitcher.AudioApi library, suggested per-device "Don't change" options ([#1](https://github.com/zac15987/DisplayProfileManager/issues/1)), and reported multi-monitor switching issues ([#5](https://github.com/zac15987/DisplayProfileManager/issues/5))
 - [@anodynos](https://github.com/anodynos) - Suggested global hotkey functionality for quick profile switching ([#2](https://github.com/zac15987/DisplayProfileManager/issues/2))
+- [@xtrilla](https://github.com/xtrilla) - Requested monitor disable/enable feature for selective display control ([#4](https://github.com/zac15987/DisplayProfileManager/issues/4))
 - The open-source community for inspiration and support
 
 ---

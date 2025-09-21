@@ -366,6 +366,12 @@
                                     <Run Text=" - JSON serialization"/>
                                 </TextBlock>
                             </StackPanel>
+
+                            <!-- Contributors Section -->
+                            <TextBlock Text="Contributors:" Style="{StaticResource ModernTextBlockStyle}" FontWeight="SemiBold" Margin="0,12,0,4"/>
+                            <StackPanel Name="ContributorsPanel" Margin="0,0,0,4">
+                                <!-- This will be populated programmatically -->
+                            </StackPanel>
                         </StackPanel>
                     </Border>
                 </StackPanel>
