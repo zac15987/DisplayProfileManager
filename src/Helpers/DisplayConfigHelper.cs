@@ -526,6 +526,30 @@ namespace DisplayProfileManager.Helpers
 
                 }
 
+                // Disable any connected monitors that are not in the profile
+                for (int i = 0; i < paths.Length; i++)
+                {
+                    var path = paths[i];
+
+                    // Check if this monitor is connected/available
+                    if (!path.targetInfo.targetAvailable)
+                        continue;
+
+                    // Check if this path exists in the displayConfigs list
+                    bool foundInProfile = displayConfigs.Any(d =>
+                        d.TargetId == path.targetInfo.id &&
+                        d.SourceId == path.sourceInfo.id);
+
+                    if (!foundInProfile)
+                    {
+                        // This monitor is connected but not in the profile, so disable it
+                        paths[i].flags &= ~(uint)DisplayConfigPathInfoFlags.DISPLAYCONFIG_PATH_ACTIVE;
+
+                        Debug.WriteLine($"Disabling monitor not in profile: TargetId={path.targetInfo.id}, " +
+                                      $"SourceId={path.sourceInfo.id}, PathIndex={i}");
+                    }
+                }
+
                 // Apply the new configuration
                 result = SetDisplayConfig(
                     pathCount,
