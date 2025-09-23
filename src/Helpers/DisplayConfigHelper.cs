@@ -690,13 +690,60 @@ namespace DisplayProfileManager.Helpers
 
                     // Set monitor position
                     var modeInfoIndex = paths[foundPathIndex].sourceInfo.modeInfoIdx;
-                    modes[modeInfoIndex].modeInfo.sourceMode.position.x = displayInfo.DisplayPositionX;
-                    modes[modeInfoIndex].modeInfo.sourceMode.position.y = displayInfo.DisplayPositionY;
+
+                    if (modeInfoIndex >= 0 && modeInfoIndex < modes.Length)
+                    {
+                        modes[modeInfoIndex].modeInfo.sourceMode.position.x = displayInfo.DisplayPositionX;
+                        modes[modeInfoIndex].modeInfo.sourceMode.position.y = displayInfo.DisplayPositionY;
+                    }
 
                     Debug.WriteLine($"Setting targetId {displayInfo.TargetId} ({displayInfo.DeviceName}, " +
                                   $"position to: X:{displayInfo.DisplayPositionX} Y:{displayInfo.DisplayPositionY}");
 
                 }
+
+                // Find the rightmost edge of monitors in the profile
+                int currentRightEdge = 0;
+                if (displayConfigs.Count > 0)
+                {
+                    currentRightEdge = displayConfigs.Max(d => d.DisplayPositionX + d.Width);
+                }
+
+                // Move any connected monitors that are not in the profile to the right of the rightmost monitor in the profile
+                for (int i = 0; i < paths.Length; i++)
+                {
+                    var path = paths[i];
+
+                    // Check if this monitor is connected/available
+                    if (!path.targetInfo.targetAvailable)
+                        continue;
+
+                    // Check if this path exists in the displayConfigs list
+                    bool foundInProfile = displayConfigs.Any(d =>
+                        d.TargetId == path.targetInfo.id &&
+                        d.SourceId == path.sourceInfo.id);
+
+                    if (!foundInProfile)
+                    {
+                        // Set monitor position
+                        var modeInfoIndex = paths[i].sourceInfo.modeInfoIdx;
+
+                        if (modeInfoIndex >= 0 && modeInfoIndex < modes.Length)
+                        {
+                            // Position this monitor at the current right edge
+                            modes[modeInfoIndex].modeInfo.sourceMode.position.x = currentRightEdge;
+                            modes[modeInfoIndex].modeInfo.sourceMode.position.y = 0;
+
+                            // Update the right edge for the next monitor
+                            int monitorWidth = (int)modes[modeInfoIndex].modeInfo.sourceMode.width;
+                            currentRightEdge += monitorWidth;
+                        }
+
+                        Debug.WriteLine($"Change position of monitor not in profile: TargetId={path.targetInfo.id}, " +
+                                      $"SourceId={path.sourceInfo.id}, PathIndex={i}");
+                    }
+                }
+
 
                 // Apply the monitor position
                 result = SetDisplayConfig(

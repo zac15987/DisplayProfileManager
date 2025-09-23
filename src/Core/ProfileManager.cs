@@ -253,6 +253,8 @@ namespace DisplayProfileManager.Core
                         displayConfigInfo.DisplayPositionY = setting.DisplayPositionY;
                         displayConfigInfo.FriendlyName = setting.ReadableDeviceName;
                         displayConfigInfo.IsPrimary = setting.IsPrimary;
+                        displayConfigInfo.Width = setting.Width;
+                        displayConfigInfo.Height = setting.Height;
 
                         currentDisplayConfig.Add(displayConfigInfo);
                     }
