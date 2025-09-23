@@ -157,45 +157,137 @@ namespace DisplayProfileManager.UI.Windows
                 {
                     var settingPanel = new StackPanel { Margin = new Thickness(0, 0, 0, 12) };
 
-                    var deviceName = new TextBlock
+                    // Add a border for disabled monitors to make them visually distinct
+                    if (!setting.IsEnabled)
                     {
-                        Text = !string.IsNullOrEmpty(setting.ReadableDeviceName) ? setting.ReadableDeviceName : 
-                               (!string.IsNullOrEmpty(setting.DeviceString) ? setting.DeviceString : setting.DeviceName),
-                        Style = (Style)FindResource("ModernTextBlockStyle"),
-                        FontWeight = FontWeights.Medium,
-                        ToolTip = $"{setting.ReadableDeviceName ?? setting.DeviceString}\n{setting.DeviceName}"
-                    };
-                    settingPanel.Children.Add(deviceName);
-
-                    var resolution = new TextBlock
-                    {
-                        Text = $"Resolution: {setting.GetResolutionString()}",
-                        Style = (Style)FindResource("ModernTextBlockStyle"),
-                        FontSize = 12,
-                        Foreground = (SolidColorBrush)FindResource("SecondaryTextBrush")
-                    };
-                    settingPanel.Children.Add(resolution);
-
-                    var dpi = new TextBlock
-                    {
-                        Text = $"DPI Scaling: {setting.GetDpiString()}",
-                        Style = (Style)FindResource("ModernTextBlockStyle"),
-                        FontSize = 12,
-                        Foreground = (SolidColorBrush)FindResource("SecondaryTextBrush")
-                    };
-                    settingPanel.Children.Add(dpi);
-
-                    if (setting.IsPrimary)
-                    {
-                        var primary = new TextBlock
+                        var disabledBorder = new Border
                         {
-                            Text = "Primary Display",
+                            Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(20, 255, 200, 0)),
+                            BorderBrush = (SolidColorBrush)FindResource("TertiaryTextBrush"),
+                            BorderThickness = new Thickness(1),
+                            CornerRadius = new CornerRadius(4),
+                            Padding = new Thickness(8)
+                        };
+
+                        var innerPanel = new StackPanel();
+
+                        // Add disabled indicator
+                        var disabledIndicator = new TextBlock
+                        {
+                            Text = "⚠ DISABLED MONITOR",
                             Style = (Style)FindResource("ModernTextBlockStyle"),
                             FontSize = 11,
-                            Foreground = (SolidColorBrush)FindResource("ButtonBackgroundBrush"),
-                            FontWeight = FontWeights.Medium
+                            Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(200, 100, 0)),
+                            FontWeight = FontWeights.Bold,
+                            Margin = new Thickness(0, 0, 0, 4)
                         };
-                        settingPanel.Children.Add(primary);
+                        innerPanel.Children.Add(disabledIndicator);
+
+                        var deviceName = new TextBlock
+                        {
+                            Text = !string.IsNullOrEmpty(setting.ReadableDeviceName) ? setting.ReadableDeviceName :
+                                   (!string.IsNullOrEmpty(setting.DeviceString) ? setting.DeviceString : setting.DeviceName),
+                            Style = (Style)FindResource("ModernTextBlockStyle"),
+                            FontWeight = FontWeights.Medium,
+                            Opacity = 0.7,
+                            ToolTip = $"{setting.ReadableDeviceName ?? setting.DeviceString}\n{setting.DeviceName}\n\nThis monitor will be disabled when applying this profile"
+                        };
+                        innerPanel.Children.Add(deviceName);
+
+                        var resolution = new TextBlock
+                        {
+                            Text = $"Resolution: {setting.GetResolutionString()}",
+                            Style = (Style)FindResource("ModernTextBlockStyle"),
+                            FontSize = 12,
+                            Foreground = (SolidColorBrush)FindResource("SecondaryTextBrush"),
+                            Opacity = 0.6
+                        };
+                        innerPanel.Children.Add(resolution);
+
+                        var dpi = new TextBlock
+                        {
+                            Text = $"DPI Scaling: {setting.GetDpiString()}",
+                            Style = (Style)FindResource("ModernTextBlockStyle"),
+                            FontSize = 12,
+                            Foreground = (SolidColorBrush)FindResource("SecondaryTextBrush"),
+                            Opacity = 0.6
+                        };
+                        innerPanel.Children.Add(dpi);
+
+                        if (setting.IsPrimary)
+                        {
+                            var primary = new TextBlock
+                            {
+                                Text = "Primary Display",
+                                Style = (Style)FindResource("ModernTextBlockStyle"),
+                                FontSize = 11,
+                                Foreground = (SolidColorBrush)FindResource("ButtonBackgroundBrush"),
+                                FontWeight = FontWeights.Medium,
+                                Opacity = 0.7
+                            };
+                            innerPanel.Children.Add(primary);
+                        }
+
+                        disabledBorder.Child = innerPanel;
+                        settingPanel.Children.Add(disabledBorder);
+                    }
+                    else
+                    {
+                        // Enabled monitor - with border for consistency
+                        var enabledBorder = new Border
+                        {
+                            Background = new SolidColorBrush(System.Windows.Media.Colors.Transparent),
+                            BorderBrush = (SolidColorBrush)FindResource("TertiaryTextBrush"),
+                            BorderThickness = new Thickness(1),
+                            CornerRadius = new CornerRadius(4),
+                            Padding = new Thickness(8)
+                        };
+
+                        var innerPanel = new StackPanel();
+
+                        var deviceName = new TextBlock
+                        {
+                            Text = !string.IsNullOrEmpty(setting.ReadableDeviceName) ? setting.ReadableDeviceName :
+                                   (!string.IsNullOrEmpty(setting.DeviceString) ? setting.DeviceString : setting.DeviceName),
+                            Style = (Style)FindResource("ModernTextBlockStyle"),
+                            FontWeight = FontWeights.Medium,
+                            ToolTip = $"{setting.ReadableDeviceName ?? setting.DeviceString}\n{setting.DeviceName}"
+                        };
+                        innerPanel.Children.Add(deviceName);
+
+                        var resolution = new TextBlock
+                        {
+                            Text = $"Resolution: {setting.GetResolutionString()}",
+                            Style = (Style)FindResource("ModernTextBlockStyle"),
+                            FontSize = 12,
+                            Foreground = (SolidColorBrush)FindResource("SecondaryTextBrush")
+                        };
+                        innerPanel.Children.Add(resolution);
+
+                        var dpi = new TextBlock
+                        {
+                            Text = $"DPI Scaling: {setting.GetDpiString()}",
+                            Style = (Style)FindResource("ModernTextBlockStyle"),
+                            FontSize = 12,
+                            Foreground = (SolidColorBrush)FindResource("SecondaryTextBrush")
+                        };
+                        innerPanel.Children.Add(dpi);
+
+                        if (setting.IsPrimary)
+                        {
+                            var primary = new TextBlock
+                            {
+                                Text = "Primary Display",
+                                Style = (Style)FindResource("ModernTextBlockStyle"),
+                                FontSize = 11,
+                                Foreground = (SolidColorBrush)FindResource("ButtonBackgroundBrush"),
+                                FontWeight = FontWeights.Medium
+                            };
+                            innerPanel.Children.Add(primary);
+                        }
+
+                        enabledBorder.Child = innerPanel;
+                        settingPanel.Children.Add(enabledBorder);
                     }
 
                     ProfileDetailsPanel.Children.Add(settingPanel);
