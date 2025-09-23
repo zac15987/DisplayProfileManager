@@ -267,17 +267,15 @@
                     </StackPanel>
                 </Grid>
 
-                <Border Background="{DynamicResource ContentBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" MinHeight="200">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
-                        <StackPanel Name="DisplaySettingsPanel">
-                            <TextBlock Text="No display settings configured. Click 'Detect Current' to auto-configure or 'Add Display' to manually add displays." 
-                                       Style="{StaticResource ModernTextBlockStyle}" 
-                                       Foreground="{DynamicResource TertiaryTextBrush}" 
-                                       TextAlignment="Center" 
-                                       TextWrapping="Wrap" 
-                                       Margin="32"/>
-                        </StackPanel>
-                    </ScrollViewer>
+                <Border Background="{DynamicResource ContentBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" MinHeight="200" Padding="16">
+                    <StackPanel Name="DisplaySettingsPanel">
+                        <TextBlock Text="No display settings configured. Click 'Detect Current' to auto-configure or 'Add Display' to manually add displays."
+                                   Style="{StaticResource ModernTextBlockStyle}"
+                                   Foreground="{DynamicResource TertiaryTextBrush}"
+                                   TextAlignment="Center"
+                                   TextWrapping="Wrap"
+                                   Margin="32"/>
+                    </StackPanel>
                 </Border>
 
                 <!-- Audio Settings Section -->
