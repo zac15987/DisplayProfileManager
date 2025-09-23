@@ -504,6 +504,10 @@ namespace DisplayProfileManager.Helpers
                     return false;
                 }
 
+                // Clone the original configuration for potential revert
+                var originalPaths = (DISPLAYCONFIG_PATH_INFO[])paths.Clone();
+                var originalModes = (DISPLAYCONFIG_MODE_INFO[])modes.Clone();
+
                 // Update path flags based on topology settings
                 foreach (var displayInfo in displayConfigs)
                 {
@@ -564,20 +568,56 @@ namespace DisplayProfileManager.Helpers
                 if (result != ERROR_SUCCESS)
                 {
                     Debug.WriteLine($"SetDisplayConfig failed with error: {result}");
-                    
+
                     // Try to provide more specific error information
+                    string errorMessage = "";
                     switch (result)
                     {
                         case ERROR_INVALID_PARAMETER:
                             Debug.WriteLine("Invalid parameter - configuration may be invalid");
+                            errorMessage = "Invalid display configuration";
                             break;
                         case ERROR_GEN_FAILURE:
                             Debug.WriteLine("General failure - display configuration may not be supported");
+                            errorMessage = "Display configuration not supported";
                             break;
                         default:
                             Debug.WriteLine($"Unknown error code: {result}");
+                            errorMessage = $"Unknown error (code: {result})";
                             break;
                     }
+
+                    // Attempt to revert to original configuration
+                    Debug.WriteLine("Attempting to revert to original display configuration...");
+                    int revertResult = SetDisplayConfig(
+                        pathCount,
+                        originalPaths,
+                        modeCount,
+                        originalModes,
+                        SetDisplayConfigFlags.SDC_APPLY |
+                        SetDisplayConfigFlags.SDC_USE_SUPPLIED_DISPLAY_CONFIG |
+                        SetDisplayConfigFlags.SDC_ALLOW_CHANGES |
+                        SetDisplayConfigFlags.SDC_SAVE_TO_DATABASE);
+
+                    if (revertResult == ERROR_SUCCESS)
+                    {
+                        Debug.WriteLine("Successfully reverted to original display configuration");
+                        System.Windows.MessageBox.Show(
+                            $"Failed to apply display configuration: {errorMessage}\n\nThe display settings have been reverted to their previous state.",
+                            "Display Configuration Error",
+                            System.Windows.MessageBoxButton.OK,
+                            System.Windows.MessageBoxImage.Warning);
+                    }
+                    else
+                    {
+                        Debug.WriteLine($"Failed to revert display configuration. Error: {revertResult}");
+                        System.Windows.MessageBox.Show(
+                            $"Failed to apply display configuration: {errorMessage}\n\nWarning: Could not revert to previous settings. You may need to manually adjust your display settings.",
+                            "Display Configuration Error",
+                            System.Windows.MessageBoxButton.OK,
+                            System.Windows.MessageBoxImage.Error);
+                    }
+
                     return false;
                 }
 
@@ -644,6 +684,9 @@ namespace DisplayProfileManager.Helpers
                 {
                     var foundPathIndex = Array.FindIndex(paths,
                         x => (x.targetInfo.id == displayInfo.TargetId) && (x.sourceInfo.id == displayInfo.SourceId));
+
+                    if (!paths[foundPathIndex].targetInfo.targetAvailable)
+                        continue;
 
                     // Set monitor position
                     var modeInfoIndex = paths[foundPathIndex].sourceInfo.modeInfoIdx;
