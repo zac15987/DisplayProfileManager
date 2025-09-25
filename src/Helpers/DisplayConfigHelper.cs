@@ -695,11 +695,10 @@ namespace DisplayProfileManager.Helpers
                     {
                         modes[modeInfoIndex].modeInfo.sourceMode.position.x = displayInfo.DisplayPositionX;
                         modes[modeInfoIndex].modeInfo.sourceMode.position.y = displayInfo.DisplayPositionY;
-                    }
 
-                    Debug.WriteLine($"Setting targetId {displayInfo.TargetId} ({displayInfo.DeviceName}, " +
+                        Debug.WriteLine($"Setting targetId {displayInfo.TargetId} ({displayInfo.DeviceName}, " +
                                   $"position to: X:{displayInfo.DisplayPositionX} Y:{displayInfo.DisplayPositionY}");
-
+                    }
                 }
 
                 // Find the rightmost edge of monitors in the profile
@@ -716,6 +715,9 @@ namespace DisplayProfileManager.Helpers
 
                     // Check if this monitor is connected/available
                     if (!path.targetInfo.targetAvailable)
+                        continue;
+
+                    if(path.targetInfo.scanLineOrdering == 0)
                         continue;
 
                     // Check if this path exists in the displayConfigs list
@@ -737,10 +739,11 @@ namespace DisplayProfileManager.Helpers
                             // Update the right edge for the next monitor
                             int monitorWidth = (int)modes[modeInfoIndex].modeInfo.sourceMode.width;
                             currentRightEdge += monitorWidth;
-                        }
 
-                        Debug.WriteLine($"Change position of monitor not in profile: TargetId={path.targetInfo.id}, " +
+
+                            Debug.WriteLine($"Change position of monitor not in profile: TargetId={path.targetInfo.id}, " +
                                       $"SourceId={path.sourceInfo.id}, PathIndex={i}");
+                        }
                     }
                 }
 
