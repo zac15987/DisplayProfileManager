@@ -1,10 +1,7 @@
-using DisplayProfileManager.Core;
-using DisplayProfileManager.Properties;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Threading;
 
 namespace DisplayProfileManager.Helpers
 {
@@ -117,45 +114,6 @@ namespace DisplayProfileManager.Helpers
 
             return adapterIdStruct;
         }
-
-        //public static DPIScalingInfo GetDPIScalingInfo(string adapterId, uint sourceId)
-        //{
-        //    var adapterIdStruct = GetLUIDFromString(adapterId);
-
-        //    var dpiInfo = new DPIScalingInfo();
-
-        //    var requestPacket = new DISPLAYCONFIG_SOURCE_DPI_SCALE_GET
-        //    {
-        //        header = new DISPLAYCONFIG_DEVICE_INFO_HEADER
-        //        {
-        //            type = DISPLAYCONFIG_DEVICE_INFO_TYPE_CUSTOM.DISPLAYCONFIG_DEVICE_INFO_GET_DPI_SCALE,
-        //            size = (uint)Marshal.SizeOf<DISPLAYCONFIG_SOURCE_DPI_SCALE_GET>(),
-        //            adapterId = adapterIdStruct,
-        //            id = sourceId
-        //        }
-        //    };
-
-        //    int result = DisplayConfigGetDeviceInfo(ref requestPacket.header);
-        //    if (result == 0)
-        //    {
-        //        if (requestPacket.curScaleRel < requestPacket.minScaleRel)
-        //            requestPacket.curScaleRel = requestPacket.minScaleRel;
-        //        else if (requestPacket.curScaleRel > requestPacket.maxScaleRel)
-        //            requestPacket.curScaleRel = requestPacket.maxScaleRel;
-
-        //        int minAbs = Math.Abs(requestPacket.minScaleRel);
-        //        if (DpiVals.Length >= minAbs + requestPacket.maxScaleRel + 1)
-        //        {
-        //            dpiInfo.Current = DpiVals[minAbs + requestPacket.curScaleRel];
-        //            dpiInfo.Recommended = DpiVals[minAbs];
-        //            dpiInfo.Maximum = DpiVals[minAbs + requestPacket.maxScaleRel];
-        //            dpiInfo.Minimum = DpiVals[0];
-        //            dpiInfo.IsInitialized = true;
-        //        }
-        //    }
-
-        //    return dpiInfo;
-        //}
 
         public static DPIScalingInfo GetDPIScalingInfo(string deviceName)
         {

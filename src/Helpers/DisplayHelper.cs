@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Management;
+using System.Runtime.InteropServices;
 
 namespace DisplayProfileManager.Helpers
 {
@@ -167,6 +167,19 @@ namespace DisplayProfileManager.Helpers
             public string Manufacturer { get; set; } = string.Empty;
         }
 
+        public class MonitorIdInfo
+        {
+            public string InstanceName { get; set; } = string.Empty;
+            public string ManufacturerName { get; set; } = string.Empty;
+            public string ProductCodeID { get; set; } = string.Empty;
+            public string SerialNumberID { get; set; } = string.Empty;
+
+            public override string ToString()
+            {
+                return $"{ManufacturerName}-{ProductCodeID}-{SerialNumberID}";
+            }
+        }
+
         #endregion
 
         #region Public Methods
@@ -303,10 +316,9 @@ namespace DisplayProfileManager.Helpers
 
         public static List<string> GetSupportedResolutionsOnly(string deviceName)
         {
-            // If no device name specified, use hardcode resolutions
             if (string.IsNullOrEmpty(deviceName))
             {
-                return new List<string> { "1920x1080", "1366x768", "1280x720" }; // Basic fallback
+                return new List<string>();
             }
 
             var allResolutions = GetAvailableResolutions(deviceName);
@@ -357,13 +369,13 @@ namespace DisplayProfileManager.Helpers
             return sortedRates;
         }
 
-        public static List<MonitorInfo> GetMonitorsFromWMI()
+        public static List<MonitorInfo> GetMonitorsFromWin32PnPEntity()
         {
             var monitors = new List<MonitorInfo>();
             
             try
             {
-                System.Diagnostics.Debug.WriteLine("Querying WMI for monitor information...");
+                System.Diagnostics.Debug.WriteLine("Querying WMI Win32PnPEntity for monitor information...");
                 
                 // Query Win32_PnPEntity for monitor devices
                 using (var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_PnPEntity WHERE Service='monitor' OR PNPClass='Monitor'"))
@@ -381,7 +393,7 @@ namespace DisplayProfileManager.Helpers
                                 Manufacturer = obj["Manufacturer"]?.ToString() ?? ""
                             };
                             
-                            System.Diagnostics.Debug.WriteLine($"WMI Monitor: Name='{monitor.Name}', DeviceID='{monitor.DeviceID}', PnPDeviceID='{monitor.PnPDeviceID}'");
+                            System.Diagnostics.Debug.WriteLine($"WMI Win32PnPEntity Monitor: Name='{monitor.Name}', DeviceID='{monitor.DeviceID}', PnPDeviceID='{monitor.PnPDeviceID}'");
                             
                             // Filter out non-monitor devices
                             if (!string.IsNullOrEmpty(monitor.Name))
@@ -392,14 +404,130 @@ namespace DisplayProfileManager.Helpers
                     }
                 }
                 
-                System.Diagnostics.Debug.WriteLine($"Found {monitors.Count} monitors from WMI");
+                System.Diagnostics.Debug.WriteLine($"Found {monitors.Count} monitors from WMI Win32PnPEntity");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"WMI query failed: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"WMI Win32PnPEntity query failed: {ex.Message}");
             }
             
             return monitors;
+        }
+
+        public static List<MonitorIdInfo> GetMonitorIDsFromWmiMonitorID()
+        {
+            var monitorIDs = new List<MonitorIdInfo>();
+
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("Querying WMI WmiMonitorID for monitor information...");
+
+                var scope = new ManagementScope(@"\\.\root\wmi");
+                var query = new ObjectQuery("SELECT * FROM WmiMonitorID");
+
+                // Query WmiMonitorID for monitor ids
+                using (var searcher = new ManagementObjectSearcher(scope, query))
+                {
+                    using (var collection = searcher.Get())
+                    {
+                        foreach (ManagementObject obj in collection)
+                        {
+                            var monitorId = new MonitorIdInfo
+                            {
+                                InstanceName = obj["InstanceName"]?.ToString() ?? "",
+                                // ManufacturerName, ProductCodeID, SerialNumberID are returned as ushort[] (UTF-16 words)
+                                ManufacturerName = ArrayUshortToString(obj["ManufacturerName"] as ushort[]),
+                                ProductCodeID = ArrayUshortToHexString(obj["ProductCodeID"] as ushort[]),
+                                SerialNumberID = ArrayUshortToString(obj["SerialNumberID"] as ushort[]),
+                            };
+
+                            System.Diagnostics.Debug.WriteLine($"WMI WmiMonitorID Monitor: " +
+                                $"InstanceName='{monitorId.InstanceName}', " +
+                                $"ManufacturerName='{monitorId.ManufacturerName}', " +
+                                $"ProductCodeID='{monitorId.ProductCodeID}', " +
+                                $"SerialNumberID='{monitorId.SerialNumberID}'");
+
+                            // Filter out non-monitor devices
+                            if (!string.IsNullOrEmpty(monitorId.InstanceName))
+                            {
+                                monitorIDs.Add(monitorId);
+                            }
+                            
+                        }
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine($"Found {monitorIDs.Count} monitor ids from WMI WmiMonitorID");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"WMI WmiMonitorID query failed: {ex.Message}");
+            }
+
+            return monitorIDs;
+        }
+
+        private static string ArrayUshortToString(ushort[] arr)
+        {
+            if (arr == null || arr.Length == 0) return string.Empty;
+            var chars = arr.Select(u => (char)u).ToArray();
+            return new string(chars).Trim('\0');
+        }
+
+        // ProductCodeID is often numeric; WMI gives ushort[]; convert to hex string for clarity
+        private static string ArrayUshortToHexString(ushort[] arr)
+        {
+            if (arr == null || arr.Length == 0) return string.Empty;
+            // join bytes: each ushort value is a char code; sometimes product ID fits in two bytes
+            var bytes = arr.SelectMany(u => BitConverter.GetBytes(u)).ToArray();
+            // strip trailing zeros
+            int len = bytes.Length;
+            while (len > 0 && bytes[len - 1] == 0) len--;
+            return BitConverter.ToString(bytes, 0, len).Replace("-", "");
+        }
+
+        public static string GetDeviceNameFromWMIMonitorID(string manufacturerName, string productCodeID, string serialNumberID)
+        {
+            if(string.IsNullOrEmpty(manufacturerName) || 
+                string.IsNullOrEmpty(productCodeID) || 
+                string.IsNullOrEmpty(serialNumberID))
+            {
+                return string.Empty;
+            }
+
+            string targetInstanceName = string.Empty;
+
+            var monitorIDs = GetMonitorIDsFromWmiMonitorID();
+            foreach (var monitorId in monitorIDs)
+            {
+                // Match by ManufacturerName, ProductCodeID and SerialNumberID
+                if (monitorId.ManufacturerName.Equals(manufacturerName, StringComparison.OrdinalIgnoreCase) &&
+                    monitorId.ProductCodeID.Equals(productCodeID, StringComparison.OrdinalIgnoreCase) &&
+                    monitorId.SerialNumberID.Equals(serialNumberID, StringComparison.OrdinalIgnoreCase))
+                {
+                    targetInstanceName = monitorId.InstanceName;
+                    System.Diagnostics.Debug.WriteLine("Found matching monitor ID: " + monitorId.ToString());
+                }
+            }
+
+            if(string.IsNullOrEmpty(targetInstanceName))
+            {
+                System.Diagnostics.Debug.WriteLine("No matching monitor ID found for: " +
+                    $"Manufacturer='{manufacturerName}', ProductCodeID='{productCodeID}', SerialNumberID='{serialNumberID}'");
+                return string.Empty;
+            }
+
+            var displayConfigs = DisplayConfigHelper.GetDisplayConfigs();
+            foreach (var display in displayConfigs)
+            {
+                if(targetInstanceName.Contains($"UID{display.TargetId}"))
+                {
+                    System.Diagnostics.Debug.WriteLine($"Matched InstanceName '{targetInstanceName}' to DeviceName '{display.DeviceName}'");
+                    return display.DeviceName;
+                }
+            }
+
+            return string.Empty;
         }
 
         public static bool IsMonitorConnected(string deviceName)

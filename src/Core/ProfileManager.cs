@@ -2,6 +2,7 @@ using DisplayProfileManager.Helpers;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -168,16 +169,21 @@ namespace DisplayProfileManager.Core
 
                 try
                 {
+                    Debug.WriteLine("Getting current display settings...");
+
                     List<DisplayHelper.DisplayInfo> displays = DisplayHelper.GetDisplays();
 
                     // Get monitor information using WMI
-                    List<DisplayHelper.MonitorInfo> monitors = DisplayHelper.GetMonitorsFromWMI();
+                    List<DisplayHelper.MonitorInfo> monitors = DisplayHelper.GetMonitorsFromWin32PnPEntity();
+
+                    List<DisplayHelper.MonitorIdInfo> monitorIDs = DisplayHelper.GetMonitorIDsFromWmiMonitorID();
 
                     // Get display configs using QueueDisplayConfig
                     List<DisplayConfigHelper.DisplayConfigInfo> displayConfigs = DisplayConfigHelper.GetDisplayConfigs();
                     
                     if (displays.Count > 0 &&
                         monitors.Count > 0 &&
+                        monitorIDs.Count > 0 &&
                         displayConfigs.Count > 0)
                     {
                         for (int i = 0; i < displays.Count; i++)
@@ -186,6 +192,7 @@ namespace DisplayProfileManager.Core
 
                             if (foundConfig == null)
                             {
+                                Debug.WriteLine("No display config found for " + displays[i].DeviceName);
                                 continue;
                             }
 
@@ -193,8 +200,17 @@ namespace DisplayProfileManager.Core
 
                             if (foundMonitor == null)
                             {
+                                Debug.WriteLine("No monitor found for " + foundConfig.TargetId);
                                 continue;
                             }
+
+                            var foundMonitorId = monitorIDs.Find(x => x.InstanceName.ToUpper().Contains(foundMonitor.PnPDeviceID.ToUpper()));
+
+                            if(foundMonitorId == null)
+                            {
+                                Debug.WriteLine("No monitor ID found for " + foundMonitor.PnPDeviceID);
+                                continue;
+                            }    
 
                             string adpaterIdText = $"{foundConfig.AdapterId.HighPart:X8}{foundConfig.AdapterId.LowPart:X8}";
                             DpiHelper.DPIScalingInfo dpiInfo = DpiHelper.GetDPIScalingInfo(displays[i].DeviceName);
@@ -215,9 +231,14 @@ namespace DisplayProfileManager.Core
                             setting.TargetId = foundConfig.TargetId;
                             setting.DisplayPositionX = foundConfig.DisplayPositionX;
                             setting.DisplayPositionY = foundConfig.DisplayPositionY;
+                            setting.ManufacturerName = foundMonitorId.ManufacturerName;
+                            setting.ProductCodeID = foundMonitorId.ProductCodeID;
+                            setting.SerialNumberID = foundMonitorId.SerialNumberID;
 
                             settings.Add(setting);
                         }
+
+                        Debug.WriteLine($"Found {settings.Count} display settings");
                     }
                 }
                 catch (Exception ex)
@@ -243,6 +264,8 @@ namespace DisplayProfileManager.Core
 
                     foreach (var setting in profile.DisplaySettings)
                     {
+                        setting.UpdateDeviceNameFromWMI();
+
                         DisplayConfigHelper.DisplayConfigInfo displayConfigInfo = new DisplayConfigHelper.DisplayConfigInfo();
                         displayConfigInfo.DeviceName = setting.DeviceName;
                         displayConfigInfo.IsEnabled = setting.IsEnabled;
@@ -707,7 +730,10 @@ namespace DisplayProfileManager.Core
                     PathIndex = ds.PathIndex,
                     TargetId = ds.TargetId,
                     DisplayPositionX = ds.DisplayPositionX,
-                    DisplayPositionY = ds.DisplayPositionY
+                    DisplayPositionY = ds.DisplayPositionY,
+                    ManufacturerName = ds.ManufacturerName,
+                    ProductCodeID = ds.ProductCodeID,
+                    SerialNumberID = ds.SerialNumberID
                 }).ToList(),
                 AudioSettings = sourceProfile.AudioSettings != null ? new AudioSetting
                 {

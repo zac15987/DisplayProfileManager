@@ -737,6 +737,8 @@ namespace DisplayProfileManager.UI.Windows
 
         public DisplaySettingControl(DisplaySetting setting, int monitorIndex = 1)
         {
+            setting.UpdateDeviceNameFromWMI();
+
             _setting = setting;
             _monitorIndex = monitorIndex;
             InitializeControl();
@@ -1037,7 +1039,11 @@ namespace DisplayProfileManager.UI.Windows
         {
             _deviceTextBox.Text = _setting.ReadableDeviceName;
             _deviceTextBox.Tag = _setting.DeviceName;
-            _deviceTextBox.ToolTip = $"{_setting.ReadableDeviceName}\n{_setting.DeviceName}\n{_setting.TargetId}";
+            _deviceTextBox.ToolTip = 
+                $"Name: {_setting.ReadableDeviceName}\n" +
+                $"Device Name: {_setting.DeviceName}\n" +
+                $"Target ID: {_setting.TargetId}\n" +
+                $"EDID: {_setting.ManufacturerName}-{_setting.ProductCodeID}-{_setting.SerialNumberID}";
         }
 
         private void ResolutionComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -1121,7 +1127,10 @@ namespace DisplayProfileManager.UI.Windows
                 PathIndex = _setting.PathIndex,
                 TargetId = _setting.TargetId,
                 DisplayPositionX = _setting.DisplayPositionX,
-                DisplayPositionY = _setting.DisplayPositionY
+                DisplayPositionY = _setting.DisplayPositionY,
+                ManufacturerName = _setting.ManufacturerName,
+                ProductCodeID = _setting.ProductCodeID,
+                SerialNumberID = _setting.SerialNumberID
             };
         }
 

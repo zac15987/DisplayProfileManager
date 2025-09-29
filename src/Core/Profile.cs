@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using DisplayProfileManager.Helpers;
 using Newtonsoft.Json;
 
 namespace DisplayProfileManager.Core
@@ -116,6 +117,15 @@ namespace DisplayProfileManager.Core
         [JsonProperty("displayPositionY")]
         public int DisplayPositionY { get; set; } = 0;
 
+        [JsonProperty("manufacturerName")]
+        public string ManufacturerName { get; set; } = string.Empty;
+
+        [JsonProperty("productCodeID")]
+        public string ProductCodeID { get; set; } = string.Empty;
+
+        [JsonProperty("serialNumberID")]
+        public string SerialNumberID { get; set; } = string.Empty;
+
         public DisplaySetting()
         {
         }
@@ -134,6 +144,17 @@ namespace DisplayProfileManager.Core
         {
             var enabledStatus = IsEnabled ? "Enabled" : "Disabled";
             return $"{DeviceName}: {GetResolutionString()}, DPI: {GetDpiString()} [{enabledStatus}]";
+        }
+
+        public void UpdateDeviceNameFromWMI()
+        {
+            string resolvedDeviceName = DisplayHelper.GetDeviceNameFromWMIMonitorID(ManufacturerName, ProductCodeID, SerialNumberID);
+            if (string.IsNullOrEmpty(resolvedDeviceName))
+            {
+                resolvedDeviceName = DeviceName;
+            }
+
+            DeviceName = resolvedDeviceName;
         }
     }
 
