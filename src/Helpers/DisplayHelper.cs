@@ -490,7 +490,8 @@ namespace DisplayProfileManager.Helpers
         {
             if(string.IsNullOrEmpty(manufacturerName) || 
                 string.IsNullOrEmpty(productCodeID) || 
-                string.IsNullOrEmpty(serialNumberID))
+                string.IsNullOrEmpty(serialNumberID) ||
+                serialNumberID == "0")
             {
                 return string.Empty;
             }
@@ -507,6 +508,7 @@ namespace DisplayProfileManager.Helpers
                 {
                     targetInstanceName = monitorId.InstanceName;
                     System.Diagnostics.Debug.WriteLine("Found matching monitor ID: " + monitorId.ToString());
+                    break;
                 }
             }
 
