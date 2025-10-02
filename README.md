@@ -13,7 +13,7 @@ A lightweight Windows desktop application for managing display profiles with qui
 - 🔄 **Quick Profile Switching** - Change profiles instantly from the system tray
 - 📐 **Resolution & Refresh Rate Control** - Adjust display settings per monitor
 - 🔍 **DPI Scaling Management** - Control Windows DPI scaling for each profile
-- 🚀 **Auto-start with Windows** - Launch automatically and apply your preferred profile
+- 🚀 **Auto-start with Windows** - Dual modes: Registry (no admin) or Task Scheduler (faster, requires admin setup)
 - 🎨 **Modern UI with Theme Support** - Light, dark or system themes
 - 💾 **Profile Import/Export** - Backup your configurations
 - 🖼️ **Per-Monitor Configuration** - Different settings for multi-monitor setups
@@ -86,8 +86,10 @@ A lightweight Windows desktop application for managing display profiles with qui
 
 ### Managing Settings
 - Right-click the system tray icon and select "Settings"
-- Configure auto-start behavior
-- Choose your default profile
+- Configure auto-start behavior:
+  - **Registry Mode**: No administrator privileges required, standard startup
+  - **Task Scheduler Mode**: Requires admin for initial setup, provides faster launch times
+- Choose your default profile to apply on Windows startup
 - Toggle between light, dark or system themes
 
 ## 🛠️ Development
@@ -119,18 +121,73 @@ start bin\Release\DisplayProfileManager.exe
 DisplayProfileManager/
 ├── src/
 │   ├── Core/              # Business logic and profile management
+│   │   ├── Profile.cs
+│   │   ├── ProfileManager.cs (thread-safe singleton)
+│   │   ├── SettingsManager.cs (thread-safe singleton)
+│   │   └── HotkeyConfig.cs
 │   ├── Helpers/           # Windows API wrappers and utilities
+│   │   ├── DisplayHelper.cs
+│   │   ├── DisplayConfigHelper.cs
+│   │   ├── DpiHelper.cs
+│   │   ├── AudioHelper.cs
+│   │   ├── AutoStartHelper.cs
+│   │   ├── GlobalHotkeyHelper.cs
+│   │   ├── ThemeHelper.cs
+│   │   ├── LoggerHelper.cs
+│   │   └── KeyConverter.cs
 │   └── UI/                # WPF views and view models
+│       ├── Controls/      # Custom WPF controls
+│       ├── Converters/    # Value converters
+│       ├── Themes/        # Light/Dark theme resources
+│       ├── ViewModels/    # MVVM view models
+│       ├── Windows/       # Application windows
+│       └── TrayIcon.cs
 ├── Properties/            # Assembly information and resources
 └── docs/                  # Documentation and samples
 ```
 
 ### Architecture
-- **Pattern**: MVVM with singleton managers
-- **UI Framework**: WPF (.NET Framework 4.8)
-- **Storage**: JSON files in `%AppData%\DisplayProfileManager\`
-- **Display APIs**: Windows Display Configuration APIs via P/Invoke
-- **Audio APIs**: AudioSwitcher.AudioApi for audio device management
+
+**Core Patterns**
+- **MVVM**: ViewModels for UI state management
+- **Singletons**: Thread-safe ProfileManager and SettingsManager for global state
+- **Async/Await**: All file I/O operations use asynchronous patterns
+- **P/Invoke**: Windows Display/DPI/Audio APIs accessed via Helper classes
+
+**UI Framework**
+- WPF (.NET Framework 4.8)
+- Theme support (Light, Dark, System) via ResourceDictionary
+
+**Storage**
+- **Profiles**: Individual `.dpm` files in `%AppData%\DisplayProfileManager\Profiles\` (JSON format)
+- **Settings**: `%AppData%\DisplayProfileManager\settings.json` (JSON format)
+- **Logs**: `%AppData%\DisplayProfileManager\Logs\` (NLog with daily rotation, 30-day retention)
+
+**APIs & Libraries**
+- **Display Management**: Windows Display Configuration APIs via P/Invoke
+- **Audio Management**: AudioSwitcher.AudioApi for device control
+- **Logging**: NLog for structured logging with automatic daily file rotation
+- **Serialization**: Newtonsoft.Json for profile and settings persistence
+
+### Data Storage
+
+All application data is stored in the user's AppData directory to support standard user privileges:
+
+**Profile Files**
+- Location: `%AppData%\DisplayProfileManager\Profiles\`
+- Format: Individual `.dpm` files (JSON)
+- Each profile is stored as a separate file for easy backup and portability
+- Example: `Gaming.dpm`, `Work.dpm`
+
+**Settings File**
+- Location: `%AppData%\DisplayProfileManager\settings.json`
+- Contains: Theme preferences, auto-start configuration, default profile selection
+
+**Log Files**
+- Location: `%AppData%\DisplayProfileManager\Logs\`
+- Format: `DisplayProfileManager-YYYY-MM-DD.log`
+- Rotation: Daily with 30-day retention
+- Useful for troubleshooting display configuration issues
 
 ## 🤝 Contributing
 
