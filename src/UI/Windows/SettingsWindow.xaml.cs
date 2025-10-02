@@ -73,6 +73,7 @@ namespace DisplayProfileManager.UI.Windows
                 VersionTextBlock.Text = Helpers.AboutHelper.GetInformationalVersion();
                 SettingsPathTextBlock.Text = Helpers.AboutHelper.GetSettingsPath();
                 LoadCommunityFeatures();
+                LoadLibraries();
                 LoadContributors();
             }
             catch (Exception ex)
@@ -702,6 +703,69 @@ namespace DisplayProfileManager.UI.Windows
                 logger.Error(ex, "Error opening URL: {Url}", e.Uri.AbsoluteUri);
                 MessageBox.Show($"Could not open link: {e.Uri.AbsoluteUri}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        private void LoadLibraries()
+        {
+            try
+            {
+                LibrariesPanel.Children.Clear();
+
+                // Create library entries dynamically using AboutHelper data
+                var libraries = new[]
+                {
+                    new { Name = AboutHelper.Libraries.NLogName, Version = AboutHelper.Libraries.NLogVersion, License = AboutHelper.Libraries.NLogLicense, Url = AboutHelper.Libraries.NLogUrl, Description = "Logging framework" },
+                    new { Name = AboutHelper.Libraries.NewtonsoftName, Version = AboutHelper.Libraries.NewtonsoftVersion, License = AboutHelper.Libraries.NewtonsoftLicense, Url = AboutHelper.Libraries.NewtonsoftUrl, Description = "JSON serialization" },
+                    new { Name = AboutHelper.Libraries.AudioSwitcherName, Version = AboutHelper.Libraries.AudioSwitcherVersion, License = AboutHelper.Libraries.AudioSwitcherLicense, Url = AboutHelper.Libraries.AudioSwitcherUrl, Description = "Audio device management" },
+                    new { Name = AboutHelper.Libraries.AudioSwitcherCoreAudioName, Version = AboutHelper.Libraries.AudioSwitcherCoreAudioVersion, License = AboutHelper.Libraries.AudioSwitcherCoreAudioLicense, Url = AboutHelper.Libraries.AudioSwitcherCoreAudioUrl, Description = "Windows Core Audio API" }
+                };
+
+                foreach (var library in libraries)
+                {
+                    var libraryPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+
+                    // Add bullet point
+                    libraryPanel.Children.Add(new TextBlock
+                    {
+                        Text = "• ",
+                        Style = (Style)FindResource("ModernTextBlockStyle"),
+                        FontSize = 12,
+                        Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                    });
+
+                    // Add library name as hyperlink
+                    var libraryLink = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run(library.Name))
+                    {
+                        NavigateUri = new Uri(library.Url),
+                        Foreground = (System.Windows.Media.Brush)FindResource("LinkBrush")
+                    };
+                    libraryLink.RequestNavigate += Hyperlink_RequestNavigate;
+
+                    libraryPanel.Children.Add(new TextBlock(libraryLink)
+                    {
+                        Style = (Style)FindResource("ModernTextBlockStyle"),
+                        FontSize = 12,
+                        Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                    });
+
+                    // Add version, license, and description
+                    libraryPanel.Children.Add(new TextBlock
+                    {
+                        Text = $" v{library.Version} ({library.License}) - {library.Description}",
+                        Style = (Style)FindResource("ModernTextBlockStyle"),
+                        FontSize = 12,
+                        Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush"),
+                        TextWrapping = TextWrapping.Wrap
+                    });
+
+                    LibrariesPanel.Children.Add(libraryPanel);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error loading libraries: {ex.Message}");
+                logger.Error(ex, "Error loading libraries");
             }
         }
 
