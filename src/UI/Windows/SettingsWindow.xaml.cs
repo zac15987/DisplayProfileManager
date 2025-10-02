@@ -225,11 +225,11 @@ namespace DisplayProfileManager.UI.Windows
                     if (!AutoStartHelper.IsRunningAsAdmin())
                     {
                         var result = MessageBox.Show(
-                            "Task Scheduler mode requires administrator privileges to set up.\n\n" +
+                            "Quick Launch mode requires administrator privileges for initial setup.\n\n" +
                             "You are not currently running as administrator. The system will attempt to create the task, " +
                             "which may prompt for elevation.\n\n" +
                             "Do you want to continue?",
-                            "Administrator Privileges Required",
+                            "Administrator Privileges Required for Setup",
                             MessageBoxButton.YesNo,
                             MessageBoxImage.Warning);
 
@@ -252,7 +252,7 @@ namespace DisplayProfileManager.UI.Windows
                     MessageBox.Show(
                         $"Failed to switch to {selectedMode} mode. " +
                         (selectedMode == Core.AutoStartMode.TaskScheduler
-                            ? "Administrator privileges may be required."
+                            ? "Administrator privileges may be required for setup."
                             : "Please check the logs for more details."),
                         "Error",
                         MessageBoxButton.OK,

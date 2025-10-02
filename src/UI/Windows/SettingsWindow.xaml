@@ -258,7 +258,7 @@
                                     Uses Windows Registry. Normal startup speed.
                                 </TextBlock>
 
-                                <RadioButton Name="TaskSchedulerModeRadio" Content="Quick Launch (Requires admin)"
+                                <RadioButton Name="TaskSchedulerModeRadio" Content="Quick Launch (Requires admin for setup)"
                                              Style="{StaticResource ModernRadioButtonStyle}"
                                              GroupName="AutoStartMode"
                                              Checked="AutoStartModeRadio_Changed"/>
@@ -267,7 +267,7 @@
                                            Foreground="{DynamicResource TertiaryTextBrush}"
                                            Margin="20,0,0,4"
                                            TextWrapping="Wrap">
-                                    Uses Windows Task Scheduler. Faster/higher priority startup. Requires admin privileges for setup.
+                                    Uses Windows Task Scheduler. Faster/higher priority startup. Requires admin privileges for initial setup only.
                                 </TextBlock>
                             </StackPanel>
 

@@ -61,12 +61,12 @@ A lightweight Windows desktop application for managing display profiles with qui
 
 - **Operating System**: Windows 7 or later
 - **.NET Framework**: 4.8 or later ([Download](https://dotnet.microsoft.com/download/dotnet-framework/net48))
-- **Privileges**: Administrator rights required (for DPI changes)
+- **Privileges**: No administrator rights required for normal operation. Admin needed only for Quick Launch auto-start mode setup.
 
 ## 🚀 Installation
 
 1. Download the latest release from the [Releases](../../releases) page
-2. Run `DisplayProfileManager.exe` as administrator
+2. Run `DisplayProfileManager.exe`
 3. The application will start in your system tray
 4. On first launch, your current display settings are saved as the "Default" profile
 
@@ -173,4 +173,4 @@ For detailed license information about third-party dependencies, see [THIRD-PART
 
 ---
 
-**Note**: This application requires administrator privileges to modify DPI settings due to Windows security restrictions.
+**Note**: This application runs as a standard user. Administrator privileges are only required when setting up Quick Launch mode for auto-start (uses Windows Task Scheduler).

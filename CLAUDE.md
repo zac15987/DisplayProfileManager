@@ -73,7 +73,7 @@ cmd.exe //c "start bin\Release\DisplayProfileManager.exe"
 ## Platform Requirements
 - **Windows**: Vista+ (manifest declares compatibility through Windows 10+)
 - **DPI Awareness**: Per-monitor V2 awareness configured in app.manifest
-- **Privileges**: Administrator required (`requireAdministrator` in app.manifest)
+- **Privileges**: Runs as standard user (`asInvoker` in app.manifest). Administrator only required for Quick Launch auto-start mode setup.
 
 ## Development Guidelines
 
