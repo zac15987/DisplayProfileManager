@@ -1,5 +1,6 @@
 using DisplayProfileManager.Helpers;
 using Newtonsoft.Json;
+using NLog;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -11,6 +12,8 @@ namespace DisplayProfileManager.Core
 {
     public class ProfileManager
     {
+        private static readonly Logger logger = LoggerHelper.GetLogger();
+
         public class ProfileApplyResult
         {
             public bool Success { get; set; }
@@ -104,6 +107,7 @@ namespace DisplayProfileManager.Core
                     catch (Exception ex)
                     {
                         System.Diagnostics.Debug.WriteLine($"Error loading profile from {file}: {ex.Message}");
+                        logger.Error(ex, $"Error loading profile from {file}");
                     }
                 }
 
@@ -121,6 +125,7 @@ namespace DisplayProfileManager.Core
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error loading profiles: {ex.Message}");
+                logger.Error(ex, "Error loading profiles");
                 _profiles = new List<Profile>();
                 return false;
             }
@@ -138,6 +143,7 @@ namespace DisplayProfileManager.Core
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error saving profile: {ex.Message}");
+                logger.Error(ex, "Error saving profile");
                 return false;
             }
         }
@@ -166,6 +172,7 @@ namespace DisplayProfileManager.Core
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error creating default profile: {ex.Message}");
+                logger.Error(ex, "Error creating default profile");
                 AddProfile(defaultProfile);
                 return defaultProfile;
             }
@@ -180,6 +187,7 @@ namespace DisplayProfileManager.Core
                 try
                 {
                     Debug.WriteLine("Getting current display settings...");
+                    logger.Debug("Getting current display settings...");
 
                     List<DisplayHelper.DisplayInfo> displays = DisplayHelper.GetDisplays();
 
@@ -203,6 +211,7 @@ namespace DisplayProfileManager.Core
                             if (foundConfig == null)
                             {
                                 Debug.WriteLine("No display config found for " + displays[i].DeviceName);
+                                logger.Debug("No display config found for " + displays[i].DeviceName);
                                 continue;
                             }
 
@@ -211,6 +220,7 @@ namespace DisplayProfileManager.Core
                             if (foundMonitor == null)
                             {
                                 Debug.WriteLine("No monitor found for " + foundConfig.TargetId);
+                                logger.Debug("No monitor found for " + foundConfig.TargetId);
                                 continue;
                             }
 
@@ -219,6 +229,7 @@ namespace DisplayProfileManager.Core
                             if(foundMonitorId == null)
                             {
                                 Debug.WriteLine("No monitor ID found for " + foundMonitor.PnPDeviceID);
+                                logger.Debug("No monitor ID found for " + foundMonitor.PnPDeviceID);
                                 continue;
                             }    
 
@@ -249,11 +260,13 @@ namespace DisplayProfileManager.Core
                         }
 
                         Debug.WriteLine($"Found {settings.Count} display settings");
+                        logger.Info($"Found {settings.Count} display settings");
                     }
                 }
                 catch (Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"Error getting current display settings: {ex.Message}");
+                    logger.Error(ex, "Error getting current display settings");
                 }
 
                 return settings;
@@ -300,40 +313,48 @@ namespace DisplayProfileManager.Core
                     try
                     {
                         System.Diagnostics.Debug.WriteLine("Setting primary display...");
+                        logger.Debug("Setting primary display...");
                         primaryChanged = DisplayConfigHelper.SetPrimaryDisplay(currentDisplayConfig);
                         if (!primaryChanged)
                         {
                             System.Diagnostics.Debug.WriteLine($"Failed to set primary display");
+                            logger.Warn("Failed to set primary display");
                             success = false;
                         }
                         else
                         {
                             System.Diagnostics.Debug.WriteLine("Set primary display successfully");
+                            logger.Info("Set primary display successfully");
                         }
                     }
                     catch (Exception ex)
                     {
                         System.Diagnostics.Debug.WriteLine($"Error applying primary display: {ex.Message}, Stack Trace: {ex.StackTrace}");
+                        logger.Error(ex, "Error applying primary display");
                     }
 
                     try
                     {
                         System.Diagnostics.Debug.WriteLine("Applying display topology...");
+                        logger.Debug("Applying display topology...");
 
                         displayConfigApplied = DisplayConfigHelper.ApplyDisplayTopology(currentDisplayConfig);
                         if (!displayConfigApplied)
                         {
                             System.Diagnostics.Debug.WriteLine("Failed to apply display topology");
+                            logger.Warn("Failed to apply display topology");
                             success = false;
                         }
                         else
                         {
                             System.Diagnostics.Debug.WriteLine("Display topology applied successfully");
+                            logger.Info("Display topology applied successfully");
                         }
                     }
                     catch (Exception ex)
                     {
                         System.Diagnostics.Debug.WriteLine($"Error applying display topology: {ex.Message}, Stack Trace: {ex.StackTrace}");
+                        logger.Error(ex, "Error applying display topology");
                     }
                 }
                 
@@ -355,6 +376,7 @@ namespace DisplayProfileManager.Core
                             if (!resolutionChanged)
                             {
                                 System.Diagnostics.Debug.WriteLine($"Failed to change resolution for {setting.DeviceName}");
+                                logger.Warn($"Failed to change resolution for {setting.DeviceName}");
                                 success = false;
                             }
 
@@ -363,16 +385,19 @@ namespace DisplayProfileManager.Core
                             if (!dpiChanged)
                             {
                                 System.Diagnostics.Debug.WriteLine($"Failed to set DPI scaling for {setting.DeviceName}");
+                                logger.Warn($"Failed to set DPI scaling for {setting.DeviceName}");
                             }
                         }
                         else
                         {
                             System.Diagnostics.Debug.WriteLine($"{setting.DeviceName} is not connected now");
+                            logger.Debug($"{setting.DeviceName} is not connected now");
                         }
                     }
                     catch (Exception ex)
                     {
                         System.Diagnostics.Debug.WriteLine($"Error applying setting for {setting.DeviceName}: {ex.Message}, Stack Trace: {ex.StackTrace}");
+                        logger.Error(ex, $"Error applying setting for {setting.DeviceName}");
                         success = false;
                     }
                 }
@@ -389,20 +414,24 @@ namespace DisplayProfileManager.Core
                             if (!playbackSet)
                             {
                                 System.Diagnostics.Debug.WriteLine($"Failed to set playback device: {profile.AudioSettings.PlaybackDeviceName}");
+                                logger.Warn($"Failed to set playback device: {profile.AudioSettings.PlaybackDeviceName}");
                                 audioSuccess = false;
                             }
                             else
                             {
                                 System.Diagnostics.Debug.WriteLine($"Successfully set playback device: {profile.AudioSettings.PlaybackDeviceName}");
+                                logger.Info($"Successfully set playback device: {profile.AudioSettings.PlaybackDeviceName}");
                             }
                         }
                         else if (profile.AudioSettings.ApplyPlaybackDevice)
                         {
                             System.Diagnostics.Debug.WriteLine("Playback device application enabled but no device configured");
+                            logger.Debug("Playback device application enabled but no device configured");
                         }
                         else
                         {
                             System.Diagnostics.Debug.WriteLine("Playback device application disabled for this profile");
+                            logger.Debug("Playback device application disabled for this profile");
                         }
                         
                         // Apply capture device if enabled
@@ -412,31 +441,37 @@ namespace DisplayProfileManager.Core
                             if (!captureSet)
                             {
                                 System.Diagnostics.Debug.WriteLine($"Failed to set capture device: {profile.AudioSettings.CaptureDeviceName}");
+                                logger.Warn($"Failed to set capture device: {profile.AudioSettings.CaptureDeviceName}");
                                 audioSuccess = false;
                             }
                             else
                             {
                                 System.Diagnostics.Debug.WriteLine($"Successfully set capture device: {profile.AudioSettings.CaptureDeviceName}");
+                                logger.Info($"Successfully set capture device: {profile.AudioSettings.CaptureDeviceName}");
                             }
                         }
                         else if (profile.AudioSettings.ApplyCaptureDevice)
                         {
                             System.Diagnostics.Debug.WriteLine("Capture device application enabled but no device configured");
+                            logger.Debug("Capture device application enabled but no device configured");
                         }
                         else
                         {
                             System.Diagnostics.Debug.WriteLine("Capture device application disabled for this profile");
+                            logger.Debug("Capture device application disabled for this profile");
                         }
-                        
+
                         // Log audio settings result but don't fail the entire profile
                         if (!audioSuccess)
                         {
                             System.Diagnostics.Debug.WriteLine("Some audio settings could not be applied");
+                            logger.Warn("Some audio settings could not be applied");
                         }
                     }
                     catch (Exception ex)
                     {
                         System.Diagnostics.Debug.WriteLine($"Error applying audio settings: {ex.Message}, Stack Trace: {ex.StackTrace}");
+                        logger.Error(ex, "Error applying audio settings");
                         // Don't fail the entire profile if audio settings fail
                     }
                 }
@@ -463,6 +498,7 @@ namespace DisplayProfileManager.Core
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error applying profile: {ex.Message}, Stack Trace: {ex.StackTrace}");
+                logger.Error(ex, "Error applying profile");
 
                 ProfileApplyResult profileApplyResult = new ProfileApplyResult
                 {
@@ -565,6 +601,7 @@ namespace DisplayProfileManager.Core
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error deleting profile: {ex.Message}");
+                logger.Error(ex, "Error deleting profile");
                 return false;
             }
         }
@@ -647,6 +684,7 @@ namespace DisplayProfileManager.Core
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error exporting profile: {ex.Message}");
+                logger.Error(ex, "Error exporting profile");
                 return false;
             }
         }
@@ -677,6 +715,7 @@ namespace DisplayProfileManager.Core
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error importing profile: {ex.Message}");
+                logger.Error(ex, "Error importing profile");
                 return null;
             }
         }
@@ -741,6 +780,7 @@ namespace DisplayProfileManager.Core
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error clearing hotkey for profile {profileId}: {ex.Message}");
+                logger.Error(ex, $"Error clearing hotkey for profile {profileId}");
                 return false;
             }
         }

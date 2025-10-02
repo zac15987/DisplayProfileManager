@@ -3,11 +3,13 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
+using NLog;
 
 namespace DisplayProfileManager.Helpers
 {
     public class DisplayConfigHelper
     {
+        private static readonly Logger logger = LoggerHelper.GetLogger();
         #region P/Invoke Declarations
 
         [DllImport("user32.dll")]
@@ -348,6 +350,7 @@ namespace DisplayProfileManager.Helpers
                 if (result != ERROR_SUCCESS)
                 {
                     Debug.WriteLine($"GetDisplayConfigBufferSizes failed with error: {result}");
+                    logger.Error($"GetDisplayConfigBufferSizes failed with error: {result}");
                     return displays;
                 }
 
@@ -366,6 +369,7 @@ namespace DisplayProfileManager.Helpers
                 if (result != ERROR_SUCCESS)
                 {
                     Debug.WriteLine($"QueryDisplayConfig failed with error: {result}");
+                    logger.Error($"QueryDisplayConfig failed with error: {result}");
                     return displays;
                 }
 
@@ -446,9 +450,13 @@ namespace DisplayProfileManager.Helpers
                 }
 
                 Debug.WriteLine($"GetCurrentDisplayTopology found {displays.Count} displays");
+                logger.Info($"GetCurrentDisplayTopology found {displays.Count} displays");
                 foreach (var display in displays)
                 {
                     Debug.WriteLine($"  Display: {display.DeviceName} ({display.FriendlyName}) - " +
+                                  $"Enabled: {display.IsEnabled}, " +
+                                  $"Resolution: {display.Width}x{display.Height}@{display.RefreshRate}Hz");
+                    logger.Debug($"  Display: {display.DeviceName} ({display.FriendlyName}) - " +
                                   $"Enabled: {display.IsEnabled}, " +
                                   $"Resolution: {display.Width}x{display.Height}@{display.RefreshRate}Hz");
                 }
@@ -456,6 +464,7 @@ namespace DisplayProfileManager.Helpers
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error getting display topology: {ex.Message}");
+                logger.Error(ex, "Error getting display topology");
             }
 
             return displays;
@@ -469,6 +478,7 @@ namespace DisplayProfileManager.Helpers
                 if (!displayConfigs.Any(d => d.IsEnabled))
                 {
                     Debug.WriteLine("Cannot disable all displays - at least one must remain enabled");
+                    logger.Warn("Cannot disable all displays - at least one must remain enabled");
                     return false;
                 }
 
@@ -484,6 +494,7 @@ namespace DisplayProfileManager.Helpers
                 if (result != ERROR_SUCCESS)
                 {
                     Debug.WriteLine($"GetDisplayConfigBufferSizes failed with error: {result}");
+                    logger.Error($"GetDisplayConfigBufferSizes failed with error: {result}");
                     return false;
                 }
 
@@ -501,6 +512,7 @@ namespace DisplayProfileManager.Helpers
                 if (result != ERROR_SUCCESS)
                 {
                     Debug.WriteLine($"QueryDisplayConfig failed with error: {result}");
+                    logger.Error($"QueryDisplayConfig failed with error: {result}");
                     return false;
                 }
 
@@ -527,6 +539,8 @@ namespace DisplayProfileManager.Helpers
 
                     Debug.WriteLine($"Setting targetId {displayInfo.TargetId} ({displayInfo.DeviceName}, Path:{foundPathIndex}) " +
                                   $"flags to: 0x{paths[foundPathIndex].flags:X} (Enabled: {displayInfo.IsEnabled})");
+                    logger.Debug($"Setting targetId {displayInfo.TargetId} ({displayInfo.DeviceName}, Path:{foundPathIndex}) " +
+                                  $"flags to: 0x{paths[foundPathIndex].flags:X} (Enabled: {displayInfo.IsEnabled})");
 
                 }
 
@@ -551,6 +565,8 @@ namespace DisplayProfileManager.Helpers
 
                         Debug.WriteLine($"Disabling monitor not in profile: TargetId={path.targetInfo.id}, " +
                                       $"SourceId={path.sourceInfo.id}, PathIndex={i}");
+                        logger.Debug($"Disabling monitor not in profile: TargetId={path.targetInfo.id}, " +
+                                      $"SourceId={path.sourceInfo.id}, PathIndex={i}");
                     }
                 }
 
@@ -568,6 +584,7 @@ namespace DisplayProfileManager.Helpers
                 if (result != ERROR_SUCCESS)
                 {
                     Debug.WriteLine($"SetDisplayConfig failed with error: {result}");
+                    logger.Error($"SetDisplayConfig failed with error: {result}");
 
                     // Try to provide more specific error information
                     string errorMessage = "";
@@ -575,20 +592,24 @@ namespace DisplayProfileManager.Helpers
                     {
                         case ERROR_INVALID_PARAMETER:
                             Debug.WriteLine("Invalid parameter - configuration may be invalid");
+                            logger.Error("Invalid parameter - configuration may be invalid");
                             errorMessage = "Invalid display configuration";
                             break;
                         case ERROR_GEN_FAILURE:
                             Debug.WriteLine("General failure - display configuration may not be supported");
+                            logger.Error("General failure - display configuration may not be supported");
                             errorMessage = "Display configuration not supported";
                             break;
                         default:
                             Debug.WriteLine($"Unknown error code: {result}");
+                            logger.Error($"Unknown error code: {result}");
                             errorMessage = $"Unknown error (code: {result})";
                             break;
                     }
 
                     // Attempt to revert to original configuration
                     Debug.WriteLine("Attempting to revert to original display configuration...");
+                    logger.Info("Attempting to revert to original display configuration...");
                     int revertResult = SetDisplayConfig(
                         pathCount,
                         originalPaths,
@@ -602,6 +623,7 @@ namespace DisplayProfileManager.Helpers
                     if (revertResult == ERROR_SUCCESS)
                     {
                         Debug.WriteLine("Successfully reverted to original display configuration");
+                        logger.Info("Successfully reverted to original display configuration");
                         System.Windows.MessageBox.Show(
                             $"Failed to apply display configuration: {errorMessage}\n\nThe display settings have been reverted to their previous state.",
                             "Display Configuration Error",
@@ -611,6 +633,7 @@ namespace DisplayProfileManager.Helpers
                     else
                     {
                         Debug.WriteLine($"Failed to revert display configuration. Error: {revertResult}");
+                        logger.Error($"Failed to revert display configuration. Error: {revertResult}");
                         System.Windows.MessageBox.Show(
                             $"Failed to apply display configuration: {errorMessage}\n\nWarning: Could not revert to previous settings. You may need to manually adjust your display settings.",
                             "Display Configuration Error",
@@ -622,16 +645,19 @@ namespace DisplayProfileManager.Helpers
                 }
 
                 Debug.WriteLine("Display topology applied successfully");
+                logger.Info("Display topology applied successfully");
 
 
                 bool displayPositionApplied = ApplyDisplayPosition(displayConfigs);
                 if (!displayPositionApplied)
                 {
                     Debug.WriteLine("Failed to apply display position");
+                    logger.Warn("Failed to apply display position");
                 }
                 else
                 {
                     Debug.WriteLine("Display position applied successfully");
+                    logger.Info("Display position applied successfully");
                 }
 
                 return true;
@@ -639,6 +665,7 @@ namespace DisplayProfileManager.Helpers
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error applying display topology: {ex.Message}");
+                logger.Error(ex, "Error applying display topology");
                 return false;
             }
         }
@@ -659,6 +686,7 @@ namespace DisplayProfileManager.Helpers
                 if (result != ERROR_SUCCESS)
                 {
                     Debug.WriteLine($"GetDisplayConfigBufferSizes failed with error: {result}");
+                    logger.Error($"GetDisplayConfigBufferSizes failed with error: {result}");
                     return false;
                 }
 
@@ -676,6 +704,7 @@ namespace DisplayProfileManager.Helpers
                 if (result != ERROR_SUCCESS)
                 {
                     Debug.WriteLine($"QueryDisplayConfig failed with error: {result}");
+                    logger.Error($"QueryDisplayConfig failed with error: {result}");
                     return false;
                 }
 
@@ -697,6 +726,8 @@ namespace DisplayProfileManager.Helpers
                         modes[modeInfoIndex].modeInfo.sourceMode.position.y = displayInfo.DisplayPositionY;
 
                         Debug.WriteLine($"Setting targetId {displayInfo.TargetId} ({displayInfo.DeviceName}, " +
+                                  $"position to: X:{displayInfo.DisplayPositionX} Y:{displayInfo.DisplayPositionY}");
+                        logger.Debug($"Setting targetId {displayInfo.TargetId} ({displayInfo.DeviceName}, " +
                                   $"position to: X:{displayInfo.DisplayPositionX} Y:{displayInfo.DisplayPositionY}");
                     }
                 }
@@ -743,6 +774,8 @@ namespace DisplayProfileManager.Helpers
 
                             Debug.WriteLine($"Change position of monitor not in profile: TargetId={path.targetInfo.id}, " +
                                       $"SourceId={path.sourceInfo.id}, PathIndex={i}");
+                            logger.Debug($"Change position of monitor not in profile: TargetId={path.targetInfo.id}, " +
+                                      $"SourceId={path.sourceInfo.id}, PathIndex={i}");
                         }
                     }
                 }
@@ -762,18 +795,22 @@ namespace DisplayProfileManager.Helpers
                 if (result != ERROR_SUCCESS)
                 {
                     Debug.WriteLine($"Applying display position failed with error: {result}");
+                    logger.Error($"Applying display position failed with error: {result}");
 
                     // Try to provide more specific error information
                     switch (result)
                     {
                         case ERROR_INVALID_PARAMETER:
                             Debug.WriteLine("Invalid parameter - configuration may be invalid");
+                            logger.Error("Invalid parameter - configuration may be invalid");
                             break;
                         case ERROR_GEN_FAILURE:
                             Debug.WriteLine("General failure - display configuration may not be supported");
+                            logger.Error("General failure - display configuration may not be supported");
                             break;
                         default:
                             Debug.WriteLine($"Unknown error code: {result}");
+                            logger.Error($"Unknown error code: {result}");
                             break;
                     }
                     return false;
@@ -784,6 +821,7 @@ namespace DisplayProfileManager.Helpers
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error applying display position: {ex.Message}");
+                logger.Error(ex, "Error applying display position");
                 return false;
             }
         }
@@ -794,6 +832,7 @@ namespace DisplayProfileManager.Helpers
             if (!topology.Any(d => d.IsEnabled))
             {
                 Debug.WriteLine("Invalid topology: No displays are enabled");
+                logger.Warn("Invalid topology: No displays are enabled");
                 return false;
             }
 
@@ -803,6 +842,7 @@ namespace DisplayProfileManager.Helpers
                 if (string.IsNullOrEmpty(display.DeviceName))
                 {
                     Debug.WriteLine($"Invalid topology: Display at index {display.PathIndex} has no device name");
+                    logger.Warn($"Invalid topology: Display at index {display.PathIndex} has no device name");
                     return false;
                 }
             }
@@ -819,17 +859,21 @@ namespace DisplayProfileManager.Helpers
                 if (newPrimary == null)
                 {
                     System.Diagnostics.Debug.WriteLine($"Primary display not found");
+                    logger.Error("Primary display not found");
                     return false;
                 }
 
                 System.Diagnostics.Debug.WriteLine($"Setting primary display: {newPrimary.DeviceName} - {newPrimary.FriendlyName}");
+                logger.Info($"Setting primary display: {newPrimary.DeviceName} - {newPrimary.FriendlyName}");
 
                 // Step 3: Calculate offset to move new primary to (0,0)
                 int offsetX = -newPrimary.DisplayPositionX;
                 int offsetY = -newPrimary.DisplayPositionY;
 
                 System.Diagnostics.Debug.WriteLine($"Current primary position: ({newPrimary.DisplayPositionX}, {newPrimary.DisplayPositionY})");
+                logger.Debug($"Current primary position: ({newPrimary.DisplayPositionX}, {newPrimary.DisplayPositionY})");
                 System.Diagnostics.Debug.WriteLine($"Offset to apply: ({offsetX}, {offsetY})");
+                logger.Debug($"Offset to apply: ({offsetX}, {offsetY})");
 
                 // Step 4: Stage changes for ALL displays with adjusted positions
                 foreach (var displayConfig in displayConfigs)
@@ -848,6 +892,7 @@ namespace DisplayProfileManager.Helpers
                         displayConfig.DisplayPositionY = newY;
 
                         System.Diagnostics.Debug.WriteLine($"Moving {displayConfig.DeviceName} from ({displayConfig.DisplayPositionX},{displayConfig.DisplayPositionY}) to ({newX},{newY})");
+                        logger.Debug($"Moving {displayConfig.DeviceName} from ({displayConfig.DisplayPositionX},{displayConfig.DisplayPositionY}) to ({newX},{newY})");
                     }
                 }
 
@@ -877,10 +922,12 @@ namespace DisplayProfileManager.Helpers
                 if (displayPositionApplied)
                 {
                     Debug.WriteLine($"Successfully set {newPrimary.DeviceName} as primary display");
+                    logger.Info($"Successfully set {newPrimary.DeviceName} as primary display");
                 }
                 else
                 {
                     Debug.WriteLine($"Failed to apply all display changes");
+                    logger.Error("Failed to apply all display changes");
                 }
 
                 return displayPositionApplied;
@@ -888,6 +935,7 @@ namespace DisplayProfileManager.Helpers
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error setting primary display: {ex.Message}");
+                logger.Error(ex, "Error setting primary display");
                 return false;
             }
         }

@@ -4,11 +4,14 @@ using System.IO;
 using System.Text;
 using System.Xml;
 using Microsoft.Win32;
+using NLog;
 
 namespace DisplayProfileManager.Helpers
 {
     public class AutoStartHelper
     {
+        private static readonly Logger logger = LoggerHelper.GetLogger();
+
         private const string TaskName = "DisplayProfileManager_Startup";
         private const string TaskFolder = "\\DisplayProfileManager";
         private const string FullTaskPath = TaskFolder + "\\" + TaskName;
@@ -38,15 +41,18 @@ namespace DisplayProfileManager.Helpers
                 if (process.ExitCode == 0 && output.Contains(TaskName))
                 {
                     System.Diagnostics.Debug.WriteLine($"Task found: {FullTaskPath}");
+                    logger.Info($"Task found: {FullTaskPath}");
                     return true;
                 }
 
                 System.Diagnostics.Debug.WriteLine($"Task not found or error: {error}");
+                logger.Debug($"Task not found or error: {error}");
                 return false;
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error checking auto start status: {ex.Message}");
+                logger.Error(ex, "Error checking auto start status");
                 return false;
             }
         }
@@ -59,12 +65,14 @@ namespace DisplayProfileManager.Helpers
                 if (string.IsNullOrEmpty(executablePath))
                 {
                     System.Diagnostics.Debug.WriteLine("Could not determine executable path");
+                    logger.Error("Could not determine executable path");
                     return false;
                 }
 
                 if (!File.Exists(executablePath))
                 {
                     System.Diagnostics.Debug.WriteLine($"Executable path does not exist: {executablePath}");
+                    logger.Error($"Executable path does not exist: {executablePath}");
                     return false;
                 }
 
@@ -100,11 +108,13 @@ namespace DisplayProfileManager.Helpers
                     if (process.ExitCode == 0)
                     {
                         System.Diagnostics.Debug.WriteLine($"Successfully created scheduled task: {output}");
+                        logger.Info($"Successfully created scheduled task: {output}");
                         return true;
                     }
                     else
                     {
                         System.Diagnostics.Debug.WriteLine($"Failed to create scheduled task. Error: {error}");
+                        logger.Error($"Failed to create scheduled task. Error: {error}");
                         return false;
                     }
                 }
@@ -120,6 +130,7 @@ namespace DisplayProfileManager.Helpers
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error enabling auto start: {ex.Message}");
+                logger.Error(ex, "Error enabling auto start");
                 return false;
             }
         }
@@ -149,23 +160,27 @@ namespace DisplayProfileManager.Helpers
                 if (process.ExitCode == 0)
                 {
                     System.Diagnostics.Debug.WriteLine($"Successfully deleted scheduled task: {output}");
+                    logger.Info($"Successfully deleted scheduled task: {output}");
                     return true;
                 }
                 else if (error.Contains("ERROR: The system cannot find the file specified"))
                 {
                     // Task doesn't exist, which is fine for disable operation
                     System.Diagnostics.Debug.WriteLine("Task doesn't exist, nothing to delete");
+                    logger.Info("Task doesn't exist, nothing to delete");
                     return true;
                 }
                 else
                 {
                     System.Diagnostics.Debug.WriteLine($"Failed to delete scheduled task. Error: {error}");
+                    logger.Error($"Failed to delete scheduled task. Error: {error}");
                     return false;
                 }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error disabling auto start: {ex.Message}");
+                logger.Error(ex, "Error disabling auto start");
                 return false;
             }
         }
@@ -181,23 +196,27 @@ namespace DisplayProfileManager.Helpers
                 if (!string.IsNullOrEmpty(processPath) && File.Exists(processPath))
                 {
                     System.Diagnostics.Debug.WriteLine($"Executable path found: {processPath}");
+                    logger.Info($"Executable path found: {processPath}");
                     return processPath;
                 }
-                
+
                 // Fallback: Try using Assembly.Location
                 var assemblyLocation = System.Reflection.Assembly.GetExecutingAssembly().Location;
                 if (!string.IsNullOrEmpty(assemblyLocation) && File.Exists(assemblyLocation))
                 {
                     System.Diagnostics.Debug.WriteLine($"Using assembly location: {assemblyLocation}");
+                    logger.Info($"Using assembly location: {assemblyLocation}");
                     return assemblyLocation;
                 }
-                
+
                 System.Diagnostics.Debug.WriteLine("No valid executable path found");
+                logger.Error("No valid executable path found");
                 return string.Empty;
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error getting executable path: {ex.Message}");
+                logger.Error(ex, "Error getting executable path");
                 return string.Empty;
             }
         }
@@ -240,6 +259,7 @@ namespace DisplayProfileManager.Helpers
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error creating task folder: {ex.Message}");
+                logger.Error(ex, "Error creating task folder");
             }
         }
 
@@ -337,6 +357,7 @@ namespace DisplayProfileManager.Helpers
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error validating auto start entry: {ex.Message}");
+                logger.Error(ex, "Error validating auto start entry");
                 return false;
             }
         }
@@ -355,6 +376,7 @@ namespace DisplayProfileManager.Helpers
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error refreshing auto start entry: {ex.Message}");
+                logger.Error(ex, "Error refreshing auto start entry");
                 return false;
             }
         }
@@ -405,6 +427,7 @@ namespace DisplayProfileManager.Helpers
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error getting auto start command: {ex.Message}");
+                logger.Error(ex, "Error getting auto start command");
                 return string.Empty;
             }
         }
@@ -464,6 +487,7 @@ namespace DisplayProfileManager.Helpers
                 catch (Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"Error getting task info: {ex.Message}");
+                    logger.Error(ex, "Error getting task info");
                 }
             }
 

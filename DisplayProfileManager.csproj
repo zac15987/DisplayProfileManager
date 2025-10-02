@@ -106,7 +106,11 @@
     <Reference Include="Newtonsoft.Json">
       <HintPath>packages\Newtonsoft.Json.13.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
+    <Reference Include="NLog, Version=6.0.0.0, Culture=neutral, PublicKeyToken=5120e14c03d0593c, processorArchitecture=MSIL">
+      <HintPath>packages\NLog.6.0.4\lib\net46\NLog.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
+    <Reference Include="System.Configuration" />
     <Reference Include="System.Data" />
     <Reference Include="System.Management" />
     <Reference Include="System.Xml" />
@@ -173,6 +177,7 @@
     <Compile Include="src\Helpers\DisplayConfigHelper.cs" />
     <Compile Include="src\Helpers\DpiHelper.cs" />
     <Compile Include="src\Helpers\GlobalHotkeyHelper.cs" />
+    <Compile Include="src\Helpers\LoggerHelper.cs" />
     <Compile Include="src\Helpers\ThemeHelper.cs" />
     <Compile Include="src\Helpers\KeyConverter.cs" />
     <Compile Include="src\Core\HotkeyConfig.cs" />
@@ -226,12 +231,16 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
     <None Include="CLAUDE.md" />
+    <None Include="NLog.config">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
     <None Include="README.md" />
+    <None Include="THIRD-PARTY-LICENSES.md" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

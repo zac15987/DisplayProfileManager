@@ -154,12 +154,15 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
+- [NLog](https://nlog-project.org/) (v6.0.4, BSD-3-Clause) - Advanced logging framework for .NET with structured logging support
 - [Newtonsoft.Json](https://www.newtonsoft.com/json) - JSON serialization
 - [AudioSwitcher.AudioApi](https://github.com/xenolightning/AudioSwitcher) (v3.0.0) - Audio device management framework
 - [AudioSwitcher.AudioApi.CoreAudio](https://github.com/xenolightning/AudioSwitcher) (v3.0.3) - Windows Core Audio API implementation
 - Windows Display Configuration APIs - Display management functionality
 - [windows-DPI-scaling-sample](https://github.com/lihas/windows-DPI-scaling-sample) - Provided the foundation for DPI scaling functionality. The original C++ implementation was translated to C# and forms the core of our DpiHelper.cs, enabling reliable system-wide DPI changes. Sample code documentation preserved in docs/sample-code/
 - [Claude Code](https://claude.ai/code) - Built in Collaboration with Claude Code. Anthropic's AI assistant helped architect, implement, and refine core features throughout the development process.
+
+For detailed license information about third-party dependencies, see [THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md).
 
 ### 🤝 Feature Contributors
 - [@Catriks](https://github.com/Catriks) - Requested audio device switching functionality ([#1](https://github.com/zac15987/DisplayProfileManager/issues/1))

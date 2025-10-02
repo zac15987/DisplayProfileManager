@@ -5,11 +5,13 @@ using System.Linq;
 using System.Management;
 using AudioSwitcher.AudioApi;
 using AudioSwitcher.AudioApi.CoreAudio;
+using NLog;
 
 namespace DisplayProfileManager.Helpers
 {
     public class AudioHelper
     {
+        private static readonly Logger logger = LoggerHelper.GetLogger();
         private static CoreAudioController _audioController;
         
         // Device-specific caching to prevent cross-device contamination
@@ -26,6 +28,7 @@ namespace DisplayProfileManager.Helpers
             catch (Exception ex)
             {
                 Debug.WriteLine($"Failed to initialize CoreAudioController: {ex.Message}");
+                logger.Error(ex, "Failed to initialize CoreAudioController");
             }
         }
 
@@ -52,12 +55,13 @@ namespace DisplayProfileManager.Helpers
         public static List<AudioDeviceInfo> GetPlaybackDevices()
         {
             var devices = new List<AudioDeviceInfo>();
-            
+
             try
             {
                 if (_audioController == null)
                 {
                     Debug.WriteLine("AudioController is not initialized");
+                    logger.Warn("AudioController is not initialized");
                     return devices;
                 }
 
@@ -81,12 +85,14 @@ namespace DisplayProfileManager.Helpers
                     catch (Exception ex)
                     {
                         Debug.WriteLine($"Error processing playback device {device.Name}: {ex.Message}");
+                        logger.Error(ex, $"Error processing playback device {device.Name}");
                     }
                 }
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error getting playback devices: {ex.Message}");
+                logger.Error(ex, "Error getting playback devices");
             }
 
             return devices;
@@ -95,12 +101,13 @@ namespace DisplayProfileManager.Helpers
         public static List<AudioDeviceInfo> GetCaptureDevices()
         {
             var devices = new List<AudioDeviceInfo>();
-            
+
             try
             {
                 if (_audioController == null)
                 {
                     Debug.WriteLine("AudioController is not initialized");
+                    logger.Warn("AudioController is not initialized");
                     return devices;
                 }
 
@@ -124,12 +131,14 @@ namespace DisplayProfileManager.Helpers
                     catch (Exception ex)
                     {
                         Debug.WriteLine($"Error processing capture device {device.Name}: {ex.Message}");
+                        logger.Error(ex, $"Error processing capture device {device.Name}");
                     }
                 }
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error getting capture devices: {ex.Message}");
+                logger.Error(ex, "Error getting capture devices");
             }
 
             return devices;
@@ -142,6 +151,7 @@ namespace DisplayProfileManager.Helpers
                 if (_audioController == null)
                 {
                     Debug.WriteLine("AudioController is not initialized");
+                    logger.Warn("AudioController is not initialized");
                     return null;
                 }
 
@@ -163,6 +173,7 @@ namespace DisplayProfileManager.Helpers
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error getting default playback device: {ex.Message}");
+                logger.Error(ex, "Error getting default playback device");
                 return null;
             }
         }
@@ -174,6 +185,7 @@ namespace DisplayProfileManager.Helpers
                 if (_audioController == null)
                 {
                     Debug.WriteLine("AudioController is not initialized");
+                    logger.Warn("AudioController is not initialized");
                     return null;
                 }
 
@@ -195,6 +207,7 @@ namespace DisplayProfileManager.Helpers
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error getting default capture device: {ex.Message}");
+                logger.Error(ex, "Error getting default capture device");
                 return null;
             }
         }
@@ -206,12 +219,14 @@ namespace DisplayProfileManager.Helpers
                 if (_audioController == null)
                 {
                     Debug.WriteLine("AudioController is not initialized");
+                    logger.Warn("AudioController is not initialized");
                     return false;
                 }
 
                 if (!Guid.TryParse(deviceId, out Guid guid))
                 {
                     Debug.WriteLine($"Invalid device ID format: {deviceId}");
+                    logger.Warn($"Invalid device ID format: {deviceId}");
                     return false;
                 }
 
@@ -219,6 +234,7 @@ namespace DisplayProfileManager.Helpers
                 if (device == null)
                 {
                     Debug.WriteLine($"Playback device not found: {deviceId}");
+                    logger.Warn($"Playback device not found: {deviceId}");
                     return false;
                 }
 
@@ -226,10 +242,12 @@ namespace DisplayProfileManager.Helpers
                 if (result)
                 {
                     Debug.WriteLine($"Successfully set default playback device: {device.Name}");
+                    logger.Info($"Successfully set default playback device: {device.Name}");
                 }
                 else
                 {
                     Debug.WriteLine($"Failed to set default playback device: {device.Name}");
+                    logger.Warn($"Failed to set default playback device: {device.Name}");
                 }
 
                 return result;
@@ -237,6 +255,7 @@ namespace DisplayProfileManager.Helpers
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error setting default playback device: {ex.Message}");
+                logger.Error(ex, "Error setting default playback device");
                 return false;
             }
         }
@@ -248,12 +267,14 @@ namespace DisplayProfileManager.Helpers
                 if (_audioController == null)
                 {
                     Debug.WriteLine("AudioController is not initialized");
+                    logger.Warn("AudioController is not initialized");
                     return false;
                 }
 
                 if (!Guid.TryParse(deviceId, out Guid guid))
                 {
                     Debug.WriteLine($"Invalid device ID format: {deviceId}");
+                    logger.Warn($"Invalid device ID format: {deviceId}");
                     return false;
                 }
 
@@ -261,6 +282,7 @@ namespace DisplayProfileManager.Helpers
                 if (device == null)
                 {
                     Debug.WriteLine($"Capture device not found: {deviceId}");
+                    logger.Warn($"Capture device not found: {deviceId}");
                     return false;
                 }
 
@@ -268,10 +290,12 @@ namespace DisplayProfileManager.Helpers
                 if (result)
                 {
                     Debug.WriteLine($"Successfully set default capture device: {device.Name}");
+                    logger.Info($"Successfully set default capture device: {device.Name}");
                 }
                 else
                 {
                     Debug.WriteLine($"Failed to set default capture device: {device.Name}");
+                    logger.Warn($"Failed to set default capture device: {device.Name}");
                 }
 
                 return result;
@@ -279,6 +303,7 @@ namespace DisplayProfileManager.Helpers
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error setting default capture device: {ex.Message}");
+                logger.Error(ex, "Error setting default capture device");
                 return false;
             }
         }
@@ -288,6 +313,7 @@ namespace DisplayProfileManager.Helpers
             try
             {
                 Debug.WriteLine($"Getting Windows device name for: {device?.Name ?? "null"} (FullName: {device?.FullName ?? "null"}, ID: {device?.Id.ToString() ?? "null"})");
+                logger.Debug($"Getting Windows device name for: {device?.Name ?? "null"} (FullName: {device?.FullName ?? "null"}, ID: {device?.Id.ToString() ?? "null"})");
 
                 var deviceId = device.Id.ToString();
                 var isUnknownDevice = device.Name?.Equals("Unknown", StringComparison.OrdinalIgnoreCase) == true ||
@@ -300,16 +326,18 @@ namespace DisplayProfileManager.Helpers
                     if (!string.IsNullOrEmpty(correlatedName))
                     {
                         Debug.WriteLine($"Found correlated Bluetooth device name: {correlatedName}");
+                        logger.Debug($"Found correlated Bluetooth device name: {correlatedName}");
                         CacheDeviceName(device, correlatedName);
                         return correlatedName;
                     }
                 }
 
                 // Check if AudioSwitcher's FullName is valid (not "Unknown")
-                if (!string.IsNullOrEmpty(device.FullName) && 
+                if (!string.IsNullOrEmpty(device.FullName) &&
                     !device.FullName.Equals("Unknown", StringComparison.OrdinalIgnoreCase))
                 {
                     Debug.WriteLine($"Using AudioSwitcher FullName: {device.FullName}");
+                    logger.Debug($"Using AudioSwitcher FullName: {device.FullName}");
                     CacheDeviceName(device, device.FullName);
                     return device.FullName;
                 }
@@ -318,6 +346,7 @@ namespace DisplayProfileManager.Helpers
                 if (isUnknownDevice)
                 {
                     Debug.WriteLine("Detected 'Unknown' device - applying enhanced Bluetooth detection");
+                    logger.Debug("Detected 'Unknown' device - applying enhanced Bluetooth detection");
                     var unknownDeviceName = GetUnknownDeviceName(device);
                     if (!string.IsNullOrEmpty(unknownDeviceName))
                     {
@@ -327,19 +356,22 @@ namespace DisplayProfileManager.Helpers
                 }
 
                 // Final fallback hierarchy
-                if (!string.IsNullOrEmpty(device.FullName) && 
+                if (!string.IsNullOrEmpty(device.FullName) &&
                     !device.FullName.Equals("Unknown", StringComparison.OrdinalIgnoreCase))
                 {
                     Debug.WriteLine($"Using AudioSwitcher FullName as fallback: {device.FullName}");
+                    logger.Debug($"Using AudioSwitcher FullName as fallback: {device.FullName}");
                     return device.FullName;
                 }
 
                 Debug.WriteLine("All methods failed, returning 'Unknown Device'");
+                logger.Warn("All methods failed, returning 'Unknown Device'");
                 return "Unknown Device";
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error getting Windows device name: {ex.Message}");
+                logger.Error(ex, "Error getting Windows device name");
                 return device?.Name ?? "Unknown Device";
             }
         }
@@ -354,22 +386,26 @@ namespace DisplayProfileManager.Helpers
                     var extractedMac = ExtractMacAddressFromDeviceId(deviceId);
 
                     Debug.WriteLine($"Attempting Bluetooth device correlation for device ID: {deviceId}");
+                    logger.Debug($"Attempting Bluetooth device correlation for device ID: {deviceId}");
 
                     // Device-specific cache lookup
                     if (_deviceSpecificNameCache.ContainsKey(deviceId))
                     {
                         var cachedName = _deviceSpecificNameCache[deviceId];
                         Debug.WriteLine($"Found cached device name for device ID {deviceId}: {cachedName}");
+                        logger.Debug($"Found cached device name for device ID {deviceId}: {cachedName}");
                         return cachedName;
                     }
 
                     Debug.WriteLine("No valid correlated device name found");
+                    logger.Debug("No valid correlated device name found");
                     return null;
                 }
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error in Bluetooth device correlation: {ex.Message}");
+                logger.Error(ex, "Error in Bluetooth device correlation");
                 return null;
             }
         }
@@ -389,9 +425,10 @@ namespace DisplayProfileManager.Helpers
                     // Device-specific caching using AudioSwitcher device ID
                     _deviceSpecificNameCache[deviceId] = deviceName;
                     _deviceSpecificDiscoveryTime[deviceId] = DateTime.Now;
-                    
+
                     Debug.WriteLine($"Cached device name for device ID {deviceId}: {deviceName}");
-                    
+                    logger.Debug($"Cached device name for device ID {deviceId}: {deviceName}");
+
                     // Clean up old entries (keep last 100 entries to prevent memory bloat)
                     CleanupDeviceCache();
                 }
@@ -399,6 +436,7 @@ namespace DisplayProfileManager.Helpers
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error caching device name: {ex.Message}");
+                logger.Error(ex, "Error caching device name");
             }
         }
 
@@ -425,6 +463,7 @@ namespace DisplayProfileManager.Helpers
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error cleaning up device cache: {ex.Message}");
+                logger.Error(ex, "Error cleaning up device cache");
             }
         }
 
@@ -433,6 +472,7 @@ namespace DisplayProfileManager.Helpers
             try
             {
                 Debug.WriteLine($"Attempting to resolve unknown device via Win32 System Device WMI: {device.Id}");
+                logger.Debug($"Attempting to resolve unknown device via Win32 System Device WMI: {device.Id}");
 
                 var deviceName = GetDeviceNameViaWin32SystemDevicesWMI(device);
                 if (!string.IsNullOrEmpty(deviceName))
@@ -441,11 +481,13 @@ namespace DisplayProfileManager.Helpers
                 }
 
                 Debug.WriteLine("Failed to resolve unknown device name");
+                logger.Warn("Failed to resolve unknown device name");
                 return null;
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error resolving unknown device name: {ex.Message}");
+                logger.Error(ex, "Error resolving unknown device name");
                 return null;
             }
         }
@@ -455,7 +497,8 @@ namespace DisplayProfileManager.Helpers
             try
             {
                 Debug.WriteLine($"Attempting to extract MAC address from device ID: {deviceId}");
-                
+                logger.Debug($"Attempting to extract MAC address from device ID: {deviceId}");
+
                 // AudioSwitcher device IDs can contain MAC addresses in various formats:
                 // 1. Direct hex representation (12 consecutive hex characters)
                 // 2. GUID-encoded MAC addresses
@@ -471,15 +514,17 @@ namespace DisplayProfileManager.Helpers
                     var mac = hexPattern.Value.ToUpper();
                     var formattedMac = $"{mac.Substring(0, 2)}:{mac.Substring(2, 2)}:{mac.Substring(4, 2)}:{mac.Substring(6, 2)}:{mac.Substring(8, 2)}:{mac.Substring(10, 2)}";
                     Debug.WriteLine($"Found MAC via hex pattern: {formattedMac}");
+                    logger.Debug($"Found MAC via hex pattern: {formattedMac}");
                     return formattedMac;
                 }
-                
+
                 // Method 2: Look for MAC-like patterns with different separators
                 var separatorPattern = System.Text.RegularExpressions.Regex.Match(deviceId, @"([0-9A-Fa-f]{2}[_\-:]){5}[0-9A-Fa-f]{2}");
                 if (separatorPattern.Success)
                 {
                     var mac = separatorPattern.Value.Replace("_", ":").Replace("-", ":");
                     Debug.WriteLine($"Found MAC via separator pattern: {mac}");
+                    logger.Debug($"Found MAC via separator pattern: {mac}");
                     return mac;
                 }
                 
@@ -497,6 +542,7 @@ namespace DisplayProfileManager.Helpers
                             var mac = guidHexPattern.Value.ToUpper();
                             var formattedMac = $"{mac.Substring(0, 2)}:{mac.Substring(2, 2)}:{mac.Substring(4, 2)}:{mac.Substring(6, 2)}:{mac.Substring(8, 2)}:{mac.Substring(10, 2)}";
                             Debug.WriteLine($"Found MAC via GUID pattern: {formattedMac}");
+                            logger.Debug($"Found MAC via GUID pattern: {formattedMac}");
                             return formattedMac;
                         }
                     }
@@ -519,6 +565,7 @@ namespace DisplayProfileManager.Helpers
                                     var mac = possibleMac.ToUpper();
                                     var formattedMac = $"{mac.Substring(0, 2)}:{mac.Substring(2, 2)}:{mac.Substring(4, 2)}:{mac.Substring(6, 2)}:{mac.Substring(8, 2)}:{mac.Substring(10, 2)}";
                                     Debug.WriteLine($"Found MAC via offset search at position {i}: {formattedMac}");
+                                    logger.Debug($"Found MAC via offset search at position {i}: {formattedMac}");
                                     return formattedMac;
                                 }
                             }
@@ -527,11 +574,13 @@ namespace DisplayProfileManager.Helpers
                 }
 
                 Debug.WriteLine("No MAC address pattern found in device ID");
+                logger.Debug("No MAC address pattern found in device ID");
                 return null;
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error extracting MAC address from device ID: {ex.Message}");
+                logger.Error(ex, "Error extracting MAC address from device ID");
                 return null;
             }
         }
@@ -541,12 +590,14 @@ namespace DisplayProfileManager.Helpers
             try
             {
                 Debug.WriteLine($"Attempting Win32_SystemDevices WMI approach for device ID: {device.Id}");
+                logger.Debug($"Attempting Win32_SystemDevices WMI approach for device ID: {device.Id}");
 
                 // CRITICAL FIX: Add device-specific correlation to prevent wrong device names
                 var targetDeviceId = device.Id.ToString();
                 var targetMacAddress = ExtractMacAddressFromDeviceId(targetDeviceId);
-                
+
                 Debug.WriteLine($"Target device ID: {targetDeviceId}, Target MAC: {targetMacAddress}");
+                logger.Debug($"Target device ID: {targetDeviceId}, Target MAC: {targetMacAddress}");
 
                 string query = "SELECT * FROM Win32_PnPEntity WHERE ConfigManagerErrorCode = 0";
 
@@ -578,14 +629,17 @@ namespace DisplayProfileManager.Helpers
                 catch (Exception queryEx)
                 {
                     Debug.WriteLine($"Error with system devices WMI query '{query}': {queryEx.Message}");
+                    logger.Error(queryEx, $"Error with system devices WMI query '{query}'");
                 }
 
                 Debug.WriteLine("No device-specific matches found in system devices WMI");
+                logger.Debug("No device-specific matches found in system devices WMI");
                 return null;
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error in system devices WMI approach: {ex.Message}");
+                logger.Error(ex, "Error in system devices WMI approach");
                 return null;
             }
         }
@@ -609,6 +663,7 @@ namespace DisplayProfileManager.Helpers
                             if (wmiGuid.Equals(targetGuid, StringComparison.OrdinalIgnoreCase))
                             {
                                 Debug.WriteLine($"Found GUID correlation: {wmiGuid}");
+                                logger.Debug($"Found GUID correlation: {wmiGuid}");
                                 return true;
                             }
                         }
@@ -620,6 +675,7 @@ namespace DisplayProfileManager.Helpers
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error in device-specific relation check: {ex.Message}");
+                logger.Error(ex, "Error in device-specific relation check");
                 return false;
             }
         }
@@ -656,6 +712,7 @@ namespace DisplayProfileManager.Helpers
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error extracting GUIDs: {ex.Message}");
+                logger.Error(ex, "Error extracting GUIDs");
                 return guids;
             }
         }
@@ -686,6 +743,7 @@ namespace DisplayProfileManager.Helpers
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error disposing AudioController: {ex.Message}");
+                logger.Error(ex, "Error disposing AudioController");
             }
         }
 
@@ -699,6 +757,7 @@ namespace DisplayProfileManager.Helpers
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error re-initializing AudioController: {ex.Message}");
+                logger.Error(ex, "Error re-initializing AudioController");
             }
         }
     }

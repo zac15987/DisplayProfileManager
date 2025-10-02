@@ -8,11 +8,13 @@ using System.Windows.Navigation;
 using System.Windows.Shell;
 using DisplayProfileManager.Core;
 using DisplayProfileManager.Helpers;
+using NLog;
 
 namespace DisplayProfileManager.UI.Windows
 {
     public partial class SettingsWindow : Window
     {
+        private static readonly Logger logger = LoggerHelper.GetLogger();
         private readonly SettingsManager _settingsManager;
         private readonly ProfileManager _profileManager;
         private readonly AutoStartHelper _autoStartHelper;
@@ -106,6 +108,7 @@ namespace DisplayProfileManager.UI.Windows
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error loading startup profiles: {ex.Message}");
+                logger.Error(ex, "Error loading startup profiles");
             }
         }
 
@@ -330,6 +333,7 @@ namespace DisplayProfileManager.UI.Windows
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error refreshing hotkey list: {ex.Message}");
+                logger.Error(ex, "Error refreshing hotkey list");
             }
         }
 
@@ -681,6 +685,7 @@ namespace DisplayProfileManager.UI.Windows
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error loading community features: {ex.Message}");
+                logger.Error(ex, "Error loading community features");
             }
         }
 
@@ -694,6 +699,7 @@ namespace DisplayProfileManager.UI.Windows
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error opening URL: {ex.Message}");
+                logger.Error(ex, "Error opening URL: {Url}", e.Uri.AbsoluteUri);
                 MessageBox.Show($"Could not open link: {e.Uri.AbsoluteUri}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
             }
@@ -758,6 +764,7 @@ namespace DisplayProfileManager.UI.Windows
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error loading contributors: {ex.Message}");
+                logger.Error(ex, "Error loading contributors");
             }
         }
 

@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using DisplayProfileManager.Helpers;
+using NLog;
 
 namespace DisplayProfileManager.Core
 {
@@ -48,6 +49,7 @@ namespace DisplayProfileManager.Core
 
     public class SettingsManager
     {
+        private static readonly Logger logger = LoggerHelper.GetLogger();
         private static SettingsManager _instance;
         private static readonly object _lock = new object();
 
@@ -112,6 +114,7 @@ namespace DisplayProfileManager.Core
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error loading settings: {ex.Message}");
+                logger.Error(ex, "Error loading settings");
                 _settings = new AppSettings();
                 return false;
             }
@@ -131,6 +134,7 @@ namespace DisplayProfileManager.Core
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error saving settings: {ex.Message}");
+                logger.Error(ex, "Error saving settings");
                 return false;
             }
         }
@@ -150,6 +154,7 @@ namespace DisplayProfileManager.Core
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error updating setting {propertyName}: {ex.Message}");
+                logger.Error(ex, $"Error updating setting {propertyName}");
                 return false;
             }
         }
@@ -169,6 +174,7 @@ namespace DisplayProfileManager.Core
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error getting setting {propertyName}: {ex.Message}");
+                logger.Error(ex, $"Error getting setting {propertyName}");
                 return defaultValue;
             }
         }
@@ -186,6 +192,7 @@ namespace DisplayProfileManager.Core
                     if (!taskOperationSucceeded)
                     {
                         System.Diagnostics.Debug.WriteLine("Failed to enable auto start task");
+                        logger.Error("Failed to enable auto start task");
                         return false;
                     }
                 }
@@ -195,6 +202,7 @@ namespace DisplayProfileManager.Core
                     if (!taskOperationSucceeded)
                     {
                         System.Diagnostics.Debug.WriteLine("Failed to disable auto start task");
+                        logger.Error("Failed to disable auto start task");
                         return false;
                     }
                 }
@@ -209,10 +217,11 @@ namespace DisplayProfileManager.Core
                 }
                 
                 var settingsSaved = await SaveSettingsAsync();
-                
+
                 if (!settingsSaved)
                 {
                     System.Diagnostics.Debug.WriteLine("Failed to save settings after task change");
+                    logger.Error("Failed to save settings after task change");
                     // Revert task change if settings save failed
                     if (startWithWindows)
                     {
@@ -230,6 +239,7 @@ namespace DisplayProfileManager.Core
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error setting start with Windows: {ex.Message}");
+                logger.Error(ex, "Error setting start with Windows");
                 return false;
             }
         }
@@ -242,6 +252,7 @@ namespace DisplayProfileManager.Core
                 if (startInSystemTray && !_settings.StartWithWindows)
                 {
                     System.Diagnostics.Debug.WriteLine("Cannot enable StartInSystemTray without StartWithWindows");
+                    logger.Warn("Cannot enable StartInSystemTray without StartWithWindows");
                     return false;
                 }
 
@@ -253,6 +264,7 @@ namespace DisplayProfileManager.Core
                     if (!taskOperationSucceeded)
                     {
                         System.Diagnostics.Debug.WriteLine("Failed to update auto start task with tray setting");
+                        logger.Error("Failed to update auto start task with tray setting");
                         return false;
                     }
                 }
@@ -264,6 +276,7 @@ namespace DisplayProfileManager.Core
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error setting start in system tray: {ex.Message}");
+                logger.Error(ex, "Error setting start in system tray");
                 return false;
             }
         }
@@ -311,6 +324,7 @@ namespace DisplayProfileManager.Core
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error resetting settings: {ex.Message}");
+                logger.Error(ex, "Error resetting settings");
                 return false;
             }
         }

@@ -4,11 +4,13 @@ using System.Diagnostics;
 using System.Linq;
 using System.Management;
 using System.Runtime.InteropServices;
+using NLog;
 
 namespace DisplayProfileManager.Helpers
 {
     public class DisplayHelper
     {
+        private static readonly Logger logger = LoggerHelper.GetLogger();
         #region P/Invoke Declarations
 
         [DllImport("user32.dll")]
@@ -219,6 +221,8 @@ namespace DisplayProfileManager.Helpers
                         // Debug: Log display device details
                         System.Diagnostics.Debug.WriteLine($"Display[{deviceIndex}]: Device={displayDevice.DeviceName}, " +
                             $"String={displayDevice.DeviceString}, DeviceID={displayDevice.DeviceID}, Primary={displayInfo.IsPrimary}");
+                        logger.Debug($"Display[{deviceIndex}]: Device={displayDevice.DeviceName}, " +
+                            $"String={displayDevice.DeviceString}, DeviceID={displayDevice.DeviceID}, Primary={displayInfo.IsPrimary}");
 
                         // Get readable name using registry mapping and WMI correlation
                         //displayInfo.ReadableDeviceName = GetReadableMonitorNameFromWMI(displayInfo, monitors, registryMapping);
@@ -377,6 +381,7 @@ namespace DisplayProfileManager.Helpers
             try
             {
                 System.Diagnostics.Debug.WriteLine("Querying WMI Win32PnPEntity for monitor information...");
+                logger.Debug("Querying WMI Win32PnPEntity for monitor information...");
                 
                 // Query Win32_PnPEntity for monitor devices
                 using (var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_PnPEntity WHERE Service='monitor' OR PNPClass='Monitor'"))
@@ -395,6 +400,7 @@ namespace DisplayProfileManager.Helpers
                             };
                             
                             System.Diagnostics.Debug.WriteLine($"WMI Win32PnPEntity Monitor: Name='{monitor.Name}', DeviceID='{monitor.DeviceID}', PnPDeviceID='{monitor.PnPDeviceID}'");
+                            logger.Debug($"WMI Win32PnPEntity Monitor: Name='{monitor.Name}', DeviceID='{monitor.DeviceID}', PnPDeviceID='{monitor.PnPDeviceID}'");
                             
                             // Filter out non-monitor devices
                             if (!string.IsNullOrEmpty(monitor.Name))
@@ -404,12 +410,14 @@ namespace DisplayProfileManager.Helpers
                         }
                     }
                 }
-                
+
                 System.Diagnostics.Debug.WriteLine($"Found {monitors.Count} monitors from WMI Win32PnPEntity");
+                logger.Info($"Found {monitors.Count} monitors from WMI Win32PnPEntity");
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"WMI Win32PnPEntity query failed: {ex.Message}");
+                logger.Error(ex, "WMI Win32PnPEntity query failed");
             }
             
             return monitors;
@@ -422,6 +430,7 @@ namespace DisplayProfileManager.Helpers
             try
             {
                 System.Diagnostics.Debug.WriteLine("Querying WMI WmiMonitorID for monitor information...");
+                logger.Debug("Querying WMI WmiMonitorID for monitor information...");
 
                 var scope = new ManagementScope(@"\\.\root\wmi");
                 var query = new ObjectQuery("SELECT * FROM WmiMonitorID");
@@ -447,6 +456,11 @@ namespace DisplayProfileManager.Helpers
                                 $"ManufacturerName='{monitorId.ManufacturerName}', " +
                                 $"ProductCodeID='{monitorId.ProductCodeID}', " +
                                 $"SerialNumberID='{monitorId.SerialNumberID}'");
+                            logger.Debug($"WMI WmiMonitorID Monitor: " +
+                                $"InstanceName='{monitorId.InstanceName}', " +
+                                $"ManufacturerName='{monitorId.ManufacturerName}', " +
+                                $"ProductCodeID='{monitorId.ProductCodeID}', " +
+                                $"SerialNumberID='{monitorId.SerialNumberID}'");
 
                             // Filter out non-monitor devices
                             if (!string.IsNullOrEmpty(monitorId.InstanceName))
@@ -459,10 +473,12 @@ namespace DisplayProfileManager.Helpers
                 }
 
                 System.Diagnostics.Debug.WriteLine($"Found {monitorIDs.Count} monitor ids from WMI WmiMonitorID");
+                logger.Info($"Found {monitorIDs.Count} monitor ids from WMI WmiMonitorID");
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"WMI WmiMonitorID query failed: {ex.Message}");
+                logger.Error(ex, "WMI WmiMonitorID query failed");
             }
 
             return monitorIDs;
@@ -509,6 +525,7 @@ namespace DisplayProfileManager.Helpers
                 {
                     targetInstanceName = monitorId.InstanceName;
                     System.Diagnostics.Debug.WriteLine("Found matching monitor ID: " + monitorId.ToString());
+                    logger.Info("Found matching monitor ID: " + monitorId.ToString());
                     break;
                 }
             }
@@ -516,6 +533,8 @@ namespace DisplayProfileManager.Helpers
             if(string.IsNullOrEmpty(targetInstanceName))
             {
                 System.Diagnostics.Debug.WriteLine("No matching monitor ID found for: " +
+                    $"Manufacturer='{manufacturerName}', ProductCodeID='{productCodeID}', SerialNumberID='{serialNumberID}'");
+                logger.Warn("No matching monitor ID found for: " +
                     $"Manufacturer='{manufacturerName}', ProductCodeID='{productCodeID}', SerialNumberID='{serialNumberID}'");
                 return string.Empty;
             }
@@ -526,6 +545,7 @@ namespace DisplayProfileManager.Helpers
                 if(targetInstanceName.Contains($"UID{display.TargetId}"))
                 {
                     System.Diagnostics.Debug.WriteLine($"Matched InstanceName '{targetInstanceName}' to DeviceName '{display.DeviceName}'");
+                    logger.Info($"Matched InstanceName '{targetInstanceName}' to DeviceName '{display.DeviceName}'");
                     return display.DeviceName;
                 }
             }

@@ -9,18 +9,21 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shell;
 using DisplayProfileManager.Core;
+using DisplayProfileManager.Helpers;
 using DisplayProfileManager.UI.ViewModels;
+using NLog;
 
 namespace DisplayProfileManager.UI.Windows
 {
     public partial class MainWindow : Window
     {
+        private static readonly Logger logger = LoggerHelper.GetLogger();
         private ProfileManager _profileManager;
         private SettingsManager _settingsManager;
         private Profile _selectedProfile;
         private List<ProfileViewModel> _profileViewModels;
         private HwndSource _hwndSource;
-        
+
         // Snap Layouts hover state management
         private bool _isHoveringMaxButton = false;
         private DateTime _hoverStartTime;
@@ -422,6 +425,7 @@ namespace DisplayProfileManager.UI.Windows
 
                     string errorDetails = _profileManager.GetApplyResultErrorMessage(profileName, applyResult);
                     System.Diagnostics.Debug.WriteLine(errorDetails);
+                    logger.Warn(errorDetails);
 
                     MessageBox.Show(errorDetails, "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
@@ -429,10 +433,11 @@ namespace DisplayProfileManager.UI.Windows
             catch (Exception ex)
             {
                 StatusTextBlock.Text = "Error applying profile";
-                MessageBox.Show($"Exception: Error applying profile: {ex.Message}", "Error", 
+                MessageBox.Show($"Exception: Error applying profile: {ex.Message}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
 
                 System.Diagnostics.Debug.WriteLine($"Exception: Error applying profile: {ex.Message}, StackTrace: {ex.StackTrace}");
+                logger.Error(ex, "Exception while applying profile");
             }
             finally
             {
@@ -801,6 +806,7 @@ namespace DisplayProfileManager.UI.Windows
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Failed to load app icon: {ex.Message}");
+                logger.Warn(ex, "Failed to load app icon");
             }
         }
 

@@ -9,11 +9,13 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shell;
+using NLog;
 
 namespace DisplayProfileManager.UI.Windows
 {
     public partial class ProfileEditWindow : Window
     {
+        private static readonly Logger logger = LoggerHelper.GetLogger();
         private ProfileManager _profileManager;
         private Profile _profile;
         private bool _isEditMode;
@@ -206,6 +208,8 @@ namespace DisplayProfileManager.UI.Windows
                     window.Show();
 
                     Debug.WriteLine($"Index: {window.MonitorIndex}, Pos: Left:{window.Left}, Top:{window.Top}");
+                    logger.Debug("Showing identify window for monitor {Index} at position Left:{Left}, Top:{Top}",
+                        window.MonitorIndex, window.Left, window.Top);
                 }
 
                 StatusTextBlock.Text = $"Showing identifiers on {identifyWindows.Count} monitor(s)";
@@ -397,10 +401,12 @@ namespace DisplayProfileManager.UI.Windows
                 var app = Application.Current as App;
                 app?.DisableProfileHotkeys();
                 System.Diagnostics.Debug.WriteLine("Disabled profile hotkeys for ProfileEditWindow");
+                logger.Debug("Disabled profile hotkeys for ProfileEditWindow");
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error disabling profile hotkeys: {ex.Message}");
+                logger.Error(ex, "Error disabling profile hotkeys");
             }
         }
 
@@ -543,6 +549,7 @@ namespace DisplayProfileManager.UI.Windows
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error loading audio devices: {ex.Message}");
+                logger.Error(ex, "Error loading audio devices");
                 StatusTextBlock.Text = "Could not load audio devices";
             }
         }
@@ -606,6 +613,7 @@ namespace DisplayProfileManager.UI.Windows
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error detecting audio devices: {ex.Message}");
+                logger.Error(ex, "Error detecting audio devices");
                 StatusTextBlock.Text = "Error detecting audio devices";
             }
         }
@@ -714,10 +722,12 @@ namespace DisplayProfileManager.UI.Windows
                 var app = Application.Current as App;
                 app?.EnableProfileHotkeys();
                 System.Diagnostics.Debug.WriteLine("Re-enabled profile hotkeys after ProfileEditWindow closed");
+                logger.Debug("Re-enabled profile hotkeys after ProfileEditWindow closed");
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error re-enabling profile hotkeys: {ex.Message}");
+                logger.Error(ex, "Error re-enabling profile hotkeys");
             }
             
             base.OnClosed(e);

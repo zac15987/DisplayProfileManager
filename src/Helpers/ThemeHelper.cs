@@ -4,18 +4,20 @@ using System.Windows.Media;
 using Microsoft.Win32;
 using System.Diagnostics;
 using DisplayProfileManager.Core;
+using NLog;
 
 namespace DisplayProfileManager.Helpers
 {
     public static class ThemeHelper
     {
+        private static readonly Logger logger = LoggerHelper.GetLogger();
         private const string RegistryKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize";
         private const string RegistryValueName = "AppsUseLightTheme";
-        
+
         private static ResourceDictionary lightTheme;
         private static ResourceDictionary darkTheme;
         private static ResourceDictionary currentTheme;
-        
+
         public static event EventHandler ThemeChanged;
         
         static ThemeHelper()
@@ -84,6 +86,7 @@ namespace DisplayProfileManager.Helpers
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error applying theme: {ex.Message}");
+                logger.Error(ex, "Error applying theme");
             }
         }
         
@@ -106,6 +109,7 @@ namespace DisplayProfileManager.Helpers
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error reading system theme: {ex.Message}");
+                logger.Error(ex, "Error reading system theme");
             }
             
             return false; // Default to light theme if unable to determine
