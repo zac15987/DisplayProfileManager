@@ -83,18 +83,6 @@ namespace DisplayProfileManager
                 }
             }
 
-            // Check for administrator privileges
-            if (!IsRunAsAdministrator())
-            {
-                MessageBox.Show("Display Profile Manager requires administrator privileges to accurately detect and manage display configurations.\n\n" +
-                               "Please run this application as Administrator.",
-                               "Administrator Privileges Required",
-                               MessageBoxButton.OK,
-                               MessageBoxImage.Warning);
-                Shutdown();
-                return;
-            }
-
             if (!CheckSingleInstance())
             {
                 Shutdown();
@@ -123,22 +111,6 @@ namespace DisplayProfileManager
                 MessageBox.Show($"Failed to start application: {ex.Message}", "Startup Error", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
                 Shutdown();
-            }
-        }
-
-        private bool IsRunAsAdministrator()
-        {
-            try
-            {
-                using (WindowsIdentity identity = WindowsIdentity.GetCurrent())
-                {
-                    WindowsPrincipal principal = new WindowsPrincipal(identity);
-                    return principal.IsInRole(WindowsBuiltInRole.Administrator);
-                }
-            }
-            catch
-            {
-                return false;
             }
         }
 

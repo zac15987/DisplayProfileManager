@@ -7,6 +7,12 @@ using NLog;
 
 namespace DisplayProfileManager.Core
 {
+    public enum AutoStartMode
+    {
+        Registry,
+        TaskScheduler
+    }
+
     public class AppSettings
     {
         [JsonProperty("startWithWindows")]
@@ -14,6 +20,9 @@ namespace DisplayProfileManager.Core
 
         [JsonProperty("startInSystemTray")]
         public bool StartInSystemTray { get; set; } = false;
+
+        [JsonProperty("autoStartMode")]
+        public AutoStartMode AutoStartMode { get; set; } = AutoStartMode.Registry;
 
         [JsonProperty("startupProfileId")]
         public string StartupProfileId { get; set; } = string.Empty;
@@ -185,14 +194,14 @@ namespace DisplayProfileManager.Core
             {
                 var autoStartHelper = new AutoStartHelper();
                 bool taskOperationSucceeded = false;
-                
+
                 if (startWithWindows)
                 {
-                    taskOperationSucceeded = autoStartHelper.EnableAutoStart(_settings.StartInSystemTray);
+                    taskOperationSucceeded = autoStartHelper.EnableAutoStart(_settings.AutoStartMode, _settings.StartInSystemTray);
                     if (!taskOperationSucceeded)
                     {
-                        System.Diagnostics.Debug.WriteLine("Failed to enable auto start task");
-                        logger.Error("Failed to enable auto start task");
+                        System.Diagnostics.Debug.WriteLine("Failed to enable auto start");
+                        logger.Error("Failed to enable auto start");
                         return false;
                     }
                 }
@@ -201,21 +210,21 @@ namespace DisplayProfileManager.Core
                     taskOperationSucceeded = autoStartHelper.DisableAutoStart();
                     if (!taskOperationSucceeded)
                     {
-                        System.Diagnostics.Debug.WriteLine("Failed to disable auto start task");
-                        logger.Error("Failed to disable auto start task");
+                        System.Diagnostics.Debug.WriteLine("Failed to disable auto start");
+                        logger.Error("Failed to disable auto start");
                         return false;
                     }
                 }
 
                 // Only update settings if task operation succeeded
                 _settings.StartWithWindows = startWithWindows;
-                
+
                 // If disabling StartWithWindows, also disable StartInSystemTray
                 if (!startWithWindows)
                 {
                     _settings.StartInSystemTray = false;
                 }
-                
+
                 var settingsSaved = await SaveSettingsAsync();
 
                 if (!settingsSaved)
@@ -229,7 +238,7 @@ namespace DisplayProfileManager.Core
                     }
                     else
                     {
-                        autoStartHelper.EnableAutoStart(_settings.StartInSystemTray);
+                        autoStartHelper.EnableAutoStart(_settings.AutoStartMode, _settings.StartInSystemTray);
                     }
                     return false;
                 }
@@ -256,15 +265,15 @@ namespace DisplayProfileManager.Core
                     return false;
                 }
 
-                // Update the scheduled task with the new argument
+                // Update the auto-start entry with the new argument
                 if (_settings.StartWithWindows)
                 {
                     var autoStartHelper = new AutoStartHelper();
-                    bool taskOperationSucceeded = autoStartHelper.EnableAutoStart(startInSystemTray);
+                    bool taskOperationSucceeded = autoStartHelper.EnableAutoStart(_settings.AutoStartMode, startInSystemTray);
                     if (!taskOperationSucceeded)
                     {
-                        System.Diagnostics.Debug.WriteLine("Failed to update auto start task with tray setting");
-                        logger.Error("Failed to update auto start task with tray setting");
+                        System.Diagnostics.Debug.WriteLine("Failed to update auto start with tray setting");
+                        logger.Error("Failed to update auto start with tray setting");
                         return false;
                     }
                 }
@@ -277,6 +286,61 @@ namespace DisplayProfileManager.Core
             {
                 System.Diagnostics.Debug.WriteLine($"Error setting start in system tray: {ex.Message}");
                 logger.Error(ex, "Error setting start in system tray");
+                return false;
+            }
+        }
+
+        public async Task<bool> SetAutoStartModeAsync(AutoStartMode mode)
+        {
+            try
+            {
+                // Cannot change mode unless auto-start is enabled
+                if (!_settings.StartWithWindows)
+                {
+                    System.Diagnostics.Debug.WriteLine("Cannot change auto-start mode when auto-start is disabled");
+                    logger.Warn("Cannot change auto-start mode when auto-start is disabled");
+                    return false;
+                }
+
+                // If already using this mode, nothing to do
+                if (_settings.AutoStartMode == mode)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Already using {mode} mode");
+                    logger.Debug($"Already using {mode} mode");
+                    return true;
+                }
+
+                var autoStartHelper = new AutoStartHelper();
+
+                // Disable current auto-start method (both to ensure clean state)
+                autoStartHelper.DisableAutoStart();
+
+                // Enable new auto-start method
+                bool success = autoStartHelper.EnableAutoStart(mode, _settings.StartInSystemTray);
+
+                if (success)
+                {
+                    _settings.AutoStartMode = mode;
+                    await SaveSettingsAsync();
+
+                    System.Diagnostics.Debug.WriteLine($"Successfully switched to {mode} mode");
+                    logger.Info($"Successfully switched to {mode} mode");
+                    return true;
+                }
+                else
+                {
+                    // If failed, try to restore previous mode
+                    System.Diagnostics.Debug.WriteLine($"Failed to switch to {mode} mode, restoring previous mode");
+                    logger.Error($"Failed to switch to {mode} mode, restoring previous mode");
+
+                    autoStartHelper.EnableAutoStart(_settings.AutoStartMode, _settings.StartInSystemTray);
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error setting auto-start mode: {ex.Message}");
+                logger.Error(ex, "Error setting auto-start mode");
                 return false;
             }
         }

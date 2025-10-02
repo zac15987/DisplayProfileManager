@@ -239,11 +239,38 @@
                                       Checked="StartWithWindowsCheckBox_Changed"
                                       Unchecked="StartWithWindowsCheckBox_Changed"/>
                             
-                            <CheckBox Name="StartInSystemTrayCheckBox" Content="Start in system tray when Windows starts" 
+                            <CheckBox Name="StartInSystemTrayCheckBox" Content="Start in system tray when Windows starts"
                                       Style="{StaticResource ModernCheckBoxStyle}" Margin="20,4,0,0"
                                       Checked="StartInSystemTrayCheckBox_Changed"
                                       Unchecked="StartInSystemTrayCheckBox_Changed"/>
-                            
+
+                            <TextBlock Text="Auto-Start Method" Style="{StaticResource LabelTextBlockStyle}" Margin="0,16,0,4"/>
+                            <StackPanel Name="AutoStartModePanel" Margin="20,0,0,0">
+                                <RadioButton Name="RegistryModeRadio" Content="Standard (No admin required)"
+                                             Style="{StaticResource ModernRadioButtonStyle}"
+                                             GroupName="AutoStartMode"
+                                             Checked="AutoStartModeRadio_Changed"/>
+                                <TextBlock Style="{StaticResource ModernTextBlockStyle}"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource TertiaryTextBrush}"
+                                           Margin="20,0,0,4"
+                                           TextWrapping="Wrap">
+                                    Uses Windows Registry. Normal startup speed.
+                                </TextBlock>
+
+                                <RadioButton Name="TaskSchedulerModeRadio" Content="Quick Launch (Requires admin)"
+                                             Style="{StaticResource ModernRadioButtonStyle}"
+                                             GroupName="AutoStartMode"
+                                             Checked="AutoStartModeRadio_Changed"/>
+                                <TextBlock Style="{StaticResource ModernTextBlockStyle}"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource TertiaryTextBrush}"
+                                           Margin="20,0,0,4"
+                                           TextWrapping="Wrap">
+                                    Uses Windows Task Scheduler. Faster/higher priority startup. Requires admin privileges for setup.
+                                </TextBlock>
+                            </StackPanel>
+
                             <TextBlock Text="Startup Profile" Style="{StaticResource LabelTextBlockStyle}" Margin="0,12,0,4"/>
                             <ComboBox Name="StartupProfileComboBox" Style="{StaticResource ModernComboBoxStyle}"
                                       SelectionChanged="StartupProfileComboBox_SelectionChanged">

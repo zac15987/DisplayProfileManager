@@ -48,6 +48,18 @@ namespace DisplayProfileManager.UI.Windows
                 StartWithWindowsCheckBox.IsChecked = settings.StartWithWindows;
                 StartInSystemTrayCheckBox.IsChecked = settings.StartInSystemTray;
                 StartInSystemTrayCheckBox.IsEnabled = settings.StartWithWindows;
+
+                // Auto-start mode settings
+                if (settings.AutoStartMode == Core.AutoStartMode.Registry)
+                {
+                    RegistryModeRadio.IsChecked = true;
+                }
+                else
+                {
+                    TaskSchedulerModeRadio.IsChecked = true;
+                }
+                AutoStartModePanel.IsEnabled = settings.StartWithWindows;
+
                 await LoadStartupProfiles();
                 SelectComboBoxItemByTag(StartupProfileComboBox, settings.StartupProfileId);
                 ApplyStartupProfileCheckBox.IsChecked = settings.ApplyStartupProfile;
@@ -155,14 +167,15 @@ namespace DisplayProfileManager.UI.Windows
         private async void StartWithWindowsCheckBox_Changed(object sender, RoutedEventArgs e)
         {
             if (_isLoadingSettings) return;
-            
+
             try
             {
                 var isChecked = StartWithWindowsCheckBox.IsChecked ?? false;
                 await _settingsManager.SetStartWithWindowsAsync(isChecked);
-                
-                // Enable/disable the StartInSystemTray checkbox based on StartWithWindows
+
+                // Enable/disable the StartInSystemTray checkbox and auto-start mode panel based on StartWithWindows
                 StartInSystemTrayCheckBox.IsEnabled = isChecked;
+                AutoStartModePanel.IsEnabled = isChecked;
                 
                 // If StartWithWindows is unchecked, also uncheck StartInSystemTray
                 if (!isChecked)
@@ -181,7 +194,7 @@ namespace DisplayProfileManager.UI.Windows
         private async void StartInSystemTrayCheckBox_Changed(object sender, RoutedEventArgs e)
         {
             if (_isLoadingSettings) return;
-            
+
             try
             {
                 var isChecked = StartInSystemTrayCheckBox.IsChecked ?? false;
@@ -189,9 +202,84 @@ namespace DisplayProfileManager.UI.Windows
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error updating system tray startup setting: {ex.Message}", "Error", 
+                MessageBox.Show($"Error updating system tray startup setting: {ex.Message}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
                 StartInSystemTrayCheckBox.IsChecked = !StartInSystemTrayCheckBox.IsChecked;
+            }
+        }
+
+        private async void AutoStartModeRadio_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_isLoadingSettings) return;
+
+            try
+            {
+                Core.AutoStartMode selectedMode = RegistryModeRadio.IsChecked == true
+                    ? Core.AutoStartMode.Registry
+                    : Core.AutoStartMode.TaskScheduler;
+
+                // Check if switching to Task Scheduler mode
+                if (selectedMode == Core.AutoStartMode.TaskScheduler)
+                {
+                    // Check if already running as admin
+                    if (!AutoStartHelper.IsRunningAsAdmin())
+                    {
+                        var result = MessageBox.Show(
+                            "Task Scheduler mode requires administrator privileges to set up.\n\n" +
+                            "You are not currently running as administrator. The system will attempt to create the task, " +
+                            "which may prompt for elevation.\n\n" +
+                            "Do you want to continue?",
+                            "Administrator Privileges Required",
+                            MessageBoxButton.YesNo,
+                            MessageBoxImage.Warning);
+
+                        if (result == MessageBoxResult.No)
+                        {
+                            // Revert to Registry mode
+                            _isLoadingSettings = true;
+                            RegistryModeRadio.IsChecked = true;
+                            _isLoadingSettings = false;
+                            return;
+                        }
+                    }
+                }
+
+                // Attempt to change the mode
+                bool success = await _settingsManager.SetAutoStartModeAsync(selectedMode);
+
+                if (!success)
+                {
+                    MessageBox.Show(
+                        $"Failed to switch to {selectedMode} mode. " +
+                        (selectedMode == Core.AutoStartMode.TaskScheduler
+                            ? "Administrator privileges may be required."
+                            : "Please check the logs for more details."),
+                        "Error",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+
+                    // Revert to previous mode
+                    _isLoadingSettings = true;
+                    if (selectedMode == Core.AutoStartMode.Registry)
+                    {
+                        TaskSchedulerModeRadio.IsChecked = true;
+                    }
+                    else
+                    {
+                        RegistryModeRadio.IsChecked = true;
+                    }
+                    _isLoadingSettings = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error changing auto-start mode: {ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+
+                // Revert to Registry mode on error
+                _isLoadingSettings = true;
+                RegistryModeRadio.IsChecked = true;
+                _isLoadingSettings = false;
             }
         }
 
