@@ -11,6 +11,16 @@ namespace DisplayProfileManager.Core
 {
     public class ProfileManager
     {
+        public class ProfileApplyResult
+        {
+            public bool Success { get; set; }
+            public bool PrimaryChanged { get; set; }
+            public bool DisplayConfigApplied { get; set; }
+            public bool ResolutionChanged { get; set; }
+            public bool DpiChanged { get; set; }
+            public bool AudioSuccess { get; set; }
+        }
+
         private static ProfileManager _instance;
         private static readonly object _lock = new object();
 
@@ -250,16 +260,20 @@ namespace DisplayProfileManager.Core
             });
         }
 
-        public async Task<bool> ApplyProfileAsync(Profile profile)
+        public async Task<ProfileApplyResult> ApplyProfileAsync(Profile profile)
         {
             try
             {
                 bool success = true;
+                bool primaryChanged = true;
+                bool displayConfigApplied = true;
+                bool resolutionChanged = true;
+                bool dpiChanged = true;
+                bool audioSuccess = true;
 
-                // Step 1: Apply display config (enable/disable monitors)
+                // Step 1: Apply display config (primary, enable/disable monitors)
                 if (profile.DisplaySettings.Count > 0)
                 {
-
                     var currentDisplayConfig = new List<DisplayConfigHelper.DisplayConfigInfo>();
 
                     foreach (var setting in profile.DisplaySettings)
@@ -282,12 +296,11 @@ namespace DisplayProfileManager.Core
                         currentDisplayConfig.Add(displayConfigInfo);
                     }
 
-                    // Validate and apply topology
-                    if (DisplayConfigHelper.ValidateDisplayTopology(currentDisplayConfig))
+                    // Set primary monitor first (must be done before topology changes)
+                    try
                     {
-                        // Set primary monitor first (must be done before topology changes)
                         System.Diagnostics.Debug.WriteLine("Setting primary display...");
-                        bool primaryChanged = DisplayConfigHelper.SetPrimaryDisplay(currentDisplayConfig);
+                        primaryChanged = DisplayConfigHelper.SetPrimaryDisplay(currentDisplayConfig);
                         if (!primaryChanged)
                         {
                             System.Diagnostics.Debug.WriteLine($"Failed to set primary display");
@@ -297,11 +310,17 @@ namespace DisplayProfileManager.Core
                         {
                             System.Diagnostics.Debug.WriteLine("Set primary display successfully");
                         }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error applying primary display: {ex.Message}, Stack Trace: {ex.StackTrace}");
+                    }
 
-
+                    try
+                    {
                         System.Diagnostics.Debug.WriteLine("Applying display topology...");
 
-                        bool displayConfigApplied = DisplayConfigHelper.ApplyDisplayTopology(currentDisplayConfig);
+                        displayConfigApplied = DisplayConfigHelper.ApplyDisplayTopology(currentDisplayConfig);
                         if (!displayConfigApplied)
                         {
                             System.Diagnostics.Debug.WriteLine("Failed to apply display topology");
@@ -312,9 +331,9 @@ namespace DisplayProfileManager.Core
                             System.Diagnostics.Debug.WriteLine("Display topology applied successfully");
                         }
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine("Invalid display topology - skipping topology changes");
+                        System.Diagnostics.Debug.WriteLine($"Error applying display topology: {ex.Message}, Stack Trace: {ex.StackTrace}");
                     }
                 }
                 
@@ -322,11 +341,12 @@ namespace DisplayProfileManager.Core
                 List<DisplaySetting> displaySettings = profile.DisplaySettings.Where(s => s.IsEnabled).ToList();
                 foreach (var setting in displaySettings)
                 {
-                    if(DisplayHelper.IsMonitorConnected(setting.DeviceName))
+                    try
                     {
-                        try
+                        if (DisplayHelper.IsMonitorConnected(setting.DeviceName))
                         {
-                            bool resolutionChanged = DisplayHelper.ChangeResolution(
+
+                            resolutionChanged = DisplayHelper.ChangeResolution(
                                 setting.DeviceName,
                                 setting.Width,
                                 setting.Height,
@@ -338,22 +358,22 @@ namespace DisplayProfileManager.Core
                                 success = false;
                             }
 
-                            bool dpiChanged = DpiHelper.SetDPIScaling(setting.DeviceName, setting.DpiScaling);
+                            dpiChanged = DpiHelper.SetDPIScaling(setting.DeviceName, setting.DpiScaling);
 
                             if (!dpiChanged)
                             {
                                 System.Diagnostics.Debug.WriteLine($"Failed to set DPI scaling for {setting.DeviceName}");
                             }
                         }
-                        catch (Exception ex)
+                        else
                         {
-                            System.Diagnostics.Debug.WriteLine($"Error applying setting for {setting.DeviceName}: {ex.Message}");
-                            success = false;
+                            System.Diagnostics.Debug.WriteLine($"{setting.DeviceName} is not connected now");
                         }
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine($"{setting.DeviceName} is not connected now");
+                        System.Diagnostics.Debug.WriteLine($"Error applying setting for {setting.DeviceName}: {ex.Message}, Stack Trace: {ex.StackTrace}");
+                        success = false;
                     }
                 }
 
@@ -362,8 +382,6 @@ namespace DisplayProfileManager.Core
                 {
                     try
                     {
-                        bool audioSuccess = true;
-                        
                         // Apply playback device if enabled
                         if (profile.AudioSettings.ApplyPlaybackDevice && profile.AudioSettings.HasPlaybackDevice())
                         {
@@ -418,7 +436,7 @@ namespace DisplayProfileManager.Core
                     }
                     catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine($"Error applying audio settings: {ex.Message}");
+                        System.Diagnostics.Debug.WriteLine($"Error applying audio settings: {ex.Message}, Stack Trace: {ex.StackTrace}");
                         // Don't fail the entire profile if audio settings fail
                     }
                 }
@@ -430,13 +448,55 @@ namespace DisplayProfileManager.Core
                     ProfileApplied?.Invoke(this, profile);
                 }
 
-                return success;
+                ProfileApplyResult profileApplyResult = new ProfileApplyResult
+                {
+                    Success = success,
+                    PrimaryChanged = primaryChanged,
+                    DisplayConfigApplied = displayConfigApplied,
+                    ResolutionChanged = resolutionChanged,
+                    DpiChanged = dpiChanged,
+                    AudioSuccess = audioSuccess
+                };
+
+                return profileApplyResult;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error applying profile: {ex.Message}");
-                return false;
+                System.Diagnostics.Debug.WriteLine($"Error applying profile: {ex.Message}, Stack Trace: {ex.StackTrace}");
+
+                ProfileApplyResult profileApplyResult = new ProfileApplyResult
+                {
+                    Success = false,
+                    PrimaryChanged = false,
+                    DisplayConfigApplied = false,
+                    ResolutionChanged = false,
+                    DpiChanged = false,
+                    AudioSuccess = false
+                };
+
+                return profileApplyResult;
             }
+        }
+
+        public string GetApplyResultErrorMessage(string profileName, ProfileApplyResult result)
+        {
+            string errorDetails =
+                $"Failed to apply profile '{profileName}'.\n" +
+                $"Some settings may not have been applied correctly.\n\n" +
+                $"Primary Changed: {result.PrimaryChanged},\n" +
+                $"Display Topology Applied: {result.DisplayConfigApplied},\n" +
+                $"Resolution Frequency Changed: {result.ResolutionChanged},\n" +
+                $"DPI Scaling Changed: {result.DpiChanged},\n" +
+                $"Audio Success: {result.AudioSuccess}";
+
+            return errorDetails;
+        }
+
+        public Profile GetCurrentProfile()
+        {
+            if (string.IsNullOrEmpty(_currentProfileId))
+                return null;
+            return GetProfile(_currentProfileId);
         }
 
         public List<Profile> GetAllProfiles()

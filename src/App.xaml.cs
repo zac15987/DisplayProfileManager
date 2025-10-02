@@ -1,17 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Configuration;
-using System.Data;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Windows;
-using System.Runtime.InteropServices;
-using System.Threading;
-using System.Security.Principal;
-using DisplayProfileManager.Core;
+﻿using DisplayProfileManager.Core;
+using DisplayProfileManager.Helpers;
 using DisplayProfileManager.UI;
 using DisplayProfileManager.UI.Windows;
-using DisplayProfileManager.Helpers;
+using System;
+using System.Runtime.InteropServices;
+using System.Security.Principal;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows;
 
 namespace DisplayProfileManager
 {
@@ -319,10 +315,23 @@ namespace DisplayProfileManager
                     
                     if (startupProfile != null)
                     {
-                        await _profileManager.ApplyProfileAsync(startupProfile);
-                        _trayIcon?.ShowNotification("Display Profile Manager", 
-                            $"Startup profile '{startupProfile.Name}' applied", 
-                            System.Windows.Forms.ToolTipIcon.Info);
+                        var applyResult = await _profileManager.ApplyProfileAsync(startupProfile);
+
+                        if (applyResult.Success)
+                        {
+                            string message = $"Startup profile '{startupProfile.Name}' applied successfully.";
+                            System.Diagnostics.Debug.WriteLine(message);
+
+                            _trayIcon?.ShowNotification("Display Profile Manager", message, System.Windows.Forms.ToolTipIcon.Info);
+                        }
+                        else
+                        {
+                            string errorDetails = _profileManager.GetApplyResultErrorMessage(startupProfile.Name, applyResult);
+                            System.Diagnostics.Debug.WriteLine(errorDetails);
+
+                            _trayIcon?.ShowNotification("Display Profile Manager", $"Startup profile: {errorDetails}", System.Windows.Forms.ToolTipIcon.Info);
+                        }
+
                     }
                 }
             }
@@ -451,18 +460,20 @@ namespace DisplayProfileManager
                 {
                     System.Diagnostics.Debug.WriteLine($"Applying profile '{profile.Name}' via hotkey");
                     
-                    bool success = await _profileManager.ApplyProfileAsync(profile);
-                    if (success)
+                    var applyResult = await _profileManager.ApplyProfileAsync(profile);
+                    if (applyResult.Success)
                     {
-                        _trayIcon?.ShowNotification("Display Profile Manager", 
-                            $"Applied profile: {profile.Name}", 
-                            System.Windows.Forms.ToolTipIcon.Info);
+                        string message = $"Profile '{profile.Name}' applied successfully.";
+                        System.Diagnostics.Debug.WriteLine(message);
+
+                        _trayIcon?.ShowNotification("Display Profile Manager", message, System.Windows.Forms.ToolTipIcon.Info);
                     }
                     else
                     {
-                        _trayIcon?.ShowNotification("Display Profile Manager", 
-                            $"Failed to apply profile: {profile.Name}", 
-                            System.Windows.Forms.ToolTipIcon.Error);
+                        string errorDetails = _profileManager.GetApplyResultErrorMessage(profile.Name, applyResult);
+                        System.Diagnostics.Debug.WriteLine(errorDetails);
+
+                        _trayIcon?.ShowNotification("Display Profile Manager", errorDetails, System.Windows.Forms.ToolTipIcon.Error);
                     }
                 }
             }
@@ -591,9 +602,9 @@ namespace DisplayProfileManager
                 
                 _instanceMutex?.ReleaseMutex();
                 _instanceMutex?.Dispose();
-                
+
                 _trayIcon?.Dispose();
-                
+
                 // Unsubscribe from profile events
                 if (_profileManager != null)
                 {

@@ -3,9 +3,7 @@ using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 using System.Windows;
-using System.Threading.Tasks;
 using DisplayProfileManager.Core;
-using DisplayProfileManager.UI.Windows;
 
 namespace DisplayProfileManager.UI
 {
@@ -38,9 +36,19 @@ namespace DisplayProfileManager.UI
             _notifyIcon.ContextMenuStrip = _contextMenu;
 
             _notifyIcon.DoubleClick += OnTrayIconDoubleClick;
-            _notifyIcon.MouseClick += OnTrayIconClick;
 
             BuildContextMenu();
+            UpdateTrayIconTooltip();
+        }
+
+        private void UpdateTrayIconTooltip()
+        {
+            var currentProfile = _profileManager.GetCurrentProfile();
+            if (currentProfile != null)
+            {
+                string currentProfileName = currentProfile.Name;
+                _notifyIcon.Text = $"Display Profile Manager - {currentProfileName}";
+            }
         }
 
         private void SetupEventHandlers()
@@ -150,20 +158,23 @@ namespace DisplayProfileManager.UI
             {
                 try
                 {
-                    _notifyIcon.ShowBalloonTip(3000, "Display Profile Manager", 
-                        $"Applying profile: {profile.Name}", ToolTipIcon.Info);
+                    System.Diagnostics.Debug.WriteLine($"Applying profile '{profile.Name}' via TrayIcon");
 
-                    bool success = await _profileManager.ApplyProfileAsync(profile);
+                    var applyResult = await _profileManager.ApplyProfileAsync(profile);
                     
-                    if (success)
+                    if (applyResult.Success)
                     {
-                        _notifyIcon.ShowBalloonTip(3000, "Display Profile Manager", 
-                            $"Profile '{profile.Name}' applied successfully!", ToolTipIcon.Info);
+                        string message = $"Profile '{profile.Name}' applied successfully.";
+                        System.Diagnostics.Debug.WriteLine(message);
+
+                        _notifyIcon.ShowBalloonTip(3000, "Display Profile Manager", message, ToolTipIcon.Info);
                     }
                     else
                     {
-                        _notifyIcon.ShowBalloonTip(5000, "Display Profile Manager", 
-                            $"Failed to apply profile '{profile.Name}'", ToolTipIcon.Error);
+                        string errorDetails = _profileManager.GetApplyResultErrorMessage(profile.Name, applyResult);
+                        System.Diagnostics.Debug.WriteLine(errorDetails);
+
+                        _notifyIcon.ShowBalloonTip(5000, "Display Profile Manager", errorDetails, ToolTipIcon.Error);
                     }
                 }
                 catch (Exception ex)
@@ -177,19 +188,6 @@ namespace DisplayProfileManager.UI
         private void OnTrayIconDoubleClick(object sender, EventArgs e)
         {
             ShowMainWindow?.Invoke(this, EventArgs.Empty);
-        }
-
-        private void OnTrayIconClick(object sender, MouseEventArgs e)
-        {
-            if (e.Button == MouseButtons.Left)
-            {
-                var currentProfile = _profileManager.GetDefaultProfile();
-                if (currentProfile != null)
-                {
-                    _notifyIcon.ShowBalloonTip(2000, "Display Profile Manager", 
-                        $"Current profile: {currentProfile.Name}", ToolTipIcon.Info);
-                }
-            }
         }
 
         private void OnManageProfilesClick(object sender, EventArgs e)
@@ -249,6 +247,7 @@ namespace DisplayProfileManager.UI
         private void OnProfileApplied(object sender, Profile e)
         {
             BuildContextMenu();
+            UpdateTrayIconTooltip();
         }
 
         public void ShowNotification(string title, string message, ToolTipIcon icon = ToolTipIcon.Info, int timeout = 3000)

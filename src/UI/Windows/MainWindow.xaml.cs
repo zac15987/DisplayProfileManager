@@ -2,22 +2,14 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 using System.Windows.Shell;
 using DisplayProfileManager.Core;
 using DisplayProfileManager.UI.ViewModels;
-using DisplayProfileManager.Helpers;
 
 namespace DisplayProfileManager.UI.Windows
 {
@@ -416,9 +408,9 @@ namespace DisplayProfileManager.UI.Windows
                 // Store the profile name before applying
                 var profileName = _selectedProfile.Name;
 
-                bool success = await _profileManager.ApplyProfileAsync(_selectedProfile);
+                var applyResult = await _profileManager.ApplyProfileAsync(_selectedProfile);
                 
-                if (success)
+                if (applyResult.Success)
                 {
                     StatusTextBlock.Text = $"Profile '{profileName}' applied successfully!";
                     MessageBox.Show($"Profile '{profileName}' has been applied successfully!", 
@@ -427,15 +419,20 @@ namespace DisplayProfileManager.UI.Windows
                 else
                 {
                     StatusTextBlock.Text = "Failed to apply profile";
-                    MessageBox.Show($"Failed to apply profile '{profileName}'. Some settings may not have been applied correctly.", 
-                        "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+
+                    string errorDetails = _profileManager.GetApplyResultErrorMessage(profileName, applyResult);
+                    System.Diagnostics.Debug.WriteLine(errorDetails);
+
+                    MessageBox.Show(errorDetails, "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
             }
             catch (Exception ex)
             {
                 StatusTextBlock.Text = "Error applying profile";
-                MessageBox.Show($"Error applying profile: {ex.Message}", "Error", 
+                MessageBox.Show($"Exception: Error applying profile: {ex.Message}", "Error", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
+
+                System.Diagnostics.Debug.WriteLine($"Exception: Error applying profile: {ex.Message}, StackTrace: {ex.StackTrace}");
             }
             finally
             {
