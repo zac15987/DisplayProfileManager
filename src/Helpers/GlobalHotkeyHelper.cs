@@ -114,7 +114,6 @@ namespace DisplayProfileManager.Helpers
             _hwndSource.AddHook(WndProc);
             _windowHandle = _hwndSource.Handle;
 
-            Debug.WriteLine($"Created message window with handle: 0x{_windowHandle:X}");
             logger.Debug($"Created message window with handle: 0x{_windowHandle:X}");
         }
 
@@ -131,20 +130,17 @@ namespace DisplayProfileManager.Helpers
             if (RegisterHotKey(_windowHandle, hotkeyId, finalModifiers, virtualKey))
             {
                 _hotkeyActions[hotkeyId] = callback;
-                Debug.WriteLine($"Successfully registered hotkey {hotkeyId} for key 0x{virtualKey:X2} with modifiers 0x{finalModifiers:X2}");
                 logger.Info($"Successfully registered hotkey {hotkeyId} for key 0x{virtualKey:X2} with modifiers 0x{finalModifiers:X2}");
                 return hotkeyId;
             }
             else
             {
                 var error = Marshal.GetLastWin32Error();
-                Debug.WriteLine($"Failed to register hotkey {hotkeyId}. Error code: {error}");
                 logger.Error($"Failed to register hotkey {hotkeyId}. Error code: {error}");
 
                 // Error 1409 means the hotkey is already registered
                 if (error == 1409)
                 {
-                    Debug.WriteLine("Hotkey is already registered by another application");
                     logger.Warn("Hotkey is already registered by another application");
                 }
 
@@ -160,7 +156,6 @@ namespace DisplayProfileManager.Helpers
             // Install low-level keyboard hook for Print Screen
             if (_keyboardHookId == IntPtr.Zero)
             {
-                Debug.WriteLine("Installing low-level keyboard hook for Print Screen");
                 logger.Info("Installing low-level keyboard hook for Print Screen");
                 InstallKeyboardHook();
             }
@@ -170,7 +165,6 @@ namespace DisplayProfileManager.Helpers
 
             if (id < 0)
             {
-                Debug.WriteLine("Regular hotkey registration failed, but keyboard hook is active");
                 logger.Debug("Regular hotkey registration failed, but keyboard hook is active");
                 // Return a fake ID since we have the keyboard hook
                 return 9999;
@@ -192,19 +186,16 @@ namespace DisplayProfileManager.Helpers
                     if (_keyboardHookId == IntPtr.Zero)
                     {
                         var error = Marshal.GetLastWin32Error();
-                        Debug.WriteLine($"Failed to install keyboard hook. Error: {error}");
                         logger.Error($"Failed to install keyboard hook. Error: {error}");
                     }
                     else
                     {
-                        Debug.WriteLine($"Successfully installed keyboard hook. Handle: 0x{_keyboardHookId:X}");
                         logger.Info($"Successfully installed keyboard hook. Handle: 0x{_keyboardHookId:X}");
                     }
                 }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Exception installing keyboard hook: {ex.Message}");
                 logger.Error(ex, "Exception installing keyboard hook");
             }
         }
@@ -221,7 +212,6 @@ namespace DisplayProfileManager.Helpers
                     // Check if it's the Print Screen key
                     if (hookStruct.vkCode == VK_SNAPSHOT)
                     {
-                        Debug.WriteLine($"Print Screen key detected! vkCode: 0x{hookStruct.vkCode:X}, scanCode: 0x{hookStruct.scanCode:X}");
                         logger.Debug($"Print Screen key detected! vkCode: 0x{hookStruct.vkCode:X}, scanCode: 0x{hookStruct.scanCode:X}");
 
                         // Execute callback on dispatcher thread
@@ -252,7 +242,6 @@ namespace DisplayProfileManager.Helpers
             bool result = UnregisterHotKey(_windowHandle, hotkeyId);
             _hotkeyActions.Remove(hotkeyId);
 
-            Debug.WriteLine($"Unregistered hotkey {hotkeyId}: {(result ? "Success" : "Failed")}");
             logger.Debug($"Unregistered hotkey {hotkeyId}: {(result ? "Success" : "Failed")}");
             return result;
         }
@@ -265,14 +254,12 @@ namespace DisplayProfileManager.Helpers
             {
                 int hotkeyId = wParam.ToInt32();
 
-                Debug.WriteLine($"WM_HOTKEY received for hotkey ID: {hotkeyId}");
                 logger.Debug($"WM_HOTKEY received for hotkey ID: {hotkeyId}");
 
                 if (_hotkeyActions.TryGetValue(hotkeyId, out Action callback))
                 {
                     try
                     {
-                        Debug.WriteLine($"Executing callback for hotkey {hotkeyId}");
                         logger.Debug($"Executing callback for hotkey {hotkeyId}");
 
                         // Execute callback on dispatcher thread to avoid threading issues
@@ -289,13 +276,11 @@ namespace DisplayProfileManager.Helpers
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"Error executing hotkey {hotkeyId} callback: {ex.Message}");
                         logger.Error(ex, $"Error executing hotkey {hotkeyId} callback");
                     }
                 }
                 else
                 {
-                    Debug.WriteLine($"No callback found for hotkey ID: {hotkeyId}");
                     logger.Warn($"No callback found for hotkey ID: {hotkeyId}");
                 }
             }
@@ -319,7 +304,6 @@ namespace DisplayProfileManager.Helpers
 
             if (virtualKey == 0)
             {
-                Debug.WriteLine($"Could not convert WPF Key {hotkey.Key} to virtual key");
                 logger.Error($"Could not convert WPF Key {hotkey.Key} to virtual key");
                 return -1;
             }
@@ -330,12 +314,10 @@ namespace DisplayProfileManager.Helpers
             {
                 _profileHotkeyIds[profileId] = hotkeyId;
                 _hotkeyIdToProfileId[hotkeyId] = profileId;
-                Debug.WriteLine($"Registered profile hotkey for '{profileId}': {hotkey} (ID: {hotkeyId})");
                 logger.Info($"Registered profile hotkey for '{profileId}': {hotkey} (ID: {hotkeyId})");
             }
             else
             {
-                Debug.WriteLine($"Failed to register profile hotkey for '{profileId}': {hotkey}");
                 logger.Error($"Failed to register profile hotkey for '{profileId}': {hotkey}");
             }
 
@@ -353,7 +335,6 @@ namespace DisplayProfileManager.Helpers
                 _profileHotkeyIds.Remove(profileId);
                 _hotkeyIdToProfileId.Remove(hotkeyId);
 
-                Debug.WriteLine($"Unregistered profile hotkey for '{profileId}' (ID: {hotkeyId}): {(result ? "Success" : "Failed")}");
                 logger.Debug($"Unregistered profile hotkey for '{profileId}' (ID: {hotkeyId}): {(result ? "Success" : "Failed")}");
                 return result;
             }
@@ -396,7 +377,6 @@ namespace DisplayProfileManager.Helpers
                 UnregisterProfileHotkey(profileId);
             }
 
-            Debug.WriteLine("Unregistered all profile hotkeys");
             logger.Info("Unregistered all profile hotkeys");
         }
 
@@ -432,7 +412,6 @@ namespace DisplayProfileManager.Helpers
                     if (_keyboardHookId != IntPtr.Zero)
                     {
                         UnhookWindowsHookEx(_keyboardHookId);
-                        Debug.WriteLine("Unhooked keyboard hook");
                         logger.Info("Unhooked keyboard hook");
                         _keyboardHookId = IntPtr.Zero;
                     }
@@ -441,7 +420,6 @@ namespace DisplayProfileManager.Helpers
                     foreach (var hotkeyId in _hotkeyActions.Keys)
                     {
                         UnregisterHotKey(_windowHandle, hotkeyId);
-                        Debug.WriteLine($"Unregistered hotkey {hotkeyId} during disposal");
                         logger.Debug($"Unregistered hotkey {hotkeyId} during disposal");
                     }
                     _hotkeyActions.Clear();

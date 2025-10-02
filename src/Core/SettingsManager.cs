@@ -122,7 +122,6 @@ namespace DisplayProfileManager.Core
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error loading settings: {ex.Message}");
                 logger.Error(ex, "Error loading settings");
                 _settings = new AppSettings();
                 return false;
@@ -142,7 +141,6 @@ namespace DisplayProfileManager.Core
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error saving settings: {ex.Message}");
                 logger.Error(ex, "Error saving settings");
                 return false;
             }
@@ -162,7 +160,6 @@ namespace DisplayProfileManager.Core
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error updating setting {propertyName}: {ex.Message}");
                 logger.Error(ex, $"Error updating setting {propertyName}");
                 return false;
             }
@@ -182,7 +179,6 @@ namespace DisplayProfileManager.Core
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error getting setting {propertyName}: {ex.Message}");
                 logger.Error(ex, $"Error getting setting {propertyName}");
                 return defaultValue;
             }
@@ -200,7 +196,6 @@ namespace DisplayProfileManager.Core
                     taskOperationSucceeded = autoStartHelper.EnableAutoStart(_settings.AutoStartMode, _settings.StartInSystemTray);
                     if (!taskOperationSucceeded)
                     {
-                        System.Diagnostics.Debug.WriteLine("Failed to enable auto start");
                         logger.Error("Failed to enable auto start");
                         return false;
                     }
@@ -210,7 +205,6 @@ namespace DisplayProfileManager.Core
                     taskOperationSucceeded = autoStartHelper.DisableAutoStart();
                     if (!taskOperationSucceeded)
                     {
-                        System.Diagnostics.Debug.WriteLine("Failed to disable auto start");
                         logger.Error("Failed to disable auto start");
                         return false;
                     }
@@ -229,7 +223,6 @@ namespace DisplayProfileManager.Core
 
                 if (!settingsSaved)
                 {
-                    System.Diagnostics.Debug.WriteLine("Failed to save settings after task change");
                     logger.Error("Failed to save settings after task change");
                     // Revert task change if settings save failed
                     if (startWithWindows)
@@ -247,7 +240,6 @@ namespace DisplayProfileManager.Core
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error setting start with Windows: {ex.Message}");
                 logger.Error(ex, "Error setting start with Windows");
                 return false;
             }
@@ -260,7 +252,6 @@ namespace DisplayProfileManager.Core
                 // StartInSystemTray can only be true if StartWithWindows is also true
                 if (startInSystemTray && !_settings.StartWithWindows)
                 {
-                    System.Diagnostics.Debug.WriteLine("Cannot enable StartInSystemTray without StartWithWindows");
                     logger.Warn("Cannot enable StartInSystemTray without StartWithWindows");
                     return false;
                 }
@@ -272,7 +263,6 @@ namespace DisplayProfileManager.Core
                     bool taskOperationSucceeded = autoStartHelper.EnableAutoStart(_settings.AutoStartMode, startInSystemTray);
                     if (!taskOperationSucceeded)
                     {
-                        System.Diagnostics.Debug.WriteLine("Failed to update auto start with tray setting");
                         logger.Error("Failed to update auto start with tray setting");
                         return false;
                     }
@@ -284,7 +274,6 @@ namespace DisplayProfileManager.Core
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error setting start in system tray: {ex.Message}");
                 logger.Error(ex, "Error setting start in system tray");
                 return false;
             }
@@ -297,7 +286,6 @@ namespace DisplayProfileManager.Core
                 // Cannot change mode unless auto-start is enabled
                 if (!_settings.StartWithWindows)
                 {
-                    System.Diagnostics.Debug.WriteLine("Cannot change auto-start mode when auto-start is disabled");
                     logger.Warn("Cannot change auto-start mode when auto-start is disabled");
                     return false;
                 }
@@ -305,7 +293,6 @@ namespace DisplayProfileManager.Core
                 // If already using this mode, nothing to do
                 if (_settings.AutoStartMode == mode)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Already using {mode} mode");
                     logger.Debug($"Already using {mode} mode");
                     return true;
                 }
@@ -323,14 +310,12 @@ namespace DisplayProfileManager.Core
                     _settings.AutoStartMode = mode;
                     await SaveSettingsAsync();
 
-                    System.Diagnostics.Debug.WriteLine($"Successfully switched to {mode} mode");
                     logger.Info($"Successfully switched to {mode} mode");
                     return true;
                 }
                 else
                 {
                     // If failed, try to restore previous mode
-                    System.Diagnostics.Debug.WriteLine($"Failed to switch to {mode} mode, restoring previous mode");
                     logger.Error($"Failed to switch to {mode} mode, restoring previous mode");
 
                     autoStartHelper.EnableAutoStart(_settings.AutoStartMode, _settings.StartInSystemTray);
@@ -339,7 +324,6 @@ namespace DisplayProfileManager.Core
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error setting auto-start mode: {ex.Message}");
                 logger.Error(ex, "Error setting auto-start mode");
                 return false;
             }
@@ -387,7 +371,6 @@ namespace DisplayProfileManager.Core
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error resetting settings: {ex.Message}");
                 logger.Error(ex, "Error resetting settings");
                 return false;
             }

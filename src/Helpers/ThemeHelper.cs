@@ -85,7 +85,6 @@ namespace DisplayProfileManager.Helpers
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error applying theme: {ex.Message}");
                 logger.Error(ex, "Error applying theme");
             }
         }
@@ -108,7 +107,6 @@ namespace DisplayProfileManager.Helpers
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error reading system theme: {ex.Message}");
                 logger.Error(ex, "Error reading system theme");
             }
             

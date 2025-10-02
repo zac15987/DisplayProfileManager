@@ -185,7 +185,6 @@ namespace DisplayProfileManager.UI.Controls
 
         private void HotkeyTextBox_GotFocus(object sender, RoutedEventArgs e)
         {
-            Debug.WriteLine("HotkeyEditorControl: Got focus");
             logger.Debug("HotkeyEditorControl: Got focus");
         }
 
@@ -215,7 +214,6 @@ namespace DisplayProfileManager.UI.Controls
             {
                 IsRecording = true;
                 _pressedKeys.Clear();
-                Debug.WriteLine("HotkeyEditorControl: Started recording");
                 logger.Debug("HotkeyEditorControl: Started recording");
             }
         }
@@ -226,7 +224,6 @@ namespace DisplayProfileManager.UI.Controls
             {
                 IsRecording = false;
                 _recordingModifiers = ModifierKeys.None;
-                Debug.WriteLine("HotkeyEditorControl: Stopped recording");
                 logger.Debug("HotkeyEditorControl: Stopped recording");
             }
         }
@@ -274,7 +271,6 @@ namespace DisplayProfileManager.UI.Controls
 
             HotkeyChanged?.Invoke(this, _currentHotkey);
 
-            Debug.WriteLine($"HotkeyEditorControl: Set hotkey to {_currentHotkey}");
             logger.Debug($"HotkeyEditorControl: Set hotkey to {_currentHotkey}");
         }
 

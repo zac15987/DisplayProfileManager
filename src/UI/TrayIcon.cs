@@ -81,7 +81,6 @@ namespace DisplayProfileManager.UI
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Failed to load icon from resources: {ex.Message}");
                 logger.Warn(ex, "Failed to load icon from resources");
                 return SystemIcons.Application;
             }
@@ -162,7 +161,6 @@ namespace DisplayProfileManager.UI
             {
                 try
                 {
-                    System.Diagnostics.Debug.WriteLine($"Applying profile '{profile.Name}' via TrayIcon");
                     logger.Info($"Applying profile '{profile.Name}' via TrayIcon");
 
                     var applyResult = await _profileManager.ApplyProfileAsync(profile);
@@ -170,7 +168,6 @@ namespace DisplayProfileManager.UI
                     if (applyResult.Success)
                     {
                         string message = $"Profile '{profile.Name}' applied successfully.";
-                        System.Diagnostics.Debug.WriteLine(message);
                         logger.Info(message);
 
                         _notifyIcon.ShowBalloonTip(3000, "Display Profile Manager", message, ToolTipIcon.Info);
@@ -178,7 +175,6 @@ namespace DisplayProfileManager.UI
                     else
                     {
                         string errorDetails = _profileManager.GetApplyResultErrorMessage(profile.Name, applyResult);
-                        System.Diagnostics.Debug.WriteLine(errorDetails);
                         logger.Warn(errorDetails);
 
                         _notifyIcon.ShowBalloonTip(5000, "Display Profile Manager", errorDetails, ToolTipIcon.Error);

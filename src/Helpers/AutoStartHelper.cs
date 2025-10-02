@@ -40,7 +40,6 @@ namespace DisplayProfileManager.Helpers
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error checking auto start status: {ex.Message}");
                 logger.Error(ex, "Error checking auto start status");
                 return false;
             }
@@ -56,7 +55,6 @@ namespace DisplayProfileManager.Helpers
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error enabling auto start: {ex.Message}");
                 logger.Error(ex, "Error enabling auto start");
                 return false;
             }
@@ -84,7 +82,6 @@ namespace DisplayProfileManager.Helpers
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error disabling auto start: {ex.Message}");
                 logger.Error(ex, "Error disabling auto start");
                 return false;
             }
@@ -100,7 +97,6 @@ namespace DisplayProfileManager.Helpers
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error validating auto start entry: {ex.Message}");
                 logger.Error(ex, "Error validating auto start entry");
                 return false;
             }
@@ -116,7 +112,6 @@ namespace DisplayProfileManager.Helpers
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error getting auto start command: {ex.Message}");
                 logger.Error(ex, "Error getting auto start command");
                 return string.Empty;
             }
@@ -144,7 +139,6 @@ namespace DisplayProfileManager.Helpers
                         var value = key.GetValue(RegistryValueName);
                         bool isEnabled = value != null;
 
-                        System.Diagnostics.Debug.WriteLine($"Auto-start registry value {(isEnabled ? "found" : "not found")}");
                         logger.Debug($"Auto-start registry value {(isEnabled ? "found" : "not found")}");
 
                         return isEnabled;
@@ -155,7 +149,6 @@ namespace DisplayProfileManager.Helpers
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error checking registry auto start: {ex.Message}");
                 logger.Error(ex, "Error checking registry auto start");
                 return false;
             }
@@ -168,14 +161,12 @@ namespace DisplayProfileManager.Helpers
                 var executablePath = GetExecutablePath();
                 if (string.IsNullOrEmpty(executablePath))
                 {
-                    System.Diagnostics.Debug.WriteLine("Could not determine executable path");
                     logger.Error("Could not determine executable path");
                     return false;
                 }
 
                 if (!File.Exists(executablePath))
                 {
-                    System.Diagnostics.Debug.WriteLine($"Executable path does not exist: {executablePath}");
                     logger.Error($"Executable path does not exist: {executablePath}");
                     return false;
                 }
@@ -190,13 +181,11 @@ namespace DisplayProfileManager.Helpers
                     {
                         key.SetValue(RegistryValueName, command, RegistryValueKind.String);
 
-                        System.Diagnostics.Debug.WriteLine($"Successfully enabled registry auto-start: {command}");
                         logger.Info($"Successfully enabled registry auto-start: {command}");
                         return true;
                     }
                     else
                     {
-                        System.Diagnostics.Debug.WriteLine("Could not open registry key for writing");
                         logger.Error("Could not open registry key for writing");
                         return false;
                     }
@@ -204,7 +193,6 @@ namespace DisplayProfileManager.Helpers
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error enabling registry auto start: {ex.Message}");
                 logger.Error(ex, "Error enabling registry auto start");
                 return false;
             }
@@ -222,7 +210,6 @@ namespace DisplayProfileManager.Helpers
                         if (value != null)
                         {
                             key.DeleteValue(RegistryValueName, false);
-                            System.Diagnostics.Debug.WriteLine("Successfully disabled registry auto-start");
                             logger.Info("Successfully disabled registry auto-start");
                         }
                         return true;
@@ -233,7 +220,6 @@ namespace DisplayProfileManager.Helpers
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error disabling registry auto start: {ex.Message}");
                 logger.Error(ex, "Error disabling registry auto start");
                 return false;
             }
@@ -259,7 +245,6 @@ namespace DisplayProfileManager.Helpers
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error validating registry auto start: {ex.Message}");
                 logger.Error(ex, "Error validating registry auto start");
                 return false;
             }
@@ -285,7 +270,6 @@ namespace DisplayProfileManager.Helpers
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error getting registry auto start command: {ex.Message}");
                 logger.Error(ex, "Error getting registry auto start command");
                 return string.Empty;
             }
@@ -332,14 +316,12 @@ namespace DisplayProfileManager.Helpers
 
                 bool isEnabled = process.ExitCode == 0 && output.Contains(TaskName);
 
-                System.Diagnostics.Debug.WriteLine($"Task Scheduler auto-start {(isEnabled ? "found" : "not found")}");
                 logger.Debug($"Task Scheduler auto-start {(isEnabled ? "found" : "not found")}");
 
                 return isEnabled;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error checking Task Scheduler auto start: {ex.Message}");
                 logger.Error(ex, "Error checking Task Scheduler auto start");
                 return false;
             }
@@ -352,14 +334,12 @@ namespace DisplayProfileManager.Helpers
                 var executablePath = GetExecutablePath();
                 if (string.IsNullOrEmpty(executablePath))
                 {
-                    System.Diagnostics.Debug.WriteLine("Could not determine executable path");
                     logger.Error("Could not determine executable path");
                     return false;
                 }
 
                 if (!File.Exists(executablePath))
                 {
-                    System.Diagnostics.Debug.WriteLine($"Executable path does not exist: {executablePath}");
                     logger.Error($"Executable path does not exist: {executablePath}");
                     return false;
                 }
@@ -392,13 +372,11 @@ namespace DisplayProfileManager.Helpers
 
                     if (process.ExitCode == 0)
                     {
-                        System.Diagnostics.Debug.WriteLine("Successfully created Task Scheduler auto-start (elevated)");
                         logger.Info("Successfully created Task Scheduler auto-start (elevated)");
                         return true;
                     }
                     else
                     {
-                        System.Diagnostics.Debug.WriteLine($"Failed to create Task Scheduler auto-start (elevated). Exit code: {process.ExitCode}");
                         logger.Error($"Failed to create Task Scheduler auto-start (elevated). Exit code: {process.ExitCode}");
                         return false;
                     }
@@ -413,7 +391,6 @@ namespace DisplayProfileManager.Helpers
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error enabling Task Scheduler auto start: {ex.Message}");
                 logger.Error(ex, "Error enabling Task Scheduler auto start");
                 return false;
             }
@@ -445,20 +422,17 @@ namespace DisplayProfileManager.Helpers
                 // Exit code 0 means success or task didn't exist
                 if (process.ExitCode == 0)
                 {
-                    System.Diagnostics.Debug.WriteLine("Successfully deleted Task Scheduler auto-start (elevated)");
                     logger.Info("Successfully deleted Task Scheduler auto-start (elevated)");
                     return true;
                 }
                 else
                 {
-                    System.Diagnostics.Debug.WriteLine($"Failed to delete Task Scheduler auto-start (elevated). Exit code: {process.ExitCode}");
                     logger.Error($"Failed to delete Task Scheduler auto-start (elevated). Exit code: {process.ExitCode}");
                     return false;
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error disabling Task Scheduler auto start: {ex.Message}");
                 logger.Error(ex, "Error disabling Task Scheduler auto start");
                 return false;
             }
@@ -497,7 +471,6 @@ namespace DisplayProfileManager.Helpers
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error validating Task Scheduler auto start: {ex.Message}");
                 logger.Error(ex, "Error validating Task Scheduler auto start");
                 return false;
             }
@@ -547,7 +520,6 @@ namespace DisplayProfileManager.Helpers
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error getting Task Scheduler auto start command: {ex.Message}");
                 logger.Error(ex, "Error getting Task Scheduler auto start command");
                 return string.Empty;
             }
@@ -606,7 +578,6 @@ namespace DisplayProfileManager.Helpers
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Error getting Task Scheduler info: {ex.Message}");
                     logger.Error(ex, "Error getting Task Scheduler info");
                 }
             }
@@ -700,7 +671,6 @@ namespace DisplayProfileManager.Helpers
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error getting executable path: {ex.Message}");
                 logger.Error(ex, "Error getting executable path");
                 return string.Empty;
             }
@@ -718,7 +688,7 @@ namespace DisplayProfileManager.Helpers
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error checking admin status: {ex.Message}");
+                logger.Error(ex, "Error checking admin status");
                 return false;
             }
         }

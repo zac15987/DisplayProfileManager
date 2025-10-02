@@ -424,7 +424,6 @@ namespace DisplayProfileManager.UI.Windows
                     StatusTextBlock.Text = "Failed to apply profile";
 
                     string errorDetails = _profileManager.GetApplyResultErrorMessage(profileName, applyResult);
-                    System.Diagnostics.Debug.WriteLine(errorDetails);
                     logger.Warn(errorDetails);
 
                     MessageBox.Show(errorDetails, "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -436,7 +435,6 @@ namespace DisplayProfileManager.UI.Windows
                 MessageBox.Show($"Exception: Error applying profile: {ex.Message}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
 
-                System.Diagnostics.Debug.WriteLine($"Exception: Error applying profile: {ex.Message}, StackTrace: {ex.StackTrace}");
                 logger.Error(ex, "Exception while applying profile");
             }
             finally
@@ -805,7 +803,6 @@ namespace DisplayProfileManager.UI.Windows
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Failed to load app icon: {ex.Message}");
                 logger.Warn(ex, "Failed to load app icon");
             }
         }
