@@ -49,11 +49,11 @@ A lightweight Windows desktop application for managing display profiles with qui
 ![System Tray](docs/screenshots/tray.png)
 
 
-### Dark Theme
+### Light Theme
 
-*Modern dark theme for comfortable viewing*
+*Clean light theme for bright environments*
 
-![Dark Theme](docs/screenshots/dark-theme.png)
+![Light Theme](docs/screenshots/light-theme.png)
 
 
 
