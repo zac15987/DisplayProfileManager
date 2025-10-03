@@ -50,10 +50,6 @@ namespace DisplayProfileManager.Helpers
         private const int WH_KEYBOARD_LL = 13;
         private const int WM_KEYDOWN = 0x0100;
         private const int WM_SYSKEYDOWN = 0x0104;
-        private const int HC_ACTION = 0;
-
-        // Virtual key codes
-        private const uint VK_SNAPSHOT = 0x2C; // Print Screen key
         
         // Modifier keys
         private const uint MOD_NONE = 0x0000;
@@ -72,11 +68,6 @@ namespace DisplayProfileManager.Helpers
         private readonly Dictionary<int, string> _hotkeyIdToProfileId = new Dictionary<int, string>();
         private int _currentHotkeyId = 9000; // Starting ID for hotkeys
         private bool _disposed = false;
-        
-        // Low-level keyboard hook
-        private LowLevelKeyboardProc _keyboardProc;
-        private IntPtr _keyboardHookId = IntPtr.Zero;
-        private Action _printScreenCallback;
 
         public GlobalHotkeyHelper()
         {
@@ -92,9 +83,6 @@ namespace DisplayProfileManager.Helpers
             {
                 CreateMessageWindow();
             }
-            
-            // Keep a reference to the delegate to prevent it from being garbage collected
-            _keyboardProc = HookCallback;
         }
 
         private void CreateMessageWindow()
@@ -146,92 +134,6 @@ namespace DisplayProfileManager.Helpers
 
                 return -1;
             }
-        }
-
-        public int RegisterPrintScreenHotkey(Action callback)
-        {
-            // Store the callback
-            _printScreenCallback = callback;
-
-            // Install low-level keyboard hook for Print Screen
-            if (_keyboardHookId == IntPtr.Zero)
-            {
-                logger.Info("Installing low-level keyboard hook for Print Screen");
-                InstallKeyboardHook();
-            }
-            
-            // Also try regular hotkey registration as fallback
-            int id = RegisterHotkey(VK_SNAPSHOT, MOD_NONE, callback);
-
-            if (id < 0)
-            {
-                logger.Debug("Regular hotkey registration failed, but keyboard hook is active");
-                // Return a fake ID since we have the keyboard hook
-                return 9999;
-            }
-
-            return id;
-        }
-
-        private void InstallKeyboardHook()
-        {
-            try
-            {
-                using (Process curProcess = Process.GetCurrentProcess())
-                using (ProcessModule curModule = curProcess.MainModule)
-                {
-                    _keyboardHookId = SetWindowsHookEx(WH_KEYBOARD_LL, _keyboardProc,
-                        GetModuleHandle(curModule.ModuleName), 0);
-
-                    if (_keyboardHookId == IntPtr.Zero)
-                    {
-                        var error = Marshal.GetLastWin32Error();
-                        logger.Error($"Failed to install keyboard hook. Error: {error}");
-                    }
-                    else
-                    {
-                        logger.Info($"Successfully installed keyboard hook. Handle: 0x{_keyboardHookId:X}");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.Error(ex, "Exception installing keyboard hook");
-            }
-        }
-
-        private IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
-        {
-            if (nCode >= HC_ACTION)
-            {
-                int msg = wParam.ToInt32();
-                if (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN)
-                {
-                    KBDLLHOOKSTRUCT hookStruct = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam);
-                    
-                    // Check if it's the Print Screen key
-                    if (hookStruct.vkCode == VK_SNAPSHOT)
-                    {
-                        logger.Debug($"Print Screen key detected! vkCode: 0x{hookStruct.vkCode:X}, scanCode: 0x{hookStruct.scanCode:X}");
-
-                        // Execute callback on dispatcher thread
-                        if (_printScreenCallback != null)
-                        {
-                            if (System.Windows.Application.Current?.Dispatcher != null)
-                            {
-                                System.Windows.Application.Current.Dispatcher.BeginInvoke(_printScreenCallback);
-                            }
-                            else
-                            {
-                                _printScreenCallback.Invoke();
-                            }
-                        }
-                    }
-                }
-            }
-            
-            // Always call next hook
-            return CallNextHookEx(_keyboardHookId, nCode, wParam, lParam);
         }
 
         public bool UnregisterHotkey(int hotkeyId)
@@ -408,14 +310,6 @@ namespace DisplayProfileManager.Helpers
             {
                 if (disposing)
                 {
-                    // Unhook keyboard hook
-                    if (_keyboardHookId != IntPtr.Zero)
-                    {
-                        UnhookWindowsHookEx(_keyboardHookId);
-                        logger.Info("Unhooked keyboard hook");
-                        _keyboardHookId = IntPtr.Zero;
-                    }
-                    
                     // Unregister all hotkeys
                     foreach (var hotkeyId in _hotkeyActions.Keys)
                     {

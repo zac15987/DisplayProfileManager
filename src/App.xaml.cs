@@ -23,7 +23,6 @@ namespace DisplayProfileManager
         private EventWaitHandle _showWindowEvent;
         private CancellationTokenSource _cancellationTokenSource;
         private GlobalHotkeyHelper _globalHotkeyHelper;
-        private int _printScreenHotkeyId = -1;
         private int _profileEditWindowCount = 0;
         private bool _hotkeysDisabledForEditing = false;
 
@@ -375,19 +374,6 @@ namespace DisplayProfileManager
             try
             {
                 _globalHotkeyHelper = new GlobalHotkeyHelper();
-                _printScreenHotkeyId = _globalHotkeyHelper.RegisterPrintScreenHotkey(LaunchSnippingTool);
-                
-                if (_printScreenHotkeyId < 0)
-                {
-                    logger.Warn("Failed to register Print Screen hotkey");
-                    _trayIcon?.ShowNotification("Display Profile Manager",
-                        "Failed to register Print Screen key. It may be in use by another application.",
-                        System.Windows.Forms.ToolTipIcon.Warning);
-                }
-                else
-                {
-                    logger.Info("Successfully registered Print Screen hotkey");
-                }
 
                 // Register all profile hotkeys
                 RegisterAllProfileHotkeys();
@@ -594,10 +580,6 @@ namespace DisplayProfileManager
                 // Cleanup global hotkeys
                 if (_globalHotkeyHelper != null)
                 {
-                    if (_printScreenHotkeyId >= 0)
-                    {
-                        _globalHotkeyHelper.UnregisterHotkey(_printScreenHotkeyId);
-                    }
                     _globalHotkeyHelper.UnregisterAllProfileHotkeys();
                     _globalHotkeyHelper.Dispose();
                 }
