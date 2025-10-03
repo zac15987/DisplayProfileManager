@@ -248,6 +248,43 @@ namespace DisplayProfileManager.Core
                             setting.ProductCodeID = foundMonitorId.ProductCodeID;
                             setting.SerialNumberID = foundMonitorId.SerialNumberID;
 
+                            // Capture available options for this monitor
+                            try
+                            {
+                                // Get available resolutions
+                                setting.AvailableResolutions = DisplayHelper.GetSupportedResolutionsOnly(setting.DeviceName);
+
+                                // Get available DPI scaling
+                                var dpiValues = DpiHelper.GetSupportedDPIScalingOnly(setting.DeviceName);
+                                setting.AvailableDpiScaling = dpiValues.ToList();
+
+                                // Get available refresh rates for each resolution
+                                setting.AvailableRefreshRates = new Dictionary<string, List<int>>();
+                                foreach (var resolution in setting.AvailableResolutions)
+                                {
+                                    var parts = resolution.Split('x');
+                                    if (parts.Length == 2 &&
+                                        int.TryParse(parts[0], out int width) &&
+                                        int.TryParse(parts[1], out int height))
+                                    {
+                                        var refreshRates = DisplayHelper.GetAvailableRefreshRates(setting.DeviceName, width, height);
+                                        if (refreshRates.Count > 0)
+                                        {
+                                            setting.AvailableRefreshRates[resolution] = refreshRates;
+                                        }
+                                    }
+                                }
+
+                                logger.Debug($"Captured available options for {setting.DeviceName}: " +
+                                    $"{setting.AvailableResolutions.Count} resolutions, " +
+                                    $"{setting.AvailableDpiScaling.Count} DPI values, " +
+                                    $"{setting.AvailableRefreshRates.Count} resolution-refresh rate mappings");
+                            }
+                            catch (Exception ex)
+                            {
+                                logger.Error(ex, $"Error capturing available options for {setting.DeviceName}");
+                            }
+
                             settings.Add(setting);
                         }
 
@@ -796,7 +833,10 @@ namespace DisplayProfileManager.Core
                     DisplayPositionY = ds.DisplayPositionY,
                     ManufacturerName = ds.ManufacturerName,
                     ProductCodeID = ds.ProductCodeID,
-                    SerialNumberID = ds.SerialNumberID
+                    SerialNumberID = ds.SerialNumberID,
+                    AvailableResolutions = ds.AvailableResolutions != null ? new List<string>(ds.AvailableResolutions) : new List<string>(),
+                    AvailableDpiScaling = ds.AvailableDpiScaling != null ? new List<uint>(ds.AvailableDpiScaling) : new List<uint>(),
+                    AvailableRefreshRates = ds.AvailableRefreshRates != null ? new Dictionary<string, List<int>>(ds.AvailableRefreshRates.ToDictionary(kvp => kvp.Key, kvp => new List<int>(kvp.Value))) : new Dictionary<string, List<int>>()
                 }).ToList(),
                 AudioSettings = sourceProfile.AudioSettings != null ? new AudioSetting
                 {

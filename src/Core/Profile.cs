@@ -126,6 +126,15 @@ namespace DisplayProfileManager.Core
         [JsonProperty("serialNumberID")]
         public string SerialNumberID { get; set; } = string.Empty;
 
+        [JsonProperty("availableResolutions")]
+        public List<string> AvailableResolutions { get; set; } = new List<string>();
+
+        [JsonProperty("availableDpiScaling")]
+        public List<uint> AvailableDpiScaling { get; set; } = new List<uint>();
+
+        [JsonProperty("availableRefreshRates")]
+        public Dictionary<string, List<int>> AvailableRefreshRates { get; set; } = new Dictionary<string, List<int>>();
+
         public DisplaySetting()
         {
         }

@@ -125,7 +125,7 @@ namespace DisplayProfileManager.UI.Windows
             catch (Exception ex)
             {
                 StatusTextBlock.Text = "Error detecting displays";
-                MessageBox.Show($"Error detecting current display settings: {ex.Message}", "Error", 
+                MessageBox.Show($"Error detecting current display settings: {ex.Message}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
@@ -964,8 +964,18 @@ namespace DisplayProfileManager.UI.Windows
 
         private void PopulateResolutionComboBox()
         {
-            // Get supported resolutions for the current device (without refresh rates)
-            var supportedResolutions = DisplayHelper.GetSupportedResolutionsOnly(_setting.DeviceName);
+            List<string> supportedResolutions;
+
+            // Use stored available resolutions if available, otherwise query from system
+            if (_setting.AvailableResolutions != null && _setting.AvailableResolutions.Count > 0)
+            {
+                supportedResolutions = _setting.AvailableResolutions;
+            }
+            else
+            {
+                // Fallback to querying system (for backward compatibility or connected monitors)
+                supportedResolutions = DisplayHelper.GetSupportedResolutionsOnly(_setting.DeviceName);
+            }
 
             foreach (var resolution in supportedResolutions)
             {
@@ -988,7 +998,18 @@ namespace DisplayProfileManager.UI.Windows
 
         private void PopulateDpiComboBox()
         {
-            uint[] dpiValues = DpiHelper.GetSupportedDPIScalingOnly(_setting.DeviceName);
+            List<uint> dpiValues;
+
+            // Use stored available DPI scaling if available, otherwise query from system
+            if (_setting.AvailableDpiScaling != null && _setting.AvailableDpiScaling.Count > 0)
+            {
+                dpiValues = _setting.AvailableDpiScaling;
+            }
+            else
+            {
+                // Fallback to querying system (for backward compatibility or connected monitors)
+                dpiValues = DpiHelper.GetSupportedDPIScalingOnly(_setting.DeviceName).ToList();
+            }
 
             foreach (uint dpi in dpiValues)
             {
@@ -1011,8 +1032,21 @@ namespace DisplayProfileManager.UI.Windows
         {
             _refreshRateComboBox.Items.Clear();
 
-            // Get available refresh rates for the current resolution
-            var refreshRates = DisplayHelper.GetAvailableRefreshRates(_setting.DeviceName, _setting.Width, _setting.Height);
+            List<int> refreshRates;
+            var currentResolution = $"{_setting.Width}x{_setting.Height}";
+
+            // Use stored available refresh rates if available, otherwise query from system
+            if (_setting.AvailableRefreshRates != null &&
+                _setting.AvailableRefreshRates.ContainsKey(currentResolution) &&
+                _setting.AvailableRefreshRates[currentResolution].Count > 0)
+            {
+                refreshRates = _setting.AvailableRefreshRates[currentResolution];
+            }
+            else
+            {
+                // Fallback to querying system (for backward compatibility or connected monitors)
+                refreshRates = DisplayHelper.GetAvailableRefreshRates(_setting.DeviceName, _setting.Width, _setting.Height);
+            }
 
             foreach (var rate in refreshRates)
             {
@@ -1056,14 +1090,26 @@ namespace DisplayProfileManager.UI.Windows
 
             var resolutionText = _resolutionComboBox.SelectedItem.ToString();
             var resolutionParts = resolutionText.Split('x');
-            
-            if (resolutionParts.Length >= 2 && 
-                int.TryParse(resolutionParts[0], out int width) && 
+
+            if (resolutionParts.Length >= 2 &&
+                int.TryParse(resolutionParts[0], out int width) &&
                 int.TryParse(resolutionParts[1], out int height))
             {
-                // Get available refresh rates for the selected resolution
-                var refreshRates = DisplayHelper.GetAvailableRefreshRates(_setting.DeviceName, width, height);
-                
+                List<int> refreshRates;
+
+                // Use stored available refresh rates if available, otherwise query from system
+                if (_setting.AvailableRefreshRates != null &&
+                    _setting.AvailableRefreshRates.ContainsKey(resolutionText) &&
+                    _setting.AvailableRefreshRates[resolutionText].Count > 0)
+                {
+                    refreshRates = _setting.AvailableRefreshRates[resolutionText];
+                }
+                else
+                {
+                    // Fallback to querying system (for backward compatibility or connected monitors)
+                    refreshRates = DisplayHelper.GetAvailableRefreshRates(_setting.DeviceName, width, height);
+                }
+
                 _refreshRateComboBox.Items.Clear();
                 foreach (var rate in refreshRates)
                 {
@@ -1133,7 +1179,10 @@ namespace DisplayProfileManager.UI.Windows
                 DisplayPositionY = _setting.DisplayPositionY,
                 ManufacturerName = _setting.ManufacturerName,
                 ProductCodeID = _setting.ProductCodeID,
-                SerialNumberID = _setting.SerialNumberID
+                SerialNumberID = _setting.SerialNumberID,
+                AvailableResolutions = _setting.AvailableResolutions,
+                AvailableDpiScaling = _setting.AvailableDpiScaling,
+                AvailableRefreshRates = _setting.AvailableRefreshRates
             };
         }
 
