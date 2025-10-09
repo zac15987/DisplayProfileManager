@@ -13,7 +13,7 @@
 #define MyOutputFolder  ".\setup"
 
 ; ---- Version ----
-#define MyAppVersion    "v1.1.0"
+#define MyAppVersion    "v1.2.0"
 
 ; ---- Select target architecture (can be x64 / x86 / arm64) ----
 #define TargetArch "x64"
