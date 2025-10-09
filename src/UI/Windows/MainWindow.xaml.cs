@@ -2,33 +2,28 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 using System.Windows.Shell;
 using DisplayProfileManager.Core;
-using DisplayProfileManager.UI.ViewModels;
 using DisplayProfileManager.Helpers;
+using DisplayProfileManager.UI.ViewModels;
+using NLog;
 
 namespace DisplayProfileManager.UI.Windows
 {
     public partial class MainWindow : Window
     {
+        private static readonly Logger logger = LoggerHelper.GetLogger();
         private ProfileManager _profileManager;
         private SettingsManager _settingsManager;
         private Profile _selectedProfile;
         private List<ProfileViewModel> _profileViewModels;
         private HwndSource _hwndSource;
-        
+
         // Snap Layouts hover state management
         private bool _isHoveringMaxButton = false;
         private DateTime _hoverStartTime;
@@ -58,12 +53,11 @@ namespace DisplayProfileManager.UI.Windows
             _profileManager.ProfileApplied += OnProfileApplied;
         }
 
-        private async void LoadProfiles()
+        private void LoadProfiles()
         {
             try
             {
                 StatusTextBlock.Text = "Loading profiles...";
-                await _profileManager.LoadProfilesAsync();
                 RefreshProfilesList();
                 StatusTextBlock.Text = "Ready";
             }
@@ -112,6 +106,7 @@ namespace DisplayProfileManager.UI.Windows
                 
                 ApplyProfileButton.IsEnabled = false;
                 EditProfileButton.IsEnabled = false;
+                DuplicateProfileButton.IsEnabled = false;
                 DeleteProfileButton.IsEnabled = false;
                 ExportProfileButton.IsEnabled = false;
                 return;
@@ -157,45 +152,137 @@ namespace DisplayProfileManager.UI.Windows
                 {
                     var settingPanel = new StackPanel { Margin = new Thickness(0, 0, 0, 12) };
 
-                    var deviceName = new TextBlock
+                    // Add a border for disabled monitors to make them visually distinct
+                    if (!setting.IsEnabled)
                     {
-                        Text = !string.IsNullOrEmpty(setting.ReadableDeviceName) ? setting.ReadableDeviceName : 
-                               (!string.IsNullOrEmpty(setting.DeviceString) ? setting.DeviceString : setting.DeviceName),
-                        Style = (Style)FindResource("ModernTextBlockStyle"),
-                        FontWeight = FontWeights.Medium,
-                        ToolTip = $"{setting.ReadableDeviceName ?? setting.DeviceString}\n{setting.DeviceName}"
-                    };
-                    settingPanel.Children.Add(deviceName);
-
-                    var resolution = new TextBlock
-                    {
-                        Text = $"Resolution: {setting.GetResolutionString()}",
-                        Style = (Style)FindResource("ModernTextBlockStyle"),
-                        FontSize = 12,
-                        Foreground = (SolidColorBrush)FindResource("SecondaryTextBrush")
-                    };
-                    settingPanel.Children.Add(resolution);
-
-                    var dpi = new TextBlock
-                    {
-                        Text = $"DPI Scaling: {setting.GetDpiString()}",
-                        Style = (Style)FindResource("ModernTextBlockStyle"),
-                        FontSize = 12,
-                        Foreground = (SolidColorBrush)FindResource("SecondaryTextBrush")
-                    };
-                    settingPanel.Children.Add(dpi);
-
-                    if (setting.IsPrimary)
-                    {
-                        var primary = new TextBlock
+                        var disabledBorder = new Border
                         {
-                            Text = "Primary Display",
+                            Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(20, 255, 200, 0)),
+                            BorderBrush = (SolidColorBrush)FindResource("TertiaryTextBrush"),
+                            BorderThickness = new Thickness(1),
+                            CornerRadius = new CornerRadius(4),
+                            Padding = new Thickness(8)
+                        };
+
+                        var innerPanel = new StackPanel();
+
+                        // Add disabled indicator
+                        var disabledIndicator = new TextBlock
+                        {
+                            Text = "⚠ DISABLED MONITOR",
                             Style = (Style)FindResource("ModernTextBlockStyle"),
                             FontSize = 11,
-                            Foreground = (SolidColorBrush)FindResource("ButtonBackgroundBrush"),
-                            FontWeight = FontWeights.Medium
+                            Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(200, 100, 0)),
+                            FontWeight = FontWeights.Bold,
+                            Margin = new Thickness(0, 0, 0, 4)
                         };
-                        settingPanel.Children.Add(primary);
+                        innerPanel.Children.Add(disabledIndicator);
+
+                        var deviceName = new TextBlock
+                        {
+                            Text = !string.IsNullOrEmpty(setting.ReadableDeviceName) ? setting.ReadableDeviceName :
+                                   (!string.IsNullOrEmpty(setting.DeviceString) ? setting.DeviceString : setting.DeviceName),
+                            Style = (Style)FindResource("ModernTextBlockStyle"),
+                            FontWeight = FontWeights.Medium,
+                            Opacity = 0.7,
+                            ToolTip = $"{setting.ReadableDeviceName ?? setting.DeviceString}\n{setting.DeviceName}\n\nThis monitor will be disabled when applying this profile"
+                        };
+                        innerPanel.Children.Add(deviceName);
+
+                        var resolution = new TextBlock
+                        {
+                            Text = $"Resolution: {setting.GetResolutionString()}",
+                            Style = (Style)FindResource("ModernTextBlockStyle"),
+                            FontSize = 12,
+                            Foreground = (SolidColorBrush)FindResource("SecondaryTextBrush"),
+                            Opacity = 0.6
+                        };
+                        innerPanel.Children.Add(resolution);
+
+                        var dpi = new TextBlock
+                        {
+                            Text = $"DPI Scaling: {setting.GetDpiString()}",
+                            Style = (Style)FindResource("ModernTextBlockStyle"),
+                            FontSize = 12,
+                            Foreground = (SolidColorBrush)FindResource("SecondaryTextBrush"),
+                            Opacity = 0.6
+                        };
+                        innerPanel.Children.Add(dpi);
+
+                        if (setting.IsPrimary)
+                        {
+                            var primary = new TextBlock
+                            {
+                                Text = "Primary Display",
+                                Style = (Style)FindResource("ModernTextBlockStyle"),
+                                FontSize = 11,
+                                Foreground = (SolidColorBrush)FindResource("ButtonBackgroundBrush"),
+                                FontWeight = FontWeights.Medium,
+                                Opacity = 0.7
+                            };
+                            innerPanel.Children.Add(primary);
+                        }
+
+                        disabledBorder.Child = innerPanel;
+                        settingPanel.Children.Add(disabledBorder);
+                    }
+                    else
+                    {
+                        // Enabled monitor - with border for consistency
+                        var enabledBorder = new Border
+                        {
+                            Background = new SolidColorBrush(System.Windows.Media.Colors.Transparent),
+                            BorderBrush = (SolidColorBrush)FindResource("TertiaryTextBrush"),
+                            BorderThickness = new Thickness(1),
+                            CornerRadius = new CornerRadius(4),
+                            Padding = new Thickness(8)
+                        };
+
+                        var innerPanel = new StackPanel();
+
+                        var deviceName = new TextBlock
+                        {
+                            Text = !string.IsNullOrEmpty(setting.ReadableDeviceName) ? setting.ReadableDeviceName :
+                                   (!string.IsNullOrEmpty(setting.DeviceString) ? setting.DeviceString : setting.DeviceName),
+                            Style = (Style)FindResource("ModernTextBlockStyle"),
+                            FontWeight = FontWeights.Medium,
+                            ToolTip = $"{setting.ReadableDeviceName ?? setting.DeviceString}\n{setting.DeviceName}"
+                        };
+                        innerPanel.Children.Add(deviceName);
+
+                        var resolution = new TextBlock
+                        {
+                            Text = $"Resolution: {setting.GetResolutionString()}",
+                            Style = (Style)FindResource("ModernTextBlockStyle"),
+                            FontSize = 12,
+                            Foreground = (SolidColorBrush)FindResource("SecondaryTextBrush")
+                        };
+                        innerPanel.Children.Add(resolution);
+
+                        var dpi = new TextBlock
+                        {
+                            Text = $"DPI Scaling: {setting.GetDpiString()}",
+                            Style = (Style)FindResource("ModernTextBlockStyle"),
+                            FontSize = 12,
+                            Foreground = (SolidColorBrush)FindResource("SecondaryTextBrush")
+                        };
+                        innerPanel.Children.Add(dpi);
+
+                        if (setting.IsPrimary)
+                        {
+                            var primary = new TextBlock
+                            {
+                                Text = "Primary Display",
+                                Style = (Style)FindResource("ModernTextBlockStyle"),
+                                FontSize = 11,
+                                Foreground = (SolidColorBrush)FindResource("ButtonBackgroundBrush"),
+                                FontWeight = FontWeights.Medium
+                            };
+                            innerPanel.Children.Add(primary);
+                        }
+
+                        enabledBorder.Child = innerPanel;
+                        settingPanel.Children.Add(enabledBorder);
                     }
 
                     ProfileDetailsPanel.Children.Add(settingPanel);
@@ -300,6 +387,7 @@ namespace DisplayProfileManager.UI.Windows
 
             ApplyProfileButton.IsEnabled = true;
             EditProfileButton.IsEnabled = true;
+            DuplicateProfileButton.IsEnabled = true;
             DeleteProfileButton.IsEnabled = true;
             ExportProfileButton.IsEnabled = true;
         }
@@ -323,9 +411,9 @@ namespace DisplayProfileManager.UI.Windows
                 // Store the profile name before applying
                 var profileName = _selectedProfile.Name;
 
-                bool success = await _profileManager.ApplyProfileAsync(_selectedProfile);
+                var applyResult = await _profileManager.ApplyProfileAsync(_selectedProfile);
                 
-                if (success)
+                if (applyResult.Success)
                 {
                     StatusTextBlock.Text = $"Profile '{profileName}' applied successfully!";
                     MessageBox.Show($"Profile '{profileName}' has been applied successfully!", 
@@ -334,15 +422,20 @@ namespace DisplayProfileManager.UI.Windows
                 else
                 {
                     StatusTextBlock.Text = "Failed to apply profile";
-                    MessageBox.Show($"Failed to apply profile '{profileName}'. Some settings may not have been applied correctly.", 
-                        "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+
+                    string errorDetails = _profileManager.GetApplyResultErrorMessage(profileName, applyResult);
+                    logger.Warn(errorDetails);
+
+                    MessageBox.Show(errorDetails, "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
             }
             catch (Exception ex)
             {
                 StatusTextBlock.Text = "Error applying profile";
-                MessageBox.Show($"Error applying profile: {ex.Message}", "Error", 
+                MessageBox.Show($"Exception: Error applying profile: {ex.Message}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
+
+                logger.Error(ex, "Exception while applying profile");
             }
             finally
             {
@@ -377,8 +470,57 @@ namespace DisplayProfileManager.UI.Windows
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error opening profile editor: {ex.Message}", "Error", 
+                MessageBox.Show($"Error opening profile editor: {ex.Message}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async void DuplicateProfileButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedProfile == null) return;
+
+            try
+            {
+                StatusTextBlock.Text = $"Duplicating profile: {_selectedProfile.Name}...";
+                DuplicateProfileButton.IsEnabled = false;
+
+                var duplicatedProfile = await _profileManager.DuplicateProfileAsync(_selectedProfile.Id);
+
+                if (duplicatedProfile != null)
+                {
+                    StatusTextBlock.Text = $"Profile duplicated successfully: {duplicatedProfile.Name}";
+
+                    // Refresh the profile list
+                    RefreshProfilesList();
+
+                    // Select the newly duplicated profile
+                    var duplicatedViewModel = _profileViewModels.FirstOrDefault(vm => vm.Profile.Id == duplicatedProfile.Id);
+                    if (duplicatedViewModel != null)
+                    {
+                        ProfilesListBox.SelectedItem = duplicatedViewModel;
+                    }
+
+                    // Open edit window for immediate customization
+                    var editWindow = new ProfileEditWindow(duplicatedProfile);
+                    editWindow.Owner = this;
+                    editWindow.ShowDialog();
+                }
+                else
+                {
+                    StatusTextBlock.Text = "Error duplicating profile";
+                    MessageBox.Show("Failed to duplicate the profile. Please try again.", "Error",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusTextBlock.Text = "Error duplicating profile";
+                MessageBox.Show($"Error duplicating profile: {ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                DuplicateProfileButton.IsEnabled = true;
             }
         }
 
@@ -661,7 +803,7 @@ namespace DisplayProfileManager.UI.Windows
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Failed to load app icon: {ex.Message}");
+                logger.Warn(ex, "Failed to load app icon");
             }
         }
 

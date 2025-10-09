@@ -78,14 +78,6 @@
             </Style.Triggers>
         </Style>
 
-        <Style x:Key="ModernTextBoxStyle" TargetType="TextBox">
-            <Setter Property="Background" Value="{DynamicResource TextBoxBackgroundBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource TextBoxBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="8"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="FontFamily" Value="Segoe UI"/>
-        </Style>
 
 
         <Style x:Key="ModernCheckBoxStyle" TargetType="CheckBox">
@@ -247,11 +239,38 @@
                                       Checked="StartWithWindowsCheckBox_Changed"
                                       Unchecked="StartWithWindowsCheckBox_Changed"/>
                             
-                            <CheckBox Name="StartInSystemTrayCheckBox" Content="Start in system tray when Windows starts" 
+                            <CheckBox Name="StartInSystemTrayCheckBox" Content="Start in system tray when Windows starts"
                                       Style="{StaticResource ModernCheckBoxStyle}" Margin="20,4,0,0"
                                       Checked="StartInSystemTrayCheckBox_Changed"
                                       Unchecked="StartInSystemTrayCheckBox_Changed"/>
-                            
+
+                            <TextBlock Text="Auto-Start Method" Style="{StaticResource LabelTextBlockStyle}" Margin="0,16,0,4"/>
+                            <StackPanel Name="AutoStartModePanel" Margin="20,0,0,0">
+                                <RadioButton Name="RegistryModeRadio" Content="Standard (No admin required)"
+                                             Style="{StaticResource ModernRadioButtonStyle}"
+                                             GroupName="AutoStartMode"
+                                             Checked="AutoStartModeRadio_Changed"/>
+                                <TextBlock Style="{StaticResource ModernTextBlockStyle}"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource TertiaryTextBrush}"
+                                           Margin="20,0,0,4"
+                                           TextWrapping="Wrap">
+                                    Uses Windows Registry. Normal startup speed.
+                                </TextBlock>
+
+                                <RadioButton Name="TaskSchedulerModeRadio" Content="Quick Launch (Requires admin for setup)"
+                                             Style="{StaticResource ModernRadioButtonStyle}"
+                                             GroupName="AutoStartMode"
+                                             Checked="AutoStartModeRadio_Changed"/>
+                                <TextBlock Style="{StaticResource ModernTextBlockStyle}"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource TertiaryTextBrush}"
+                                           Margin="20,0,0,4"
+                                           TextWrapping="Wrap">
+                                    Uses Windows Task Scheduler. Faster/higher priority startup. Requires admin privileges for initial setup only.
+                                </TextBlock>
+                            </StackPanel>
+
                             <TextBlock Text="Startup Profile" Style="{StaticResource LabelTextBlockStyle}" Margin="0,12,0,4"/>
                             <ComboBox Name="StartupProfileComboBox" Style="{StaticResource ModernComboBoxStyle}"
                                       SelectionChanged="StartupProfileComboBox_SelectionChanged">
@@ -359,20 +378,18 @@
                             </StackPanel>
                             
                             <!-- Libraries Section -->
-                            <TextBlock Text="Key Libraries:" Style="{StaticResource ModernTextBlockStyle}" FontWeight="SemiBold" Margin="0,12,0,4"/>
-                            <StackPanel Margin="0,0,0,4">
-                                <TextBlock Style="{StaticResource ModernTextBlockStyle}" FontSize="12" Foreground="{DynamicResource TertiaryTextBrush}">
-                                    <Hyperlink Name="AudioSwitcherLink" NavigateUri="https://github.com/xenolightning/AudioSwitcher" RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource LinkBrush}">
-                                        <Run Text="AudioSwitcher.AudioApi"/>
-                                    </Hyperlink>
-                                    <Run Text=" - Audio device management"/>
-                                </TextBlock>
-                                <TextBlock Style="{StaticResource ModernTextBlockStyle}" FontSize="12" Foreground="{DynamicResource TertiaryTextBrush}">
-                                    <Hyperlink Name="NewtonsoftLink" NavigateUri="https://www.newtonsoft.com/json" RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource LinkBrush}">
-                                        <Run Text="Newtonsoft.Json"/>
-                                    </Hyperlink>
-                                    <Run Text=" - JSON serialization"/>
-                                </TextBlock>
+                            <TextBlock Text="Third-Party Libraries:" Style="{StaticResource ModernTextBlockStyle}" FontWeight="SemiBold" Margin="0,12,0,4"/>
+                            <StackPanel Name="LibrariesPanel" Margin="0,0,0,4">
+                                <!-- This will be populated programmatically -->
+                            </StackPanel>
+                            <TextBlock Style="{StaticResource ModernTextBlockStyle}" FontSize="11" Foreground="{DynamicResource TertiaryTextBrush}" Margin="0,2,0,4" FontStyle="Italic">
+                                <Run Text="See THIRD-PARTY-LICENSES.md for complete license texts"/>
+                            </TextBlock>
+
+                            <!-- Contributors Section -->
+                            <TextBlock Text="Contributors:" Style="{StaticResource ModernTextBlockStyle}" FontWeight="SemiBold" Margin="0,12,0,4"/>
+                            <StackPanel Name="ContributorsPanel" Margin="0,0,0,4">
+                                <!-- This will be populated programmatically -->
                             </StackPanel>
                         </StackPanel>
                     </Border>

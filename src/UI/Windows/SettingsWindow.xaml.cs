@@ -8,11 +8,13 @@ using System.Windows.Navigation;
 using System.Windows.Shell;
 using DisplayProfileManager.Core;
 using DisplayProfileManager.Helpers;
+using NLog;
 
 namespace DisplayProfileManager.UI.Windows
 {
     public partial class SettingsWindow : Window
     {
+        private static readonly Logger logger = LoggerHelper.GetLogger();
         private readonly SettingsManager _settingsManager;
         private readonly ProfileManager _profileManager;
         private readonly AutoStartHelper _autoStartHelper;
@@ -46,6 +48,18 @@ namespace DisplayProfileManager.UI.Windows
                 StartWithWindowsCheckBox.IsChecked = settings.StartWithWindows;
                 StartInSystemTrayCheckBox.IsChecked = settings.StartInSystemTray;
                 StartInSystemTrayCheckBox.IsEnabled = settings.StartWithWindows;
+
+                // Auto-start mode settings
+                if (settings.AutoStartMode == Core.AutoStartMode.Registry)
+                {
+                    RegistryModeRadio.IsChecked = true;
+                }
+                else
+                {
+                    TaskSchedulerModeRadio.IsChecked = true;
+                }
+                AutoStartModePanel.IsEnabled = settings.StartWithWindows;
+
                 await LoadStartupProfiles();
                 SelectComboBoxItemByTag(StartupProfileComboBox, settings.StartupProfileId);
                 ApplyStartupProfileCheckBox.IsChecked = settings.ApplyStartupProfile;
@@ -71,6 +85,8 @@ namespace DisplayProfileManager.UI.Windows
                 VersionTextBlock.Text = Helpers.AboutHelper.GetInformationalVersion();
                 SettingsPathTextBlock.Text = Helpers.AboutHelper.GetSettingsPath();
                 LoadCommunityFeatures();
+                LoadLibraries();
+                LoadContributors();
             }
             catch (Exception ex)
             {
@@ -104,7 +120,7 @@ namespace DisplayProfileManager.UI.Windows
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error loading startup profiles: {ex.Message}");
+                logger.Error(ex, "Error loading startup profiles");
             }
         }
 
@@ -150,14 +166,15 @@ namespace DisplayProfileManager.UI.Windows
         private async void StartWithWindowsCheckBox_Changed(object sender, RoutedEventArgs e)
         {
             if (_isLoadingSettings) return;
-            
+
             try
             {
                 var isChecked = StartWithWindowsCheckBox.IsChecked ?? false;
                 await _settingsManager.SetStartWithWindowsAsync(isChecked);
-                
-                // Enable/disable the StartInSystemTray checkbox based on StartWithWindows
+
+                // Enable/disable the StartInSystemTray checkbox and auto-start mode panel based on StartWithWindows
                 StartInSystemTrayCheckBox.IsEnabled = isChecked;
+                AutoStartModePanel.IsEnabled = isChecked;
                 
                 // If StartWithWindows is unchecked, also uncheck StartInSystemTray
                 if (!isChecked)
@@ -176,7 +193,7 @@ namespace DisplayProfileManager.UI.Windows
         private async void StartInSystemTrayCheckBox_Changed(object sender, RoutedEventArgs e)
         {
             if (_isLoadingSettings) return;
-            
+
             try
             {
                 var isChecked = StartInSystemTrayCheckBox.IsChecked ?? false;
@@ -184,9 +201,84 @@ namespace DisplayProfileManager.UI.Windows
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error updating system tray startup setting: {ex.Message}", "Error", 
+                MessageBox.Show($"Error updating system tray startup setting: {ex.Message}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
                 StartInSystemTrayCheckBox.IsChecked = !StartInSystemTrayCheckBox.IsChecked;
+            }
+        }
+
+        private async void AutoStartModeRadio_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_isLoadingSettings) return;
+
+            try
+            {
+                Core.AutoStartMode selectedMode = RegistryModeRadio.IsChecked == true
+                    ? Core.AutoStartMode.Registry
+                    : Core.AutoStartMode.TaskScheduler;
+
+                // Check if switching to Task Scheduler mode
+                if (selectedMode == Core.AutoStartMode.TaskScheduler)
+                {
+                    // Check if already running as admin
+                    if (!AutoStartHelper.IsRunningAsAdmin())
+                    {
+                        var result = MessageBox.Show(
+                            "Quick Launch mode requires administrator privileges for initial setup.\n\n" +
+                            "You are not currently running as administrator. The system will attempt to create the task, " +
+                            "which may prompt for elevation.\n\n" +
+                            "Do you want to continue?",
+                            "Administrator Privileges Required for Setup",
+                            MessageBoxButton.YesNo,
+                            MessageBoxImage.Warning);
+
+                        if (result == MessageBoxResult.No)
+                        {
+                            // Revert to Registry mode
+                            _isLoadingSettings = true;
+                            RegistryModeRadio.IsChecked = true;
+                            _isLoadingSettings = false;
+                            return;
+                        }
+                    }
+                }
+
+                // Attempt to change the mode
+                bool success = await _settingsManager.SetAutoStartModeAsync(selectedMode);
+
+                if (!success)
+                {
+                    MessageBox.Show(
+                        $"Failed to switch to {selectedMode} mode. " +
+                        (selectedMode == Core.AutoStartMode.TaskScheduler
+                            ? "Administrator privileges may be required for setup."
+                            : "Please check the logs for more details."),
+                        "Error",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+
+                    // Revert to previous mode
+                    _isLoadingSettings = true;
+                    if (selectedMode == Core.AutoStartMode.Registry)
+                    {
+                        TaskSchedulerModeRadio.IsChecked = true;
+                    }
+                    else
+                    {
+                        RegistryModeRadio.IsChecked = true;
+                    }
+                    _isLoadingSettings = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error changing auto-start mode: {ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+
+                // Revert to Registry mode on error
+                _isLoadingSettings = true;
+                RegistryModeRadio.IsChecked = true;
+                _isLoadingSettings = false;
             }
         }
 
@@ -328,7 +420,7 @@ namespace DisplayProfileManager.UI.Windows
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error refreshing hotkey list: {ex.Message}");
+                logger.Error(ex, "Error refreshing hotkey list");
             }
         }
 
@@ -562,10 +654,124 @@ namespace DisplayProfileManager.UI.Windows
                 });
                 
                 CommunityFeaturesPanel.Children.Add(hotkeyFeaturePanel);
+
+                // Monitor disable/enable feature line
+                var monitorDisableFeaturePanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+
+                monitorDisableFeaturePanel.Children.Add(new TextBlock
+                {
+                    Text = "Monitor disable/enable feature requested by ",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+
+                var xtrillaLink = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run(AboutHelper.Community.XtrillaName))
+                {
+                    NavigateUri = new Uri(AboutHelper.Community.XtrillaUrl),
+                    Foreground = (System.Windows.Media.Brush)FindResource("LinkBrush")
+                };
+                xtrillaLink.RequestNavigate += Hyperlink_RequestNavigate;
+
+                monitorDisableFeaturePanel.Children.Add(new TextBlock(xtrillaLink)
+                {
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+
+                monitorDisableFeaturePanel.Children.Add(new TextBlock
+                {
+                    Text = " (",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+
+                var monitorDisableIssueLink = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run("Issue #4"))
+                {
+                    NavigateUri = new Uri(AboutHelper.Community.MonitorDisableIssueUrl),
+                    Foreground = (System.Windows.Media.Brush)FindResource("LinkBrush")
+                };
+                monitorDisableIssueLink.RequestNavigate += Hyperlink_RequestNavigate;
+
+                monitorDisableFeaturePanel.Children.Add(new TextBlock(monitorDisableIssueLink)
+                {
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+
+                monitorDisableFeaturePanel.Children.Add(new TextBlock
+                {
+                    Text = ")",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+
+                CommunityFeaturesPanel.Children.Add(monitorDisableFeaturePanel);
+
+                // Multi-monitor switching improvements line
+                var monitorSwitchingFeaturePanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+
+                monitorSwitchingFeaturePanel.Children.Add(new TextBlock
+                {
+                    Text = "Multi-monitor switching improvements reported by ",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+
+                var alienmarioLink2 = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run(AboutHelper.Community.AlienmarioName))
+                {
+                    NavigateUri = new Uri(AboutHelper.Community.AlienmarioUrl),
+                    Foreground = (System.Windows.Media.Brush)FindResource("LinkBrush")
+                };
+                alienmarioLink2.RequestNavigate += Hyperlink_RequestNavigate;
+
+                monitorSwitchingFeaturePanel.Children.Add(new TextBlock(alienmarioLink2)
+                {
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+
+                monitorSwitchingFeaturePanel.Children.Add(new TextBlock
+                {
+                    Text = " (",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+
+                var monitorSwitchingIssueLink = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run("Issue #5"))
+                {
+                    NavigateUri = new Uri(AboutHelper.Community.MonitorSwitchingIssueUrl),
+                    Foreground = (System.Windows.Media.Brush)FindResource("LinkBrush")
+                };
+                monitorSwitchingIssueLink.RequestNavigate += Hyperlink_RequestNavigate;
+
+                monitorSwitchingFeaturePanel.Children.Add(new TextBlock(monitorSwitchingIssueLink)
+                {
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+
+                monitorSwitchingFeaturePanel.Children.Add(new TextBlock
+                {
+                    Text = ")",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+
+                CommunityFeaturesPanel.Children.Add(monitorSwitchingFeaturePanel);
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error loading community features: {ex.Message}");
+                logger.Error(ex, "Error loading community features");
             }
         }
 
@@ -578,9 +784,133 @@ namespace DisplayProfileManager.UI.Windows
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error opening URL: {ex.Message}");
+                logger.Error(ex, "Error opening URL: {Url}", e.Uri.AbsoluteUri);
                 MessageBox.Show($"Could not open link: {e.Uri.AbsoluteUri}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        private void LoadLibraries()
+        {
+            try
+            {
+                LibrariesPanel.Children.Clear();
+
+                // Create library entries dynamically using AboutHelper data
+                var libraries = new[]
+                {
+                    new { Name = AboutHelper.Libraries.NLogName, Version = AboutHelper.Libraries.NLogVersion, License = AboutHelper.Libraries.NLogLicense, Url = AboutHelper.Libraries.NLogUrl, Description = "Logging framework" },
+                    new { Name = AboutHelper.Libraries.NewtonsoftName, Version = AboutHelper.Libraries.NewtonsoftVersion, License = AboutHelper.Libraries.NewtonsoftLicense, Url = AboutHelper.Libraries.NewtonsoftUrl, Description = "JSON serialization" },
+                    new { Name = AboutHelper.Libraries.AudioSwitcherName, Version = AboutHelper.Libraries.AudioSwitcherVersion, License = AboutHelper.Libraries.AudioSwitcherLicense, Url = AboutHelper.Libraries.AudioSwitcherUrl, Description = "Audio device management" },
+                    new { Name = AboutHelper.Libraries.AudioSwitcherCoreAudioName, Version = AboutHelper.Libraries.AudioSwitcherCoreAudioVersion, License = AboutHelper.Libraries.AudioSwitcherCoreAudioLicense, Url = AboutHelper.Libraries.AudioSwitcherCoreAudioUrl, Description = "Windows Core Audio API" }
+                };
+
+                foreach (var library in libraries)
+                {
+                    var libraryPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+
+                    // Add bullet point
+                    libraryPanel.Children.Add(new TextBlock
+                    {
+                        Text = "• ",
+                        Style = (Style)FindResource("ModernTextBlockStyle"),
+                        FontSize = 12,
+                        Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                    });
+
+                    // Add library name as hyperlink
+                    var libraryLink = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run(library.Name))
+                    {
+                        NavigateUri = new Uri(library.Url),
+                        Foreground = (System.Windows.Media.Brush)FindResource("LinkBrush")
+                    };
+                    libraryLink.RequestNavigate += Hyperlink_RequestNavigate;
+
+                    libraryPanel.Children.Add(new TextBlock(libraryLink)
+                    {
+                        Style = (Style)FindResource("ModernTextBlockStyle"),
+                        FontSize = 12,
+                        Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                    });
+
+                    // Add version, license, and description
+                    libraryPanel.Children.Add(new TextBlock
+                    {
+                        Text = $" v{library.Version} ({library.License}) - {library.Description}",
+                        Style = (Style)FindResource("ModernTextBlockStyle"),
+                        FontSize = 12,
+                        Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush"),
+                        TextWrapping = TextWrapping.Wrap
+                    });
+
+                    LibrariesPanel.Children.Add(libraryPanel);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex, "Error loading libraries");
+            }
+        }
+
+        private void LoadContributors()
+        {
+            try
+            {
+                ContributorsPanel.Children.Clear();
+
+                // Create contributor entries dynamically using AboutHelper data
+                var contributors = new[]
+                {
+                    new { Name = AboutHelper.Community.CatriksName, Url = AboutHelper.Community.CatriksUrl, Description = "Feature request for audio device switching" },
+                    new { Name = AboutHelper.Community.AlienmarioName, Url = AboutHelper.Community.AlienmarioUrl, Description = "AudioSwitcher recommendation, design suggestions, and multi-monitor switching feedback" },
+                    new { Name = AboutHelper.Community.AnodynosName, Url = AboutHelper.Community.AnodynosUrl, Description = "Feature request for global hotkey functionality" },
+                    new { Name = AboutHelper.Community.XtrillaName, Url = AboutHelper.Community.XtrillaUrl, Description = "Feature request for monitor disable/enable in profiles" }
+                };
+
+                foreach (var contributor in contributors)
+                {
+                    var contributorPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+
+                    // Add bullet point
+                    contributorPanel.Children.Add(new TextBlock
+                    {
+                        Text = "• ",
+                        Style = (Style)FindResource("ModernTextBlockStyle"),
+                        FontSize = 12,
+                        Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                    });
+
+                    // Add contributor name as hyperlink
+                    var contributorLink = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run(contributor.Name))
+                    {
+                        NavigateUri = new Uri(contributor.Url),
+                        Foreground = (System.Windows.Media.Brush)FindResource("LinkBrush")
+                    };
+                    contributorLink.RequestNavigate += Hyperlink_RequestNavigate;
+
+                    contributorPanel.Children.Add(new TextBlock(contributorLink)
+                    {
+                        Style = (Style)FindResource("ModernTextBlockStyle"),
+                        FontSize = 12,
+                        Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                    });
+
+                    // Add description
+                    contributorPanel.Children.Add(new TextBlock
+                    {
+                        Text = " - " + contributor.Description,
+                        Style = (Style)FindResource("ModernTextBlockStyle"),
+                        FontSize = 12,
+                        Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush"),
+                        TextWrapping = TextWrapping.Wrap
+                    });
+
+                    ContributorsPanel.Children.Add(contributorPanel);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex, "Error loading contributors");
             }
         }
 

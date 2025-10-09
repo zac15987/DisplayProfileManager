@@ -1,22 +1,20 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Configuration;
-using System.Data;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Windows;
-using System.Runtime.InteropServices;
-using System.Threading;
-using System.Security.Principal;
-using DisplayProfileManager.Core;
+﻿using DisplayProfileManager.Core;
+using DisplayProfileManager.Helpers;
 using DisplayProfileManager.UI;
 using DisplayProfileManager.UI.Windows;
-using DisplayProfileManager.Helpers;
+using NLog;
+using System;
+using System.Runtime.InteropServices;
+using System.Security.Principal;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows;
 
 namespace DisplayProfileManager
 {
     public partial class App : Application
     {
+        private static readonly Logger logger = LoggerHelper.GetLogger();
         private TrayIcon _trayIcon;
         private MainWindow _mainWindow;
         private ProfileManager _profileManager;
@@ -25,7 +23,6 @@ namespace DisplayProfileManager
         private EventWaitHandle _showWindowEvent;
         private CancellationTokenSource _cancellationTokenSource;
         private GlobalHotkeyHelper _globalHotkeyHelper;
-        private int _printScreenHotkeyId = -1;
         private int _profileEditWindowCount = 0;
         private bool _hotkeysDisabledForEditing = false;
 
@@ -67,6 +64,10 @@ namespace DisplayProfileManager
         {
             base.OnStartup(e);
 
+            // Initialize NLog
+            logger.Info("========== Display Profile Manager Starting ==========");
+            logger.Info($"Version: {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version}");
+
             // Parse command line arguments
             bool startInTray = false;
             if (e.Args != null && e.Args.Length > 0)
@@ -79,18 +80,6 @@ namespace DisplayProfileManager
                         break;
                     }
                 }
-            }
-
-            // Check for administrator privileges
-            if (!IsRunAsAdministrator())
-            {
-                MessageBox.Show("Display Profile Manager requires administrator privileges to accurately detect and manage display configurations.\n\n" +
-                               "Please run this application as Administrator.",
-                               "Administrator Privileges Required",
-                               MessageBoxButton.OK,
-                               MessageBoxImage.Warning);
-                Shutdown();
-                return;
             }
 
             if (!CheckSingleInstance())
@@ -124,22 +113,6 @@ namespace DisplayProfileManager
             }
         }
 
-        private bool IsRunAsAdministrator()
-        {
-            try
-            {
-                using (WindowsIdentity identity = WindowsIdentity.GetCurrent())
-                {
-                    WindowsPrincipal principal = new WindowsPrincipal(identity);
-                    return principal.IsInRole(WindowsBuiltInRole.Administrator);
-                }
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
         private bool CheckSingleInstance()
         {
             bool isNewInstance;
@@ -159,7 +132,7 @@ namespace DisplayProfileManager
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error setting up show window event: {ex.Message}");
+                logger.Error(ex, "Error setting up show window event");
             }
 
             return true;
@@ -185,7 +158,7 @@ namespace DisplayProfileManager
                                 }
                                 catch (Exception ex)
                                 {
-                                    System.Diagnostics.Debug.WriteLine($"Error showing main window from listener: {ex.Message}");
+                                    logger.Error(ex, "Error showing main window from listener");
                                 }
                             });
                         }
@@ -193,7 +166,7 @@ namespace DisplayProfileManager
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Error in show window listener: {ex.Message}");
+                    logger.Error(ex, "Error in show window listener");
                 }
             }, _cancellationTokenSource.Token);
         }
@@ -225,12 +198,12 @@ namespace DisplayProfileManager
                 }
                 catch (Exception eventEx)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Error signaling show window event: {eventEx.Message}");
+                    logger.Error(eventEx, "Error signaling show window event");
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error bringing existing instance to front: {ex.Message}");
+                logger.Error(ex, "Error bringing existing instance to front");
             }
         }
 
@@ -272,7 +245,7 @@ namespace DisplayProfileManager
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error activating window: {ex.Message}");
+                logger.Error(ex, "Error activating window");
             }
         }
 
@@ -287,6 +260,9 @@ namespace DisplayProfileManager
             
             // Initialize theme system
             ThemeHelper.InitializeTheme();
+
+            // Initialize audio system
+            AudioHelper.InitializeAudio();
             
             // Initialize global hotkeys
             InitializeGlobalHotkeys();
@@ -316,16 +292,29 @@ namespace DisplayProfileManager
                     
                     if (startupProfile != null)
                     {
-                        await _profileManager.ApplyProfileAsync(startupProfile);
-                        _trayIcon?.ShowNotification("Display Profile Manager", 
-                            $"Startup profile '{startupProfile.Name}' applied", 
-                            System.Windows.Forms.ToolTipIcon.Info);
+                        var applyResult = await _profileManager.ApplyProfileAsync(startupProfile);
+
+                        if (applyResult.Success)
+                        {
+                            string message = $"Startup profile '{startupProfile.Name}' applied successfully.";
+                            logger.Info(message);
+
+                            _trayIcon?.ShowNotification("Display Profile Manager", message, System.Windows.Forms.ToolTipIcon.Info);
+                        }
+                        else
+                        {
+                            string errorDetails = _profileManager.GetApplyResultErrorMessage(startupProfile.Name, applyResult);
+                            logger.Warn(errorDetails);
+
+                            _trayIcon?.ShowNotification("Display Profile Manager", $"Startup profile: {errorDetails}", System.Windows.Forms.ToolTipIcon.Info);
+                        }
+
                     }
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error applying startup profile: {ex.Message}");
+                logger.Error(ex, "Error applying startup profile");
             }
         }
 
@@ -385,26 +374,13 @@ namespace DisplayProfileManager
             try
             {
                 _globalHotkeyHelper = new GlobalHotkeyHelper();
-                _printScreenHotkeyId = _globalHotkeyHelper.RegisterPrintScreenHotkey(LaunchSnippingTool);
-                
-                if (_printScreenHotkeyId < 0)
-                {
-                    System.Diagnostics.Debug.WriteLine("Failed to register Print Screen hotkey");
-                    _trayIcon?.ShowNotification("Display Profile Manager", 
-                        "Failed to register Print Screen key. It may be in use by another application.", 
-                        System.Windows.Forms.ToolTipIcon.Warning);
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine("Successfully registered Print Screen hotkey");
-                }
 
                 // Register all profile hotkeys
                 RegisterAllProfileHotkeys();
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error initializing global hotkeys: {ex.Message}");
+                logger.Error(ex, "Error initializing global hotkeys");
             }
         }
 
@@ -419,18 +395,18 @@ namespace DisplayProfileManager
                 if (profileHotkeys.Count > 0)
                 {
                     _globalHotkeyHelper.RegisterAllProfileHotkeys(profileHotkeys, CreateProfileHotkeyCallback);
-                    System.Diagnostics.Debug.WriteLine($"Registered {profileHotkeys.Count} profile hotkeys");
+                    logger.Info($"Registered {profileHotkeys.Count} profile hotkeys");
                 }
                 else
                 {
                     // No enabled hotkeys, unregister all
                     _globalHotkeyHelper.UnregisterAllProfileHotkeys();
-                    System.Diagnostics.Debug.WriteLine("No enabled profile hotkeys - unregistered all");
+                    logger.Info("No enabled profile hotkeys - unregistered all");
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error registering profile hotkeys: {ex.Message}");
+                logger.Error(ex, "Error registering profile hotkeys");
             }
         }
 
@@ -446,28 +422,30 @@ namespace DisplayProfileManager
                 var profile = _profileManager.GetProfile(profileId);
                 if (profile != null)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Applying profile '{profile.Name}' via hotkey");
-                    
-                    bool success = await _profileManager.ApplyProfileAsync(profile);
-                    if (success)
+                    logger.Info($"Applying profile '{profile.Name}' via hotkey");
+
+                    var applyResult = await _profileManager.ApplyProfileAsync(profile);
+                    if (applyResult.Success)
                     {
-                        _trayIcon?.ShowNotification("Display Profile Manager", 
-                            $"Applied profile: {profile.Name}", 
-                            System.Windows.Forms.ToolTipIcon.Info);
+                        string message = $"Profile '{profile.Name}' applied successfully.";
+                        logger.Info(message);
+
+                        _trayIcon?.ShowNotification("Display Profile Manager", message, System.Windows.Forms.ToolTipIcon.Info);
                     }
                     else
                     {
-                        _trayIcon?.ShowNotification("Display Profile Manager", 
-                            $"Failed to apply profile: {profile.Name}", 
-                            System.Windows.Forms.ToolTipIcon.Error);
+                        string errorDetails = _profileManager.GetApplyResultErrorMessage(profile.Name, applyResult);
+                        logger.Warn(errorDetails);
+
+                        _trayIcon?.ShowNotification("Display Profile Manager", errorDetails, System.Windows.Forms.ToolTipIcon.Error);
                     }
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error applying profile {profileId} via hotkey: {ex.Message}");
-                _trayIcon?.ShowNotification("Display Profile Manager", 
-                    "Error applying profile via hotkey", 
+                logger.Error(ex, $"Error applying profile {profileId} via hotkey");
+                _trayIcon?.ShowNotification("Display Profile Manager",
+                    "Error applying profile via hotkey",
                     System.Windows.Forms.ToolTipIcon.Error);
             }
         }
@@ -484,52 +462,52 @@ namespace DisplayProfileManager
             {
                 // Unregister the specific profile's hotkey
                 _globalHotkeyHelper?.UnregisterProfileHotkey(profileId);
-                System.Diagnostics.Debug.WriteLine($"Unregistered hotkey for deleted profile: {profileId}");
+                logger.Info($"Unregistered hotkey for deleted profile: {profileId}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error unregistering hotkey for deleted profile {profileId}: {ex.Message}");
+                logger.Error(ex, $"Error unregistering hotkey for deleted profile {profileId}");
             }
         }
 
         private void LaunchSnippingTool()
         {
-            System.Diagnostics.Debug.WriteLine("LaunchSnippingTool callback triggered!");
-            
+            logger.Debug("LaunchSnippingTool callback triggered");
+
             try
             {
                 // Try modern Snip & Sketch first
-                System.Diagnostics.Debug.WriteLine("Attempting to launch modern Snip & Sketch");
+                logger.Debug("Attempting to launch modern Snip & Sketch");
                 var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
                 {
                     FileName = "ms-screenclip:",
                     UseShellExecute = true
                 });
-                
+
                 if (process == null)
                 {
-                    System.Diagnostics.Debug.WriteLine("Modern Snip & Sketch failed, trying legacy Snipping Tool");
+                    logger.Debug("Modern Snip & Sketch failed, trying legacy Snipping Tool");
                     // Fallback to legacy Snipping Tool
                     System.Diagnostics.Process.Start("SnippingTool.exe");
                 }
-                
-                System.Diagnostics.Debug.WriteLine("Launched Snipping Tool successfully");
+
+                logger.Info("Launched Snipping Tool successfully");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error launching Snipping Tool: {ex.Message}");
-                
+                logger.Error(ex, "Error launching Snipping Tool");
+
                 // Try alternative method
                 try
                 {
-                    System.Diagnostics.Debug.WriteLine("Trying alternative launch method");
+                    logger.Debug("Trying alternative launch method");
                     System.Diagnostics.Process.Start("SnippingTool.exe");
                 }
                 catch (Exception ex2)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Alternative method also failed: {ex2.Message}");
-                    _trayIcon?.ShowNotification("Display Profile Manager", 
-                        "Failed to launch Snipping Tool. Please ensure it's installed on your system.", 
+                    logger.Error(ex2, "Alternative Snipping Tool launch method also failed");
+                    _trayIcon?.ShowNotification("Display Profile Manager",
+                        "Failed to launch Snipping Tool. Please ensure it's installed on your system.",
                         System.Windows.Forms.ToolTipIcon.Error);
                 }
             }
@@ -540,18 +518,18 @@ namespace DisplayProfileManager
             try
             {
                 _profileEditWindowCount++;
-                System.Diagnostics.Debug.WriteLine($"ProfileEditWindow opened. Count: {_profileEditWindowCount}");
+                logger.Debug($"ProfileEditWindow opened. Count: {_profileEditWindowCount}");
 
                 if (!_hotkeysDisabledForEditing && _globalHotkeyHelper != null)
                 {
                     _globalHotkeyHelper.UnregisterAllProfileHotkeys();
                     _hotkeysDisabledForEditing = true;
-                    System.Diagnostics.Debug.WriteLine("Disabled all profile hotkeys for editing");
+                    logger.Info("Disabled all profile hotkeys for editing");
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error disabling profile hotkeys: {ex.Message}");
+                logger.Error(ex, "Error disabling profile hotkeys");
             }
         }
 
@@ -560,7 +538,7 @@ namespace DisplayProfileManager
             try
             {
                 _profileEditWindowCount--;
-                System.Diagnostics.Debug.WriteLine($"ProfileEditWindow closed. Count: {_profileEditWindowCount}");
+                logger.Debug($"ProfileEditWindow closed. Count: {_profileEditWindowCount}");
 
                 // Only re-enable when all ProfileEditWindows are closed
                 if (_profileEditWindowCount <= 0 && _hotkeysDisabledForEditing)
@@ -568,12 +546,12 @@ namespace DisplayProfileManager
                     _profileEditWindowCount = 0; // Ensure it doesn't go negative
                     _hotkeysDisabledForEditing = false;
                     RegisterAllProfileHotkeys();
-                    System.Diagnostics.Debug.WriteLine("Re-enabled profile hotkeys after editing");
+                    logger.Info("Re-enabled profile hotkeys after editing");
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error re-enabling profile hotkeys: {ex.Message}");
+                logger.Error(ex, "Error re-enabling profile hotkeys");
             }
         }
 
@@ -588,9 +566,9 @@ namespace DisplayProfileManager
                 
                 _instanceMutex?.ReleaseMutex();
                 _instanceMutex?.Dispose();
-                
+
                 _trayIcon?.Dispose();
-                
+
                 // Unsubscribe from profile events
                 if (_profileManager != null)
                 {
@@ -602,10 +580,6 @@ namespace DisplayProfileManager
                 // Cleanup global hotkeys
                 if (_globalHotkeyHelper != null)
                 {
-                    if (_printScreenHotkeyId >= 0)
-                    {
-                        _globalHotkeyHelper.UnregisterHotkey(_printScreenHotkeyId);
-                    }
                     _globalHotkeyHelper.UnregisterAllProfileHotkeys();
                     _globalHotkeyHelper.Dispose();
                 }
@@ -625,15 +599,18 @@ namespace DisplayProfileManager
                         }
                         catch (Exception ex)
                         {
-                            System.Diagnostics.Debug.WriteLine($"Error saving settings on exit: {ex.Message}");
+                            logger.Error(ex, "Error saving settings on exit");
                         }
                     }).Wait(TimeSpan.FromSeconds(2));
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error during application exit: {ex.Message}");
+                logger.Error(ex, "Error during application exit");
             }
+
+            logger.Info("========== Display Profile Manager Exiting ==========");
+
 
             base.OnExit(e);
         }

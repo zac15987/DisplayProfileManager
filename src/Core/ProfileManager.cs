@@ -1,15 +1,29 @@
+using DisplayProfileManager.Helpers;
+using Newtonsoft.Json;
+using NLog;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
-using DisplayProfileManager.Helpers;
 
 namespace DisplayProfileManager.Core
 {
     public class ProfileManager
     {
+        private static readonly Logger logger = LoggerHelper.GetLogger();
+
+        public class ProfileApplyResult
+        {
+            public bool Success { get; set; }
+            public bool PrimaryChanged { get; set; }
+            public bool DisplayConfigApplied { get; set; }
+            public bool ResolutionChanged { get; set; }
+            public bool DpiChanged { get; set; }
+            public bool AudioSuccess { get; set; }
+        }
+
         private static ProfileManager _instance;
         private static readonly object _lock = new object();
 
@@ -92,7 +106,7 @@ namespace DisplayProfileManager.Core
                     }
                     catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine($"Error loading profile from {file}: {ex.Message}");
+                        logger.Error(ex, $"Error loading profile from {file}");
                     }
                 }
 
@@ -109,7 +123,7 @@ namespace DisplayProfileManager.Core
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error loading profiles: {ex.Message}");
+                logger.Error(ex, "Error loading profiles");
                 _profiles = new List<Profile>();
                 return false;
             }
@@ -126,7 +140,7 @@ namespace DisplayProfileManager.Core
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error saving profile: {ex.Message}");
+                logger.Error(ex, "Error saving profile");
                 return false;
             }
         }
@@ -154,7 +168,7 @@ namespace DisplayProfileManager.Core
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error creating default profile: {ex.Message}");
+                logger.Error(ex, "Error creating default profile");
                 AddProfile(defaultProfile);
                 return defaultProfile;
             }
@@ -168,124 +182,267 @@ namespace DisplayProfileManager.Core
 
                 try
                 {
-                    var displays = DisplayHelper.GetDisplays();
-                    
-                    if (DpiHelper.GetPathsAndModes(out var paths, out var modes))
-                    {
-                        foreach (var display in displays)
-                        {
-                            var setting = new DisplaySetting
-                            {
-                                DeviceName = display.DeviceName,
-                                DeviceString = display.DeviceString,
-                                ReadableDeviceName = display.ReadableDeviceName,
-                                Width = display.Width,
-                                Height = display.Height,
-                                Frequency = display.Frequency,
-                                DpiScaling = 100,
-                                IsPrimary = display.IsPrimary
-                            };
+                    logger.Debug("Getting current display settings...");
 
-                            foreach (var path in paths)
+                    List<DisplayHelper.DisplayInfo> displays = DisplayHelper.GetDisplays();
+
+                    // Get monitor information using WMI
+                    List<DisplayHelper.MonitorInfo> monitors = DisplayHelper.GetMonitorsFromWin32PnPEntity();
+
+                    List<DisplayHelper.MonitorIdInfo> monitorIDs = DisplayHelper.GetMonitorIDsFromWmiMonitorID();
+
+                    // Get display configs using QueueDisplayConfig
+                    List<DisplayConfigHelper.DisplayConfigInfo> displayConfigs = DisplayConfigHelper.GetDisplayConfigs();
+                    
+                    if (displays.Count > 0 &&
+                        monitors.Count > 0 &&
+                        monitorIDs.Count > 0 &&
+                        displayConfigs.Count > 0)
+                    {
+                        for (int i = 0; i < displays.Count; i++)
+                        {
+                            var foundConfig = displayConfigs.Find(x => x.DeviceName == displays[i].DeviceName);
+
+                            if (foundConfig == null)
                             {
-                                var dpiInfo = DpiHelper.GetDPIScalingInfo(path.sourceInfo.adapterId, path.sourceInfo.id);
-                                if (dpiInfo.IsInitialized)
+                                logger.Debug("No display config found for " + displays[i].DeviceName);
+                                continue;
+                            }
+
+                            var foundMonitor = monitors.Find(x => x.DeviceID.Contains($"UID{foundConfig.TargetId}"));
+
+                            if (foundMonitor == null)
+                            {
+                                logger.Debug("No monitor found for " + foundConfig.TargetId);
+                                continue;
+                            }
+
+                            var foundMonitorId = monitorIDs.Find(x => x.InstanceName.ToUpper().Contains(foundMonitor.PnPDeviceID.ToUpper()));
+
+                            if(foundMonitorId == null)
+                            {
+                                logger.Debug("No monitor ID found for " + foundMonitor.PnPDeviceID);
+                                continue;
+                            }    
+
+                            string adpaterIdText = $"{foundConfig.AdapterId.HighPart:X8}{foundConfig.AdapterId.LowPart:X8}";
+                            DpiHelper.DPIScalingInfo dpiInfo = DpiHelper.GetDPIScalingInfo(displays[i].DeviceName);
+
+                            DisplaySetting setting = new DisplaySetting();
+                            setting.DeviceName = displays[i].DeviceName;
+                            setting.DeviceString = displays[i].DeviceString;
+                            setting.ReadableDeviceName = foundMonitor.Name;
+                            setting.Width = foundConfig.Width;
+                            setting.Height = foundConfig.Height;
+                            setting.Frequency = displays[i].Frequency;
+                            setting.DpiScaling = dpiInfo.Current;
+                            setting.IsPrimary = displays[i].IsPrimary;
+                            setting.AdapterId = adpaterIdText;
+                            setting.SourceId = foundConfig.SourceId;
+                            setting.IsEnabled = foundConfig.IsEnabled;
+                            setting.PathIndex = foundConfig.PathIndex;
+                            setting.TargetId = foundConfig.TargetId;
+                            setting.DisplayPositionX = foundConfig.DisplayPositionX;
+                            setting.DisplayPositionY = foundConfig.DisplayPositionY;
+                            setting.ManufacturerName = foundMonitorId.ManufacturerName;
+                            setting.ProductCodeID = foundMonitorId.ProductCodeID;
+                            setting.SerialNumberID = foundMonitorId.SerialNumberID;
+
+                            // Capture available options for this monitor
+                            try
+                            {
+                                // Get available resolutions
+                                setting.AvailableResolutions = DisplayHelper.GetSupportedResolutionsOnly(setting.DeviceName);
+
+                                // Get available DPI scaling
+                                var dpiValues = DpiHelper.GetSupportedDPIScalingOnly(setting.DeviceName);
+                                setting.AvailableDpiScaling = dpiValues.ToList();
+
+                                // Get available refresh rates for each resolution
+                                setting.AvailableRefreshRates = new Dictionary<string, List<int>>();
+                                foreach (var resolution in setting.AvailableResolutions)
                                 {
-                                    setting.DpiScaling = dpiInfo.Current;
-                                    setting.AdapterId = $"{path.sourceInfo.adapterId.HighPart:X8}{path.sourceInfo.adapterId.LowPart:X8}";
-                                    setting.SourceId = path.sourceInfo.id;
-                                    break;
+                                    var parts = resolution.Split('x');
+                                    if (parts.Length == 2 &&
+                                        int.TryParse(parts[0], out int width) &&
+                                        int.TryParse(parts[1], out int height))
+                                    {
+                                        var refreshRates = DisplayHelper.GetAvailableRefreshRates(setting.DeviceName, width, height);
+                                        if (refreshRates.Count > 0)
+                                        {
+                                            setting.AvailableRefreshRates[resolution] = refreshRates;
+                                        }
+                                    }
                                 }
+
+                                logger.Debug($"Captured available options for {setting.DeviceName}: " +
+                                    $"{setting.AvailableResolutions.Count} resolutions, " +
+                                    $"{setting.AvailableDpiScaling.Count} DPI values, " +
+                                    $"{setting.AvailableRefreshRates.Count} resolution-refresh rate mappings");
+                            }
+                            catch (Exception ex)
+                            {
+                                logger.Error(ex, $"Error capturing available options for {setting.DeviceName}");
                             }
 
                             settings.Add(setting);
                         }
+
+                        logger.Info($"Found {settings.Count} display settings");
                     }
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Error getting current display settings: {ex.Message}");
+                    logger.Error(ex, "Error getting current display settings");
                 }
 
                 return settings;
             });
         }
 
-        public async Task<bool> ApplyProfileAsync(Profile profile)
+        public async Task<ProfileApplyResult> ApplyProfileAsync(Profile profile)
         {
             try
             {
                 bool success = true;
+                bool primaryChanged = true;
+                bool displayConfigApplied = true;
+                bool resolutionChanged = true;
+                bool dpiChanged = true;
+                bool audioSuccess = true;
 
-                foreach (var setting in profile.DisplaySettings)
+                // Step 1: Apply display config (primary, enable/disable monitors)
+                if (profile.DisplaySettings.Count > 0)
                 {
+                    var currentDisplayConfig = new List<DisplayConfigHelper.DisplayConfigInfo>();
+
+                    foreach (var setting in profile.DisplaySettings)
+                    {
+                        setting.UpdateDeviceNameFromWMI();
+
+                        DisplayConfigHelper.DisplayConfigInfo displayConfigInfo = new DisplayConfigHelper.DisplayConfigInfo();
+                        displayConfigInfo.DeviceName = setting.DeviceName;
+                        displayConfigInfo.IsEnabled = setting.IsEnabled;
+                        displayConfigInfo.PathIndex = setting.PathIndex;
+                        displayConfigInfo.TargetId = setting.TargetId;
+                        displayConfigInfo.SourceId = setting.SourceId;
+                        displayConfigInfo.DisplayPositionX = setting.DisplayPositionX;
+                        displayConfigInfo.DisplayPositionY = setting.DisplayPositionY;
+                        displayConfigInfo.FriendlyName = setting.ReadableDeviceName;
+                        displayConfigInfo.IsPrimary = setting.IsPrimary;
+                        displayConfigInfo.Width = setting.Width;
+                        displayConfigInfo.Height = setting.Height;
+
+                        currentDisplayConfig.Add(displayConfigInfo);
+                    }
+
+                    // Set primary monitor first (must be done before topology changes)
                     try
                     {
-                        bool resolutionChanged = DisplayHelper.ChangeResolution(
-                            setting.DeviceName, 
-                            setting.Width, 
-                            setting.Height, 
-                            setting.Frequency);
-
-                        if (resolutionChanged)
+                        logger.Debug("Setting primary display...");
+                        primaryChanged = DisplayConfigHelper.SetPrimaryDisplay(currentDisplayConfig);
+                        if (!primaryChanged)
                         {
-                            var (adapterId, sourceId, found) = GetCurrentAdapterInfo(setting.DeviceName);
-                            
-                            if (found)
-                            {
-                                bool dpiChanged = DpiHelper.SetDPIScaling(adapterId, sourceId, setting.DpiScaling);
-                                
-                                if (!dpiChanged)
-                                {
-                                    System.Diagnostics.Debug.WriteLine($"Failed to set DPI scaling for {setting.DeviceName}");
-                                }
-                            }
-                            else
-                            {
-                                System.Diagnostics.Debug.WriteLine($"Could not find current adapter info for {setting.DeviceName}, skipping DPI change");
-                            }
-                        }
-                        else if (!resolutionChanged)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"Failed to change resolution for {setting.DeviceName}");
+                            logger.Warn("Failed to set primary display");
                             success = false;
+                        }
+                        else
+                        {
+                            logger.Info("Set primary display successfully");
                         }
                     }
                     catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine($"Error applying setting for {setting.DeviceName}: {ex.Message}");
+                        logger.Error(ex, "Error applying primary display");
+                    }
+
+                    try
+                    {
+                        logger.Debug("Applying display topology...");
+
+                        displayConfigApplied = DisplayConfigHelper.ApplyDisplayTopology(currentDisplayConfig);
+                        if (!displayConfigApplied)
+                        {
+                            logger.Warn("Failed to apply display topology");
+                            success = false;
+                        }
+                        else
+                        {
+                            logger.Info("Display topology applied successfully");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.Error(ex, "Error applying display topology");
+                    }
+                }
+                
+                // Step 2: Apply resolution, refresh rate, and DPI for enabled displays only
+                List<DisplaySetting> displaySettings = profile.DisplaySettings.Where(s => s.IsEnabled).ToList();
+                foreach (var setting in displaySettings)
+                {
+                    try
+                    {
+                        if (DisplayHelper.IsMonitorConnected(setting.DeviceName))
+                        {
+
+                            resolutionChanged = DisplayHelper.ChangeResolution(
+                                setting.DeviceName,
+                                setting.Width,
+                                setting.Height,
+                                setting.Frequency);
+
+                            if (!resolutionChanged)
+                            {
+                                logger.Warn($"Failed to change resolution for {setting.DeviceName}");
+                                success = false;
+                            }
+
+                            dpiChanged = DpiHelper.SetDPIScaling(setting.DeviceName, setting.DpiScaling);
+
+                            if (!dpiChanged)
+                            {
+                                logger.Warn($"Failed to set DPI scaling for {setting.DeviceName}");
+                            }
+                        }
+                        else
+                        {
+                            logger.Debug($"{setting.DeviceName} is not connected now");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.Error(ex, $"Error applying setting for {setting.DeviceName}");
                         success = false;
                     }
                 }
 
                 // Apply audio settings after display settings
-                if (success && profile.AudioSettings != null)
+                if (profile.AudioSettings != null)
                 {
                     try
                     {
-                        bool audioSuccess = true;
-                        
                         // Apply playback device if enabled
                         if (profile.AudioSettings.ApplyPlaybackDevice && profile.AudioSettings.HasPlaybackDevice())
                         {
                             bool playbackSet = AudioHelper.SetDefaultPlaybackDevice(profile.AudioSettings.DefaultPlaybackDeviceId);
                             if (!playbackSet)
                             {
-                                System.Diagnostics.Debug.WriteLine($"Failed to set playback device: {profile.AudioSettings.PlaybackDeviceName}");
+                                logger.Warn($"Failed to set playback device: {profile.AudioSettings.PlaybackDeviceName}");
                                 audioSuccess = false;
                             }
                             else
                             {
-                                System.Diagnostics.Debug.WriteLine($"Successfully set playback device: {profile.AudioSettings.PlaybackDeviceName}");
+                                logger.Info($"Successfully set playback device: {profile.AudioSettings.PlaybackDeviceName}");
                             }
                         }
                         else if (profile.AudioSettings.ApplyPlaybackDevice)
                         {
-                            System.Diagnostics.Debug.WriteLine("Playback device application enabled but no device configured");
+                            logger.Debug("Playback device application enabled but no device configured");
                         }
                         else
                         {
-                            System.Diagnostics.Debug.WriteLine("Playback device application disabled for this profile");
+                            logger.Debug("Playback device application disabled for this profile");
                         }
                         
                         // Apply capture device if enabled
@@ -294,32 +451,32 @@ namespace DisplayProfileManager.Core
                             bool captureSet = AudioHelper.SetDefaultCaptureDevice(profile.AudioSettings.DefaultCaptureDeviceId);
                             if (!captureSet)
                             {
-                                System.Diagnostics.Debug.WriteLine($"Failed to set capture device: {profile.AudioSettings.CaptureDeviceName}");
+                                logger.Warn($"Failed to set capture device: {profile.AudioSettings.CaptureDeviceName}");
                                 audioSuccess = false;
                             }
                             else
                             {
-                                System.Diagnostics.Debug.WriteLine($"Successfully set capture device: {profile.AudioSettings.CaptureDeviceName}");
+                                logger.Info($"Successfully set capture device: {profile.AudioSettings.CaptureDeviceName}");
                             }
                         }
                         else if (profile.AudioSettings.ApplyCaptureDevice)
                         {
-                            System.Diagnostics.Debug.WriteLine("Capture device application enabled but no device configured");
+                            logger.Debug("Capture device application enabled but no device configured");
                         }
                         else
                         {
-                            System.Diagnostics.Debug.WriteLine("Capture device application disabled for this profile");
+                            logger.Debug("Capture device application disabled for this profile");
                         }
-                        
+
                         // Log audio settings result but don't fail the entire profile
                         if (!audioSuccess)
                         {
-                            System.Diagnostics.Debug.WriteLine("Some audio settings could not be applied");
+                            logger.Warn("Some audio settings could not be applied");
                         }
                     }
                     catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine($"Error applying audio settings: {ex.Message}");
+                        logger.Error(ex, "Error applying audio settings");
                         // Don't fail the entire profile if audio settings fail
                     }
                 }
@@ -331,71 +488,55 @@ namespace DisplayProfileManager.Core
                     ProfileApplied?.Invoke(this, profile);
                 }
 
-                return success;
+                ProfileApplyResult profileApplyResult = new ProfileApplyResult
+                {
+                    Success = success,
+                    PrimaryChanged = primaryChanged,
+                    DisplayConfigApplied = displayConfigApplied,
+                    ResolutionChanged = resolutionChanged,
+                    DpiChanged = dpiChanged,
+                    AudioSuccess = audioSuccess
+                };
+
+                return profileApplyResult;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error applying profile: {ex.Message}");
-                return false;
+                logger.Error(ex, "Error applying profile");
+
+                ProfileApplyResult profileApplyResult = new ProfileApplyResult
+                {
+                    Success = false,
+                    PrimaryChanged = false,
+                    DisplayConfigApplied = false,
+                    ResolutionChanged = false,
+                    DpiChanged = false,
+                    AudioSuccess = false
+                };
+
+                return profileApplyResult;
             }
         }
 
-        private DpiHelper.LUID ParseAdapterId(string adapterIdString)
+        public string GetApplyResultErrorMessage(string profileName, ProfileApplyResult result)
         {
-            try
-            {
-                if (adapterIdString.Length >= 8)
-                {
-                    var highPart = Convert.ToInt32(adapterIdString.Substring(0, 8), 16);
-                    var lowPart = Convert.ToUInt32(adapterIdString.Substring(8), 16);
-                    
-                    return new DpiHelper.LUID { HighPart = highPart, LowPart = lowPart };
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error parsing adapter ID: {ex.Message}");
-            }
-            
-            return new DpiHelper.LUID();
+            string errorDetails =
+                $"Failed to apply profile '{profileName}'.\n" +
+                $"Some settings may not have been applied correctly.\n\n" +
+                $"Primary Changed: {result.PrimaryChanged},\n" +
+                $"Display Topology Applied: {result.DisplayConfigApplied},\n" +
+                $"Resolution Frequency Changed: {result.ResolutionChanged},\n" +
+                $"DPI Scaling Changed: {result.DpiChanged},\n" +
+                $"Audio Success: {result.AudioSuccess}";
+
+            return errorDetails;
         }
 
-        private (DpiHelper.LUID adapterId, uint sourceId, bool found) GetCurrentAdapterInfo(string deviceName)
+        public Profile GetCurrentProfile()
         {
-            try
-            {
-                if (!DpiHelper.GetPathsAndModes(out var paths, out var modes))
-                {
-                    System.Diagnostics.Debug.WriteLine("Failed to get display paths and modes");
-                    return (new DpiHelper.LUID(), 0, false);
-                }
-
-                var displays = DisplayHelper.GetDisplays();
-                var displayIndex = -1;
-                
-                for (int i = 0; i < displays.Count; i++)
-                {
-                    if (displays[i].DeviceName == deviceName)
-                    {
-                        displayIndex = i;
-                        break;
-                    }
-                }
-                
-                if (displayIndex >= 0 && displayIndex < paths.Count)
-                {
-                    var path = paths[displayIndex];
-                    return (path.sourceInfo.adapterId, path.sourceInfo.id, true);
-                }
-                
-                System.Diagnostics.Debug.WriteLine($"Could not find matching display path for {deviceName}");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error getting current adapter info for {deviceName}: {ex.Message}");
-            }
-            
-            return (new DpiHelper.LUID(), 0, false);
+            if (string.IsNullOrEmpty(_currentProfileId))
+                return null;
+            return GetProfile(_currentProfileId);
         }
 
         public List<Profile> GetAllProfiles()
@@ -463,7 +604,7 @@ namespace DisplayProfileManager.Core
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error deleting profile: {ex.Message}");
+                logger.Error(ex, "Error deleting profile");
                 return false;
             }
         }
@@ -545,7 +686,7 @@ namespace DisplayProfileManager.Core
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error exporting profile: {ex.Message}");
+                logger.Error(ex, "Error exporting profile");
                 return false;
             }
         }
@@ -575,7 +716,7 @@ namespace DisplayProfileManager.Core
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error importing profile: {ex.Message}");
+                logger.Error(ex, "Error importing profile");
                 return null;
             }
         }
@@ -639,7 +780,7 @@ namespace DisplayProfileManager.Core
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error clearing hotkey for profile {profileId}: {ex.Message}");
+                logger.Error(ex, $"Error clearing hotkey for profile {profileId}");
                 return false;
             }
         }
@@ -656,6 +797,74 @@ namespace DisplayProfileManager.Core
             }
             
             return hotkeys;
+        }
+
+        public Profile DuplicateProfile(string profileId)
+        {
+            var sourceProfile = GetProfile(profileId);
+            if (sourceProfile == null)
+                return null;
+
+            // Create new profile with duplicated data
+            var duplicatedProfile = new Profile
+            {
+                Id = Guid.NewGuid().ToString(),
+                Name = GetUniqueProfileName(sourceProfile.Name),
+                Description = sourceProfile.Description,
+                IsDefault = false, // Never duplicate as default
+                CreatedDate = DateTime.Now,
+                LastModifiedDate = DateTime.Now,
+                DisplaySettings = sourceProfile.DisplaySettings.Select(ds => new DisplaySetting
+                {
+                    DeviceName = ds.DeviceName,
+                    DeviceString = ds.DeviceString,
+                    ReadableDeviceName = ds.ReadableDeviceName,
+                    Width = ds.Width,
+                    Height = ds.Height,
+                    Frequency = ds.Frequency,
+                    DpiScaling = ds.DpiScaling,
+                    IsPrimary = ds.IsPrimary,
+                    AdapterId = ds.AdapterId,
+                    SourceId = ds.SourceId,
+                    IsEnabled = ds.IsEnabled,
+                    PathIndex = ds.PathIndex,
+                    TargetId = ds.TargetId,
+                    DisplayPositionX = ds.DisplayPositionX,
+                    DisplayPositionY = ds.DisplayPositionY,
+                    ManufacturerName = ds.ManufacturerName,
+                    ProductCodeID = ds.ProductCodeID,
+                    SerialNumberID = ds.SerialNumberID,
+                    AvailableResolutions = ds.AvailableResolutions != null ? new List<string>(ds.AvailableResolutions) : new List<string>(),
+                    AvailableDpiScaling = ds.AvailableDpiScaling != null ? new List<uint>(ds.AvailableDpiScaling) : new List<uint>(),
+                    AvailableRefreshRates = ds.AvailableRefreshRates != null ? new Dictionary<string, List<int>>(ds.AvailableRefreshRates.ToDictionary(kvp => kvp.Key, kvp => new List<int>(kvp.Value))) : new Dictionary<string, List<int>>()
+                }).ToList(),
+                AudioSettings = sourceProfile.AudioSettings != null ? new AudioSetting
+                {
+                    DefaultPlaybackDeviceId = sourceProfile.AudioSettings.DefaultPlaybackDeviceId,
+                    PlaybackDeviceName = sourceProfile.AudioSettings.PlaybackDeviceName,
+                    DefaultCaptureDeviceId = sourceProfile.AudioSettings.DefaultCaptureDeviceId,
+                    CaptureDeviceName = sourceProfile.AudioSettings.CaptureDeviceName,
+                    ApplyPlaybackDevice = sourceProfile.AudioSettings.ApplyPlaybackDevice,
+                    ApplyCaptureDevice = sourceProfile.AudioSettings.ApplyCaptureDevice
+                } : new AudioSetting(),
+                HotkeyConfig = new HotkeyConfig() // Clear hotkey to avoid conflicts
+            };
+
+            return duplicatedProfile;
+        }
+
+        public async Task<Profile> DuplicateProfileAsync(string profileId)
+        {
+            var duplicatedProfile = DuplicateProfile(profileId);
+            if (duplicatedProfile == null)
+                return null;
+
+            if (await AddProfileAsync(duplicatedProfile))
+            {
+                return duplicatedProfile;
+            }
+
+            return null;
         }
 
         private readonly SettingsManager _settingsManager = SettingsManager.Instance;

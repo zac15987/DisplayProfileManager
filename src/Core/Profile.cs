@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using DisplayProfileManager.Helpers;
 using Newtonsoft.Json;
 
 namespace DisplayProfileManager.Core
@@ -101,17 +102,41 @@ namespace DisplayProfileManager.Core
         [JsonProperty("sourceId")]
         public uint SourceId { get; set; } = 0;
 
+        [JsonProperty("isEnabled")]
+        public bool IsEnabled { get; set; } = true;
+
+        [JsonProperty("pathIndex")]
+        public uint PathIndex { get; set; } = 0;
+
+        [JsonProperty("targetId")]
+        public uint TargetId { get; set; } = 0;
+
+        [JsonProperty("displayPositionX")]
+        public int DisplayPositionX { get; set; } = 0;
+
+        [JsonProperty("displayPositionY")]
+        public int DisplayPositionY { get; set; } = 0;
+
+        [JsonProperty("manufacturerName")]
+        public string ManufacturerName { get; set; } = string.Empty;
+
+        [JsonProperty("productCodeID")]
+        public string ProductCodeID { get; set; } = string.Empty;
+
+        [JsonProperty("serialNumberID")]
+        public string SerialNumberID { get; set; } = string.Empty;
+
+        [JsonProperty("availableResolutions")]
+        public List<string> AvailableResolutions { get; set; } = new List<string>();
+
+        [JsonProperty("availableDpiScaling")]
+        public List<uint> AvailableDpiScaling { get; set; } = new List<uint>();
+
+        [JsonProperty("availableRefreshRates")]
+        public Dictionary<string, List<int>> AvailableRefreshRates { get; set; } = new Dictionary<string, List<int>>();
+
         public DisplaySetting()
         {
-        }
-
-        public DisplaySetting(string deviceName, int width, int height, uint dpiScaling, int frequency = 60)
-        {
-            DeviceName = deviceName;
-            Width = width;
-            Height = height;
-            DpiScaling = dpiScaling;
-            Frequency = frequency;
         }
 
         public string GetResolutionString()
@@ -126,7 +151,19 @@ namespace DisplayProfileManager.Core
 
         public override string ToString()
         {
-            return $"{DeviceName}: {GetResolutionString()}, DPI: {GetDpiString()}";
+            var enabledStatus = IsEnabled ? "Enabled" : "Disabled";
+            return $"{DeviceName}: {GetResolutionString()}, DPI: {GetDpiString()} [{enabledStatus}]";
+        }
+
+        public void UpdateDeviceNameFromWMI()
+        {
+            string resolvedDeviceName = DisplayHelper.GetDeviceNameFromWMIMonitorID(ManufacturerName, ProductCodeID, SerialNumberID);
+            if (string.IsNullOrEmpty(resolvedDeviceName))
+            {
+                resolvedDeviceName = DeviceName;
+            }
+
+            DeviceName = resolvedDeviceName;
         }
     }
 

@@ -66,14 +66,6 @@
             </Style.Triggers>
         </Style>
 
-        <Style x:Key="ModernTextBoxStyle" TargetType="TextBox">
-            <Setter Property="Background" Value="{DynamicResource TextBoxBackgroundBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource TextBoxBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="8"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="FontFamily" Value="Segoe UI"/>
-        </Style>
 
 
         <Style x:Key="ModernTextBlockStyle" TargetType="TextBlock">
@@ -191,8 +183,7 @@
                         <TextBlock Text="Profile Name*" Style="{StaticResource LabelTextBlockStyle}"/>
                         <TextBox Name="ProfileNameTextBox" 
                                  Style="{StaticResource ModernTextBoxStyle}" 
-                                 MaxLength="50"
-                                 Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                 MaxLength="50"/>
                     </StackPanel>
 
                     <StackPanel Grid.Column="2">
@@ -210,8 +201,7 @@
                              Style="{StaticResource ModernTextBoxStyle}" 
                              Height="60" TextWrapping="Wrap" 
                              VerticalScrollBarVisibility="Auto" 
-                             AcceptsReturn="True"
-                             Foreground="{DynamicResource PrimaryTextBrush}"/>
+                             AcceptsReturn="True"/>
                 </StackPanel>
 
                 <!-- Global Hotkey Section -->
@@ -267,26 +257,25 @@
                                FontSize="16" VerticalAlignment="Center"/>
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal">
-                        <Button Name="DetectDisplaysButton" Content="Detect Current" 
-                                Style="{StaticResource SecondaryButtonStyle}" 
+                        <Button Name="DetectDisplaysButton" Content="Detect Current"
+                                Style="{StaticResource SecondaryButtonStyle}"
                                 Margin="0,0,8,0" Click="DetectDisplaysButton_Click"/>
-                        <Button Name="AddDisplayButton" Content="+ Add Display" 
-                                Style="{StaticResource ModernButtonStyle}" 
-                                Click="AddDisplayButton_Click"/>
+                        <Button Name="IdentifyDisplaysButton" Content="Identify"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Click="IdentifyDisplaysButton_Click"
+                                ToolTip="Show monitor numbers on each display"/>
                     </StackPanel>
                 </Grid>
 
-                <Border Background="{DynamicResource ContentBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" MinHeight="200">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
-                        <StackPanel Name="DisplaySettingsPanel">
-                            <TextBlock Text="No display settings configured. Click 'Detect Current' to auto-configure or 'Add Display' to manually add displays." 
-                                       Style="{StaticResource ModernTextBlockStyle}" 
-                                       Foreground="{DynamicResource TertiaryTextBrush}" 
-                                       TextAlignment="Center" 
-                                       TextWrapping="Wrap" 
-                                       Margin="32"/>
-                        </StackPanel>
-                    </ScrollViewer>
+                <Border Background="{DynamicResource ContentBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" MinHeight="200" Padding="16">
+                    <StackPanel Name="DisplaySettingsPanel">
+                        <TextBlock Text="No display settings configured. Click 'Detect Current' to auto-configure or 'Add Display' to manually add displays."
+                                   Style="{StaticResource ModernTextBlockStyle}"
+                                   Foreground="{DynamicResource TertiaryTextBrush}"
+                                   TextAlignment="Center"
+                                   TextWrapping="Wrap"
+                                   Margin="32"/>
+                    </StackPanel>
                 </Border>
 
                 <!-- Audio Settings Section -->

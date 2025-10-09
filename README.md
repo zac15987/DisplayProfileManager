@@ -13,12 +13,18 @@ A lightweight Windows desktop application for managing display profiles with qui
 - 🔄 **Quick Profile Switching** - Change profiles instantly from the system tray
 - 📐 **Resolution & Refresh Rate Control** - Adjust display settings per monitor
 - 🔍 **DPI Scaling Management** - Control Windows DPI scaling for each profile
-- 🚀 **Auto-start with Windows** - Launch automatically and apply your preferred profile
+- 🚀 **Auto-start with Windows** - Dual modes: Registry (no admin) or Task Scheduler (faster, requires admin setup)
 - 🎨 **Modern UI with Theme Support** - Light, dark or system themes
 - 💾 **Profile Import/Export** - Backup your configurations
 - 🖼️ **Per-Monitor Configuration** - Different settings for multi-monitor setups
 - 🔊 **Audio Device Switching** - Automatically switch default playback and recording devices with profiles
 - 🔄 **System Tray Profile Switching** - Instantly switch display profiles directly from the system tray
+- ⚡ **Global Hotkeys** - Assign keyboard shortcuts to instantly switch between profiles
+- 🎯 **Monitor Enable/Disable** - Selectively disable or enable monitors within profiles
+- 📍 **Display Position Tracking** - Save and restore monitor positions and arrangements
+- 🖥️ **Primary Display Management** - Control which monitor is set as primary
+- 📋 **Profile Duplication** - Quickly duplicate existing profiles for easy modifications
+- 🔍 **Monitor Identification Overlay** - Visual overlay to identify monitors during configuration
 
 ## 📸 Screenshots
 
@@ -43,11 +49,11 @@ A lightweight Windows desktop application for managing display profiles with qui
 ![System Tray](docs/screenshots/tray.png)
 
 
-### Dark Theme
+### Light Theme
 
-*Modern dark theme for comfortable viewing*
+*Clean light theme for bright environments*
 
-![Dark Theme](docs/screenshots/dark-theme.png)
+![Light Theme](docs/screenshots/light-theme.png)
 
 
 
@@ -55,12 +61,12 @@ A lightweight Windows desktop application for managing display profiles with qui
 
 - **Operating System**: Windows 7 or later
 - **.NET Framework**: 4.8 or later ([Download](https://dotnet.microsoft.com/download/dotnet-framework/net48))
-- **Privileges**: Administrator rights required (for DPI changes)
+- **Privileges**: No administrator rights required for normal operation. Admin needed only for Quick Launch auto-start mode setup.
 
 ## 🚀 Installation
 
 1. Download the latest release from the [Releases](../../releases) page
-2. Run `DisplayProfileManager.exe` as administrator
+2. Run `DisplayProfileManager.exe`
 3. The application will start in your system tray
 4. On first launch, your current display settings are saved as the "Default" profile
 
@@ -80,8 +86,10 @@ A lightweight Windows desktop application for managing display profiles with qui
 
 ### Managing Settings
 - Right-click the system tray icon and select "Settings"
-- Configure auto-start behavior
-- Choose your default profile
+- Configure auto-start behavior:
+  - **Registry Mode**: No administrator privileges required, standard startup
+  - **Task Scheduler Mode**: Requires admin for initial setup, provides faster launch times
+- Choose your default profile to apply on Windows startup
 - Toggle between light, dark or system themes
 
 ## 🛠️ Development
@@ -113,18 +121,73 @@ start bin\Release\DisplayProfileManager.exe
 DisplayProfileManager/
 ├── src/
 │   ├── Core/              # Business logic and profile management
+│   │   ├── Profile.cs
+│   │   ├── ProfileManager.cs (thread-safe singleton)
+│   │   ├── SettingsManager.cs (thread-safe singleton)
+│   │   └── HotkeyConfig.cs
 │   ├── Helpers/           # Windows API wrappers and utilities
+│   │   ├── DisplayHelper.cs
+│   │   ├── DisplayConfigHelper.cs
+│   │   ├── DpiHelper.cs
+│   │   ├── AudioHelper.cs
+│   │   ├── AutoStartHelper.cs
+│   │   ├── GlobalHotkeyHelper.cs
+│   │   ├── ThemeHelper.cs
+│   │   ├── LoggerHelper.cs
+│   │   └── KeyConverter.cs
 │   └── UI/                # WPF views and view models
+│       ├── Controls/      # Custom WPF controls
+│       ├── Converters/    # Value converters
+│       ├── Themes/        # Light/Dark theme resources
+│       ├── ViewModels/    # MVVM view models
+│       ├── Windows/       # Application windows
+│       └── TrayIcon.cs
 ├── Properties/            # Assembly information and resources
 └── docs/                  # Documentation and samples
 ```
 
 ### Architecture
-- **Pattern**: MVVM with singleton managers
-- **UI Framework**: WPF (.NET Framework 4.8)
-- **Storage**: JSON files in `%AppData%\DisplayProfileManager\`
-- **Display APIs**: Windows Display Configuration APIs via P/Invoke
-- **Audio APIs**: AudioSwitcher.AudioApi for audio device management
+
+**Core Patterns**
+- **MVVM**: ViewModels for UI state management
+- **Singletons**: Thread-safe ProfileManager and SettingsManager for global state
+- **Async/Await**: All file I/O operations use asynchronous patterns
+- **P/Invoke**: Windows Display/DPI/Audio APIs accessed via Helper classes
+
+**UI Framework**
+- WPF (.NET Framework 4.8)
+- Theme support (Light, Dark, System) via ResourceDictionary
+
+**Storage**
+- **Profiles**: Individual `.dpm` files in `%AppData%\DisplayProfileManager\Profiles\` (JSON format)
+- **Settings**: `%AppData%\DisplayProfileManager\settings.json` (JSON format)
+- **Logs**: `%AppData%\DisplayProfileManager\Logs\` (NLog with daily rotation, 30-day retention)
+
+**APIs & Libraries**
+- **Display Management**: Windows Display Configuration APIs via P/Invoke
+- **Audio Management**: AudioSwitcher.AudioApi for device control
+- **Logging**: NLog for structured logging with automatic daily file rotation
+- **Serialization**: Newtonsoft.Json for profile and settings persistence
+
+### Data Storage
+
+All application data is stored in the user's AppData directory to support standard user privileges:
+
+**Profile Files**
+- Location: `%AppData%\DisplayProfileManager\Profiles\`
+- Format: Individual `.dpm` files (JSON)
+- Each profile is stored as a separate file for easy backup and portability
+- Example: `Gaming.dpm`, `Work.dpm`
+
+**Settings File**
+- Location: `%AppData%\DisplayProfileManager\settings.json`
+- Contains: Theme preferences, auto-start configuration, default profile selection
+
+**Log Files**
+- Location: `%AppData%\DisplayProfileManager\Logs\`
+- Format: `DisplayProfileManager-YYYY-MM-DD.log`
+- Rotation: Daily with 30-day retention
+- Useful for troubleshooting display configuration issues
 
 ## 🤝 Contributing
 
@@ -148,6 +211,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
+- [NLog](https://nlog-project.org/) (v6.0.4, BSD-3-Clause) - Advanced logging framework for .NET with structured logging support
 - [Newtonsoft.Json](https://www.newtonsoft.com/json) - JSON serialization
 - [AudioSwitcher.AudioApi](https://github.com/xenolightning/AudioSwitcher) (v3.0.0) - Audio device management framework
 - [AudioSwitcher.AudioApi.CoreAudio](https://github.com/xenolightning/AudioSwitcher) (v3.0.3) - Windows Core Audio API implementation
@@ -155,12 +219,15 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [windows-DPI-scaling-sample](https://github.com/lihas/windows-DPI-scaling-sample) - Provided the foundation for DPI scaling functionality. The original C++ implementation was translated to C# and forms the core of our DpiHelper.cs, enabling reliable system-wide DPI changes. Sample code documentation preserved in docs/sample-code/
 - [Claude Code](https://claude.ai/code) - Built in Collaboration with Claude Code. Anthropic's AI assistant helped architect, implement, and refine core features throughout the development process.
 
+For detailed license information about third-party dependencies, see [THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md).
+
 ### 🤝 Feature Contributors
 - [@Catriks](https://github.com/Catriks) - Requested audio device switching functionality ([#1](https://github.com/zac15987/DisplayProfileManager/issues/1))
-- [@Alienmario](https://github.com/Alienmario) - Recommended AudioSwitcher.AudioApi library and suggested per-device "Don't change" options ([#1](https://github.com/zac15987/DisplayProfileManager/issues/1))
+- [@Alienmario](https://github.com/Alienmario) - Recommended AudioSwitcher.AudioApi library, suggested per-device "Don't change" options ([#1](https://github.com/zac15987/DisplayProfileManager/issues/1)), and reported multi-monitor switching issues ([#5](https://github.com/zac15987/DisplayProfileManager/issues/5))
 - [@anodynos](https://github.com/anodynos) - Suggested global hotkey functionality for quick profile switching ([#2](https://github.com/zac15987/DisplayProfileManager/issues/2))
+- [@xtrilla](https://github.com/xtrilla) - Requested monitor disable/enable feature for selective display control ([#4](https://github.com/zac15987/DisplayProfileManager/issues/4))
 - The open-source community for inspiration and support
 
 ---
 
-**Note**: This application requires administrator privileges to modify DPI settings due to Windows security restrictions.
+**Note**: This application runs as a standard user. Administrator privileges are only required when setting up Quick Launch mode for auto-start (uses Windows Task Scheduler).

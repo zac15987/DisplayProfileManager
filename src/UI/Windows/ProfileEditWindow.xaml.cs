@@ -1,21 +1,21 @@
+using DisplayProfileManager.Core;
+using DisplayProfileManager.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shell;
-using DisplayProfileManager.Core;
-using DisplayProfileManager.Helpers;
-using DisplayProfileManager.UI.Controls;
+using NLog;
 
 namespace DisplayProfileManager.UI.Windows
 {
     public partial class ProfileEditWindow : Window
     {
+        private static readonly Logger logger = LoggerHelper.GetLogger();
         private ProfileManager _profileManager;
         private Profile _profile;
         private bool _isEditMode;
@@ -32,8 +32,6 @@ namespace DisplayProfileManager.UI.Windows
             _isEditMode = profileToEdit != null;
             _profile = profileToEdit ?? new Profile();
 
-            InitializeWindow();
-            
             // Initialize collections before binding
             _playbackDevices = new ObservableCollection<AudioHelper.AudioDeviceInfo>();
             _captureDevices = new ObservableCollection<AudioHelper.AudioDeviceInfo>();
@@ -41,8 +39,8 @@ namespace DisplayProfileManager.UI.Windows
             // Bind collections to ComboBoxes
             OutputDeviceComboBox.ItemsSource = _playbackDevices;
             InputDeviceComboBox.ItemsSource = _captureDevices;
-            
-            LoadAudioDevices();
+
+            InitializeWindow();
         }
 
         private void InitializeWindow()
@@ -90,6 +88,7 @@ namespace DisplayProfileManager.UI.Windows
             CheckForHotkeyConflicts();
 
             // Audio settings will be populated in LoadAudioDevices which is called from constructor
+            LoadAudioDevices(false);
         }
 
         private async void DetectDisplaysButton_Click(object sender, RoutedEventArgs e)
@@ -100,9 +99,21 @@ namespace DisplayProfileManager.UI.Windows
                 DetectDisplaysButton.IsEnabled = false;
 
                 var currentSettings = await _profileManager.GetCurrentDisplaySettingsAsync();
-                
+
                 DisplaySettingsPanel.Children.Clear();
                 _displayControls.Clear();
+
+                // Ensure at least one monitor is marked as primary
+                bool hasPrimary = currentSettings.Any(s => s.IsPrimary && s.IsEnabled);
+                if (!hasPrimary)
+                {
+                    // Mark the first enabled monitor as primary
+                    var firstEnabled = currentSettings.FirstOrDefault(s => s.IsEnabled);
+                    if (firstEnabled != null)
+                    {
+                        firstEnabled.IsPrimary = true;
+                    }
+                }
 
                 foreach (var setting in currentSettings)
                 {
@@ -114,7 +125,7 @@ namespace DisplayProfileManager.UI.Windows
             catch (Exception ex)
             {
                 StatusTextBlock.Text = "Error detecting displays";
-                MessageBox.Show($"Error detecting current display settings: {ex.Message}", "Error", 
+                MessageBox.Show($"Error detecting current display settings: {ex.Message}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
@@ -123,57 +134,94 @@ namespace DisplayProfileManager.UI.Windows
             }
         }
 
-        private void AddDisplayButton_Click(object sender, RoutedEventArgs e)
-        {
-            var newSetting = new DisplaySetting
-            {
-                DeviceName = "New Display",
-                Width = 1920,
-                Height = 1080,
-                Frequency = 60,
-                DpiScaling = 100
-            };
-
-            AddDisplaySettingControl(newSetting);
-            StatusTextBlock.Text = "New display setting added";
-        }
-
         private void AddDisplaySettingControl(DisplaySetting setting)
         {
-            if (DisplaySettingsPanel.Children.Count == 1 && 
+            if (DisplaySettingsPanel.Children.Count == 1 &&
                 DisplaySettingsPanel.Children[0] is TextBlock)
             {
                 DisplaySettingsPanel.Children.Clear();
             }
 
-            var control = new DisplaySettingControl(setting);
-            control.RemoveRequested += OnDisplaySettingRemoved;
+            // Calculate monitor index (1-based)
+            int monitorIndex = _displayControls.Count + 1;
+            var control = new DisplaySettingControl(setting, monitorIndex);
             _displayControls.Add(control);
             DisplaySettingsPanel.Children.Add(control);
         }
 
-        private void OnDisplaySettingRemoved(object sender, EventArgs e)
+        private async void IdentifyDisplaysButton_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is DisplaySettingControl control)
+            try
             {
-                control.RemoveRequested -= OnDisplaySettingRemoved;
-                _displayControls.Remove(control);
-                DisplaySettingsPanel.Children.Remove(control);
+                StatusTextBlock.Text = "Identifying monitors...";
+                IdentifyDisplaysButton.IsEnabled = false;
 
-                if (_displayControls.Count == 0)
+                List<DisplaySetting> displaySettings = new List<DisplaySetting>();
+
+                if(_displayControls.Count > 0)
                 {
-                    DisplaySettingsPanel.Children.Add(new TextBlock
+                    displaySettings = _profile.DisplaySettings;
+
+                    if(displaySettings.Count == 0)
                     {
-                        Text = "No display settings configured. Click 'Detect Current' to auto-configure or 'Add Display' to manually add displays.",
-                        Style = (Style)FindResource("ModernTextBlockStyle"),
-                        Foreground = (Brush)Application.Current.Resources["TertiaryTextBrush"],
-                        TextAlignment = TextAlignment.Center,
-                        TextWrapping = TextWrapping.Wrap,
-                        Margin = new Thickness(32)
-                    });
+                        foreach (var control in _displayControls)
+                        {
+                            var setting = control.GetDisplaySetting();
+                            if (setting != null)
+                            {
+                                displaySettings.Add(setting);
+                            }
+                        }
+                    }
+                }
+                else // Get current display to show the index
+                {
+                    displaySettings = await _profileManager.GetCurrentDisplaySettingsAsync();
                 }
 
-                StatusTextBlock.Text = "Display setting removed";
+                var identifyWindows = new List<MonitorIdentifyWindow>();
+
+                int index = 1;
+                foreach (var setting in displaySettings)
+                {
+                    if (setting.IsEnabled)
+                    {
+                        if (DisplayHelper.IsMonitorConnected(setting.DeviceName))
+                        {
+                            var targetScreen = System.Windows.Forms.Screen.AllScreens.FirstOrDefault(x => x.DeviceName == setting.DeviceName);
+
+                            if (targetScreen != null)
+                            {
+                                // Pass raw physical pixel coordinates directly
+                                // MonitorIdentifyWindow will use SetWindowPos to handle positioning correctly
+                                var identifyWindow = new MonitorIdentifyWindow(index, targetScreen.Bounds.Left, targetScreen.Bounds.Top);
+                                identifyWindows.Add(identifyWindow);
+                            }
+                        }
+                    }
+                    index++;
+                }
+
+                // Show all identify windows
+                foreach (var window in identifyWindows)
+                {
+                    window.Show();
+
+                    logger.Debug("Showing identify window for monitor {Index} at position Left:{Left}, Top:{Top}",
+                        window.MonitorIndex, window.Left, window.Top);
+                }
+
+                StatusTextBlock.Text = $"Showing identifiers on {identifyWindows.Count} monitor(s)";
+            }
+            catch (Exception ex)
+            {
+                StatusTextBlock.Text = "Error identifying displays";
+                MessageBox.Show($"Error identifying displays: {ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                IdentifyDisplaysButton.IsEnabled = true;
             }
         }
 
@@ -315,6 +363,22 @@ namespace DisplayProfileManager.UI.Windows
                 }
             }
 
+            if(ApplyOutputDeviceCheckBox.IsChecked == true && OutputDeviceComboBox.SelectedItem == null)
+            {
+                MessageBox.Show("Please select an audio output device.", "Validation Error",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                ApplyOutputDeviceCheckBox.Focus();
+                return false;
+            }
+
+            if (ApplyInputDeviceCheckBox.IsChecked == true && InputDeviceComboBox.SelectedItem == null)
+            {
+                MessageBox.Show("Please select an audio input device.", "Validation Error",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                ApplyInputDeviceCheckBox.Focus();
+                return false;
+            }
+
             return true;
         }
 
@@ -335,11 +399,11 @@ namespace DisplayProfileManager.UI.Windows
             {
                 var app = Application.Current as App;
                 app?.DisableProfileHotkeys();
-                System.Diagnostics.Debug.WriteLine("Disabled profile hotkeys for ProfileEditWindow");
+                logger.Debug("Disabled profile hotkeys for ProfileEditWindow");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error disabling profile hotkeys: {ex.Message}");
+                logger.Error(ex, "Error disabling profile hotkeys");
             }
         }
 
@@ -396,7 +460,7 @@ namespace DisplayProfileManager.UI.Windows
             }
         }
 
-        private void LoadAudioDevices()
+        private void LoadAudioDevices(bool reInitialize)
         {
             try
             {
@@ -404,7 +468,10 @@ namespace DisplayProfileManager.UI.Windows
                 _playbackDevices.Clear();
                 _captureDevices.Clear();
 
-                AudioHelper.ReInitializeAudioController();
+                if(reInitialize)
+                {
+                    AudioHelper.ReInitializeAudioController();
+                }
                 
                 // Load playback devices
                 var playbackDevices = AudioHelper.GetPlaybackDevices();
@@ -478,7 +545,7 @@ namespace DisplayProfileManager.UI.Windows
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error loading audio devices: {ex.Message}");
+                logger.Error(ex, "Error loading audio devices");
                 StatusTextBlock.Text = "Could not load audio devices";
             }
         }
@@ -535,13 +602,13 @@ namespace DisplayProfileManager.UI.Windows
             {
                 StatusTextBlock.Text = "Detecting current audio devices...";
 
-                LoadAudioDevices();
+                LoadAudioDevices(true);
                 
                 StatusTextBlock.Text = "Current audio devices detected";
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error detecting audio devices: {ex.Message}");
+                logger.Error(ex, "Error detecting audio devices");
                 StatusTextBlock.Text = "Error detecting audio devices";
             }
         }
@@ -649,11 +716,11 @@ namespace DisplayProfileManager.UI.Windows
             {
                 var app = Application.Current as App;
                 app?.EnableProfileHotkeys();
-                System.Diagnostics.Debug.WriteLine("Re-enabled profile hotkeys after ProfileEditWindow closed");
+                logger.Debug("Re-enabled profile hotkeys after ProfileEditWindow closed");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error re-enabling profile hotkeys: {ex.Message}");
+                logger.Error(ex, "Error re-enabling profile hotkeys");
             }
             
             base.OnClosed(e);
@@ -663,18 +730,20 @@ namespace DisplayProfileManager.UI.Windows
     public class DisplaySettingControl : UserControl
     {
         private DisplaySetting _setting;
-        private ComboBox _deviceComboBox;
+        private int _monitorIndex;
+        private TextBox _deviceTextBox;
         private ComboBox _resolutionComboBox;
         private ComboBox _refreshRateComboBox;
         private ComboBox _dpiComboBox;
         private CheckBox _primaryCheckBox;
-        private Button _removeButton;
+        private CheckBox _enabledCheckBox;
 
-        public event EventHandler RemoveRequested;
-
-        public DisplaySettingControl(DisplaySetting setting)
+        public DisplaySettingControl(DisplaySetting setting, int monitorIndex = 1)
         {
+            setting.UpdateDeviceNameFromWMI();
+
             _setting = setting;
+            _monitorIndex = monitorIndex;
             InitializeControl();
         }
 
@@ -685,10 +754,11 @@ namespace DisplayProfileManager.UI.Windows
             var headerGrid = new Grid();
             headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             var headerText = new TextBlock
             {
-                Text = "Display Configuration",
+                Text = $"Monitor {_monitorIndex}",
                 FontWeight = FontWeights.Medium,
                 FontSize = 14,
                 Margin = new Thickness(0, 0, 0, 8),
@@ -697,19 +767,20 @@ namespace DisplayProfileManager.UI.Windows
             Grid.SetColumn(headerText, 0);
             headerGrid.Children.Add(headerText);
 
-            _removeButton = new Button
+            // Add Enable/Disable checkbox
+            _enabledCheckBox = new CheckBox
             {
-                Content = "✕",
-                Width = 24,
-                Height = 24,
-                Background = (Brush)Application.Current.Resources["SecondaryButtonBackgroundBrush"],
-                Foreground = (Brush)Application.Current.Resources["SecondaryButtonForegroundBrush"],
-                BorderThickness = new Thickness(0),
-                Cursor = System.Windows.Input.Cursors.Hand
+                Content = "Enabled",
+                IsChecked = _setting.IsEnabled,
+                FontSize = 14,
+                Margin = new Thickness(0, 0, 16, 8),
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = (Brush)Application.Current.Resources["PrimaryTextBrush"]
             };
-            _removeButton.Click += (s, e) => RemoveRequested?.Invoke(this, EventArgs.Empty);
-            Grid.SetColumn(_removeButton, 1);
-            headerGrid.Children.Add(_removeButton);
+            _enabledCheckBox.Checked += EnabledCheckBox_CheckedChanged;
+            _enabledCheckBox.Unchecked += EnabledCheckBox_CheckedChanged;
+            Grid.SetColumn(_enabledCheckBox, 1);
+            headerGrid.Children.Add(_enabledCheckBox);
 
             mainPanel.Children.Add(headerGrid);
 
@@ -725,16 +796,13 @@ namespace DisplayProfileManager.UI.Windows
 
             var devicePanel = new StackPanel();
             devicePanel.Children.Add(new TextBlock { Text = "Monitor", FontWeight = FontWeights.Medium, Margin = new Thickness(0, 0, 0, 4), Foreground = (Brush)Application.Current.Resources["PrimaryTextBrush"] });
-            _deviceComboBox = new ComboBox
+            _deviceTextBox = new TextBox
             {
-                Padding = new Thickness(8),
-                BorderBrush = (Brush)Application.Current.Resources["ComboBoxBorderBrush"],
-                BorderThickness = new Thickness(1),
-                Style = (Style)Application.Current.Resources["ModernComboBoxStyle"]
+                Style = (Style)Application.Current.Resources["ModernTextBoxStyle"],
+                IsReadOnly = true
             };
-            _deviceComboBox.SelectionChanged += DeviceComboBox_SelectionChanged;
             PopulateDeviceComboBox();
-            devicePanel.Children.Add(_deviceComboBox);
+            devicePanel.Children.Add(_deviceTextBox);
             Grid.SetColumn(devicePanel, 0);
             Grid.SetRow(devicePanel, 0);
             contentGrid.Children.Add(devicePanel);
@@ -793,6 +861,8 @@ namespace DisplayProfileManager.UI.Windows
                 FontSize = 14,
                 Foreground = (Brush)Application.Current.Resources["PrimaryTextBrush"]
             };
+            _primaryCheckBox.Checked += PrimaryCheckBox_Checked;
+            _primaryCheckBox.Unchecked += PrimaryCheckBox_Unchecked;
             primaryPanel.Children.Add(_primaryCheckBox);
             Grid.SetColumn(primaryPanel, 4);
             Grid.SetRow(primaryPanel, 2);
@@ -809,12 +879,103 @@ namespace DisplayProfileManager.UI.Windows
             mainPanel.Children.Add(separator);
 
             Content = mainPanel;
+            
+            // Set initial control states based on enabled status
+            UpdateControlStates();
+        }
+
+        private void EnabledCheckBox_CheckedChanged(object sender, RoutedEventArgs e)
+        {
+            _setting.IsEnabled = _enabledCheckBox.IsChecked ?? true;
+            UpdateControlStates();
+        }
+
+        private void UpdateControlStates()
+        {
+            bool isEnabled = _setting.IsEnabled;
+
+            // Enable/disable controls based on the display's enabled state
+            _deviceTextBox.IsEnabled = isEnabled;
+            _resolutionComboBox.IsEnabled = isEnabled;
+            _refreshRateComboBox.IsEnabled = isEnabled;
+            _dpiComboBox.IsEnabled = isEnabled;
+            _primaryCheckBox.IsEnabled = isEnabled;
+
+            // Update opacity to provide visual feedback
+            double opacity = isEnabled ? 1.0 : 0.5;
+            _deviceTextBox.Opacity = opacity;
+            _resolutionComboBox.Opacity = opacity;
+            _refreshRateComboBox.Opacity = opacity;
+            _dpiComboBox.Opacity = opacity;
+            _primaryCheckBox.Opacity = opacity;
+
+            // Ensure at least one display remains enabled
+            var parent = Parent as Panel;
+            if (parent != null && !isEnabled)
+            {
+                int enabledCount = 0;
+                foreach (var child in parent.Children)
+                {
+                    if (child is DisplaySettingControl control && control._setting.IsEnabled)
+                    {
+                        enabledCount++;
+                    }
+                }
+
+                // If this would be the last enabled display, prevent disabling
+                if (enabledCount == 0)
+                {
+                    _enabledCheckBox.IsChecked = true;
+                    _setting.IsEnabled = true;
+                    MessageBox.Show("At least one display must remain enabled.", "Display Configuration",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+
+                    // Re-enable controls
+                    _deviceTextBox.IsEnabled = true;
+                    _resolutionComboBox.IsEnabled = true;
+                    _refreshRateComboBox.IsEnabled = true;
+                    _dpiComboBox.IsEnabled = true;
+                    _primaryCheckBox.IsEnabled = true;
+                    _deviceTextBox.Opacity = 1.0;
+                    _resolutionComboBox.Opacity = 1.0;
+                    _refreshRateComboBox.Opacity = 1.0;
+                    _dpiComboBox.Opacity = 1.0;
+                    _primaryCheckBox.Opacity = 1.0;
+                }
+            }
+
+            // If disabling a primary monitor, assign primary to another enabled monitor
+            if (!isEnabled && _setting.IsPrimary && parent != null)
+            {
+                _primaryCheckBox.IsChecked = false;
+                _setting.IsPrimary = false;
+
+                // Find another enabled monitor to make primary
+                foreach (var child in parent.Children)
+                {
+                    if (child is DisplaySettingControl control && control._setting.IsEnabled)
+                    {
+                        control.SetPrimary(true);
+                        break;
+                    }
+                }
+            }
         }
 
         private void PopulateResolutionComboBox()
         {
-            // Get supported resolutions for the current device (without refresh rates)
-            var supportedResolutions = DisplayHelper.GetSupportedResolutionsOnly(_setting.DeviceName);
+            List<string> supportedResolutions;
+
+            // Use stored available resolutions if available, otherwise query from system
+            if (_setting.AvailableResolutions != null && _setting.AvailableResolutions.Count > 0)
+            {
+                supportedResolutions = _setting.AvailableResolutions;
+            }
+            else
+            {
+                // Fallback to querying system (for backward compatibility or connected monitors)
+                supportedResolutions = DisplayHelper.GetSupportedResolutionsOnly(_setting.DeviceName);
+            }
 
             foreach (var resolution in supportedResolutions)
             {
@@ -837,11 +998,22 @@ namespace DisplayProfileManager.UI.Windows
 
         private void PopulateDpiComboBox()
         {
-            var dpiValues = new[] { "100%", "125%", "150%", "175%", "200%", "225%", "250%", "300%" };
-            
-            foreach (var dpi in dpiValues)
+            List<uint> dpiValues;
+
+            // Use stored available DPI scaling if available, otherwise query from system
+            if (_setting.AvailableDpiScaling != null && _setting.AvailableDpiScaling.Count > 0)
             {
-                _dpiComboBox.Items.Add(dpi);
+                dpiValues = _setting.AvailableDpiScaling;
+            }
+            else
+            {
+                // Fallback to querying system (for backward compatibility or connected monitors)
+                dpiValues = DpiHelper.GetSupportedDPIScalingOnly(_setting.DeviceName).ToList();
+            }
+
+            foreach (uint dpi in dpiValues)
+            {
+                _dpiComboBox.Items.Add($"{dpi}%");
             }
 
             var currentDpi = $"{_setting.DpiScaling}%";
@@ -860,8 +1032,21 @@ namespace DisplayProfileManager.UI.Windows
         {
             _refreshRateComboBox.Items.Clear();
 
-            // Get available refresh rates for the current resolution
-            var refreshRates = DisplayHelper.GetAvailableRefreshRates(_setting.DeviceName, _setting.Width, _setting.Height);
+            List<int> refreshRates;
+            var currentResolution = $"{_setting.Width}x{_setting.Height}";
+
+            // Use stored available refresh rates if available, otherwise query from system
+            if (_setting.AvailableRefreshRates != null &&
+                _setting.AvailableRefreshRates.ContainsKey(currentResolution) &&
+                _setting.AvailableRefreshRates[currentResolution].Count > 0)
+            {
+                refreshRates = _setting.AvailableRefreshRates[currentResolution];
+            }
+            else
+            {
+                // Fallback to querying system (for backward compatibility or connected monitors)
+                refreshRates = DisplayHelper.GetAvailableRefreshRates(_setting.DeviceName, _setting.Width, _setting.Height);
+            }
 
             foreach (var rate in refreshRates)
             {
@@ -880,62 +1065,22 @@ namespace DisplayProfileManager.UI.Windows
                 _refreshRateComboBox.Items.Insert(0, currentRefreshRate);
                 _refreshRateComboBox.SelectedIndex = 0;
             }
-            else
+            else if(_refreshRateComboBox.Items.Count == 0)
             {
-                // Fallback if no refresh rates found
-                _refreshRateComboBox.Items.Add("60Hz");
+                _refreshRateComboBox.Items.Add(currentRefreshRate);
                 _refreshRateComboBox.SelectedIndex = 0;
             }
         }
 
         private void PopulateDeviceComboBox()
         {
-            _deviceComboBox.Items.Clear();
-            
-            // Get all available displays
-            var displays = DisplayHelper.GetDisplays();
-            
-            // Create a custom class for ComboBox items to store both readable and system names
-            foreach (var display in displays)
-            {
-                var item = new ComboBoxItem
-                {
-                    Content = display.ReadableDeviceName,
-                    Tag = display.DeviceName, // Store system device name in Tag
-                    ToolTip = $"{display.ReadableDeviceName}\n{display.DeviceName}"
-                };
-                _deviceComboBox.Items.Add(item);
-                
-                // Select current device
-                if (display.DeviceName == _setting.DeviceName)
-                {
-                    _deviceComboBox.SelectedItem = item;
-                }
-            }
-            
-            // If no selection was made (device not found), select first item
-            if (_deviceComboBox.SelectedItem == null && _deviceComboBox.Items.Count > 0)
-            {
-                _deviceComboBox.SelectedIndex = 0;
-            }
-        }
-
-        private void DeviceComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (_deviceComboBox.SelectedItem == null || _resolutionComboBox == null)
-                return;
-
-            var selectedItem = _deviceComboBox.SelectedItem as ComboBoxItem;
-            var deviceName = selectedItem?.Tag?.ToString();
-            
-            if (!string.IsNullOrEmpty(deviceName))
-            {
-                // Update the setting's device name
-                _setting.DeviceName = deviceName;
-                
-                // Repopulate resolution combo box for the new device
-                PopulateResolutionComboBox();
-            }
+            _deviceTextBox.Text = _setting.ReadableDeviceName;
+            _deviceTextBox.Tag = _setting.DeviceName;
+            _deviceTextBox.ToolTip = 
+                $"Name: {_setting.ReadableDeviceName}\n" +
+                $"Device Name: {_setting.DeviceName}\n" +
+                $"Target ID: {_setting.TargetId}\n" +
+                $"EDID: {_setting.ManufacturerName}-{_setting.ProductCodeID}-{_setting.SerialNumberID}";
         }
 
         private void ResolutionComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -945,26 +1090,34 @@ namespace DisplayProfileManager.UI.Windows
 
             var resolutionText = _resolutionComboBox.SelectedItem.ToString();
             var resolutionParts = resolutionText.Split('x');
-            
-            if (resolutionParts.Length >= 2 && 
-                int.TryParse(resolutionParts[0], out int width) && 
+
+            if (resolutionParts.Length >= 2 &&
+                int.TryParse(resolutionParts[0], out int width) &&
                 int.TryParse(resolutionParts[1], out int height))
             {
-                // Get available refresh rates for the selected resolution
-                var refreshRates = DisplayHelper.GetAvailableRefreshRates(_setting.DeviceName, width, height);
-                
+                List<int> refreshRates;
+
+                // Use stored available refresh rates if available, otherwise query from system
+                if (_setting.AvailableRefreshRates != null &&
+                    _setting.AvailableRefreshRates.ContainsKey(resolutionText) &&
+                    _setting.AvailableRefreshRates[resolutionText].Count > 0)
+                {
+                    refreshRates = _setting.AvailableRefreshRates[resolutionText];
+                }
+                else
+                {
+                    // Fallback to querying system (for backward compatibility or connected monitors)
+                    refreshRates = DisplayHelper.GetAvailableRefreshRates(_setting.DeviceName, width, height);
+                }
+
                 _refreshRateComboBox.Items.Clear();
                 foreach (var rate in refreshRates)
                 {
                     _refreshRateComboBox.Items.Add($"{rate}Hz");
                 }
 
-                // Select the highest refresh rate by default, or 60Hz if available
-                if (_refreshRateComboBox.Items.Contains("60Hz"))
-                {
-                    _refreshRateComboBox.SelectedItem = "60Hz";
-                }
-                else if (_refreshRateComboBox.Items.Count > 0)
+                // Select the highest refresh rate by default
+                if (_refreshRateComboBox.Items.Count > 0)
                 {
                     _refreshRateComboBox.SelectedIndex = 0; // Select the highest (first) rate
                 }
@@ -1004,35 +1157,42 @@ namespace DisplayProfileManager.UI.Windows
             if (!int.TryParse(refreshRateText.Replace("Hz", ""), out int frequency))
                 frequency = 60; // Fallback to 60Hz
 
-            var selectedItem = _deviceComboBox.SelectedItem as ComboBoxItem;
-            var deviceName = selectedItem?.Tag?.ToString() ?? "";
-            
-            // Get the display info to populate ReadableDeviceName
-            var displays = DisplayHelper.GetDisplays();
-            var display = displays.FirstOrDefault(d => d.DeviceName == deviceName);
-            
+            var deviceName = _deviceTextBox?.Tag?.ToString() ?? "";
+            var readableDeviceName = _deviceTextBox?.Text?.ToString() ?? "";
+
             return new DisplaySetting
             {
                 DeviceName = deviceName,
                 DeviceString = _setting.DeviceString,
-                ReadableDeviceName = display?.ReadableDeviceName ?? selectedItem?.Content?.ToString() ?? "",
+                ReadableDeviceName = readableDeviceName,
                 Width = width,
                 Height = height,
                 Frequency = frequency,
                 DpiScaling = dpiScaling,
                 IsPrimary = _primaryCheckBox.IsChecked == true,
+                IsEnabled = _enabledCheckBox.IsChecked == true,
                 AdapterId = _setting.AdapterId,
-                SourceId = _setting.SourceId
+                SourceId = _setting.SourceId,
+                PathIndex = _setting.PathIndex,
+                TargetId = _setting.TargetId,
+                DisplayPositionX = _setting.DisplayPositionX,
+                DisplayPositionY = _setting.DisplayPositionY,
+                ManufacturerName = _setting.ManufacturerName,
+                ProductCodeID = _setting.ProductCodeID,
+                SerialNumberID = _setting.SerialNumberID,
+                AvailableResolutions = _setting.AvailableResolutions,
+                AvailableDpiScaling = _setting.AvailableDpiScaling,
+                AvailableRefreshRates = _setting.AvailableRefreshRates
             };
         }
 
         public bool ValidateInput()
         {
-            if (_deviceComboBox.SelectedItem == null)
+            if (_deviceTextBox.Text == null)
             {
                 MessageBox.Show("Please select a monitor for all displays.", "Validation Error", 
                     MessageBoxButton.OK, MessageBoxImage.Warning);
-                _deviceComboBox.Focus();
+                _deviceTextBox.Focus();
                 return false;
             }
 
@@ -1054,13 +1214,119 @@ namespace DisplayProfileManager.UI.Windows
 
             if (_dpiComboBox.SelectedItem == null)
             {
-                MessageBox.Show("Please select a DPI scaling for all displays.", "Validation Error", 
+                MessageBox.Show("Please select a DPI scaling for all displays.", "Validation Error",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
                 _dpiComboBox.Focus();
                 return false;
             }
 
+            // Validate primary monitor selection for enabled displays
+            if (_setting.IsEnabled)
+            {
+                var parent = Parent as Panel;
+                if (parent != null)
+                {
+                    bool hasPrimary = false;
+                    foreach (var child in parent.Children)
+                    {
+                        if (child is DisplaySettingControl control && control._setting.IsEnabled && control._setting.IsPrimary)
+                        {
+                            hasPrimary = true;
+                            break;
+                        }
+                    }
+
+                    if (!hasPrimary)
+                    {
+                        MessageBox.Show("At least one enabled display must be set as primary.", "Validation Error",
+                            MessageBoxButton.OK, MessageBoxImage.Warning);
+                        _primaryCheckBox.Focus();
+                        return false;
+                    }
+                }
+            }
+
             return true;
+        }
+
+        private void PrimaryCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            // When this monitor is set as primary, uncheck all others
+            _setting.IsPrimary = true;
+
+            var parent = Parent as Panel;
+            if (parent != null)
+            {
+                foreach (var child in parent.Children)
+                {
+                    if (child is DisplaySettingControl control && control != this)
+                    {
+                        control._primaryCheckBox.IsChecked = false;
+                        control._setting.IsPrimary = false;
+                    }
+                }
+            }
+        }
+
+        private void PrimaryCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            // Prevent unchecking if this is the last primary among enabled monitors
+            var parent = Parent as Panel;
+            if (parent != null)
+            {
+                int primaryCount = 0;
+                foreach (var child in parent.Children)
+                {
+                    if (child is DisplaySettingControl control && control != this)
+                    {
+                        if (control._primaryCheckBox.IsChecked == true && control._setting.IsEnabled)
+                        {
+                            primaryCount++;
+                        }
+                    }
+                }
+
+                // If no other enabled monitors are primary, prevent unchecking
+                if (primaryCount == 0 && _setting.IsEnabled)
+                {
+                    _primaryCheckBox.IsChecked = true;
+                    MessageBox.Show("At least one enabled display must be set as primary.",
+                                   "Display Configuration",
+                                   MessageBoxButton.OK,
+                                   MessageBoxImage.Information);
+                    return;
+                }
+            }
+            _setting.IsPrimary = false;
+        }
+
+        public void SetPrimary(bool isPrimary)
+        {
+            // Set this control's primary status without triggering events
+            _primaryCheckBox.Checked -= PrimaryCheckBox_Checked;
+            _primaryCheckBox.Unchecked -= PrimaryCheckBox_Unchecked;
+
+            _primaryCheckBox.IsChecked = isPrimary;
+            _setting.IsPrimary = isPrimary;
+
+            _primaryCheckBox.Checked += PrimaryCheckBox_Checked;
+            _primaryCheckBox.Unchecked += PrimaryCheckBox_Unchecked;
+
+            // If setting as primary, uncheck all others
+            if (isPrimary)
+            {
+                var parent = Parent as Panel;
+                if (parent != null)
+                {
+                    foreach (var child in parent.Children)
+                    {
+                        if (child is DisplaySettingControl control && control != this)
+                        {
+                            control.SetPrimary(false);
+                        }
+                    }
+                }
+            }
         }
 
     }

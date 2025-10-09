@@ -8,11 +8,13 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using DisplayProfileManager.Core;
 using DisplayProfileManager.Helpers;
+using NLog;
 
 namespace DisplayProfileManager.UI.Controls
 {
     public partial class HotkeyEditorControl : UserControl, INotifyPropertyChanged
     {
+        private static readonly Logger logger = LoggerHelper.GetLogger();
         private HotkeyConfig _currentHotkey;
         private bool _isRecording;
         private bool _hasConflict;
@@ -183,7 +185,7 @@ namespace DisplayProfileManager.UI.Controls
 
         private void HotkeyTextBox_GotFocus(object sender, RoutedEventArgs e)
         {
-            Debug.WriteLine("HotkeyEditorControl: Got focus");
+            logger.Debug("HotkeyEditorControl: Got focus");
         }
 
         private void HotkeyTextBox_LostFocus(object sender, RoutedEventArgs e)
@@ -212,7 +214,7 @@ namespace DisplayProfileManager.UI.Controls
             {
                 IsRecording = true;
                 _pressedKeys.Clear();
-                Debug.WriteLine("HotkeyEditorControl: Started recording");
+                logger.Debug("HotkeyEditorControl: Started recording");
             }
         }
 
@@ -222,7 +224,7 @@ namespace DisplayProfileManager.UI.Controls
             {
                 IsRecording = false;
                 _recordingModifiers = ModifierKeys.None;
-                Debug.WriteLine("HotkeyEditorControl: Stopped recording");
+                logger.Debug("HotkeyEditorControl: Stopped recording");
             }
         }
 
@@ -263,13 +265,13 @@ namespace DisplayProfileManager.UI.Controls
             _currentHotkey = hotkey?.Clone() ?? new HotkeyConfig();
             HotkeyConfig = _currentHotkey;
             UpdateHotkeyText();
-            
+
             OnPropertyChanged(nameof(HasHotkey));
             OnPropertyChanged(nameof(IsValid));
-            
+
             HotkeyChanged?.Invoke(this, _currentHotkey);
-            
-            Debug.WriteLine($"HotkeyEditorControl: Set hotkey to {_currentHotkey}");
+
+            logger.Debug($"HotkeyEditorControl: Set hotkey to {_currentHotkey}");
         }
 
         private void ClearHotkey()
