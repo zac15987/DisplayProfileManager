@@ -80,6 +80,8 @@ Source: "{#MyBuildFolder}\Newtonsoft.Json.dll"; DestDir: "{app}"; Flags: ignorev
 Source: "{#MyBuildFolder}\AudioSwitcher.AudioApi.CoreAudio.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MyBuildFolder}\AudioSwitcher.AudioApi.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MyBuildFolder}\{#StringChange(MyAppExeName, '.exe', '.pdb')}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#MyBuildFolder}\NLog.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#MyBuildFolder}\NLog.config"; DestDir: "{app}"; Flags: ignoreversion
 
 ; ---- Shortcuts ----
 [Icons]
