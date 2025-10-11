@@ -737,6 +737,7 @@ namespace DisplayProfileManager.UI.Windows
         private ComboBox _dpiComboBox;
         private CheckBox _primaryCheckBox;
         private CheckBox _enabledCheckBox;
+        private CheckBox _hdrCheckBox;
 
         public DisplaySettingControl(DisplaySetting setting, int monitorIndex = 1)
         {
@@ -744,6 +745,14 @@ namespace DisplayProfileManager.UI.Windows
 
             _setting = setting;
             _monitorIndex = monitorIndex;
+            
+            // Debug logging for HDR state
+            var logger = LoggerHelper.GetLogger();
+            logger.Debug($"UI CONTROL DEBUG: Creating DisplaySettingControl for {setting.DeviceName}:");
+            logger.Debug($"UI CONTROL DEBUG:   IsHdrSupported: {setting.IsHdrSupported}");
+            logger.Debug($"UI CONTROL DEBUG:   IsHdrEnabled: {setting.IsHdrEnabled}");
+            logger.Debug($"UI CONTROL DEBUG:   MonitorIndex: {monitorIndex}");
+            
             InitializeControl();
         }
 
@@ -790,6 +799,8 @@ namespace DisplayProfileManager.UI.Windows
             contentGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Resolution column
             contentGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
             contentGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Refresh rate column
+            contentGrid.RowDefinitions.Add(new RowDefinition());
+            contentGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(8) });
             contentGrid.RowDefinitions.Add(new RowDefinition());
             contentGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(8) });
             contentGrid.RowDefinitions.Add(new RowDefinition());
@@ -868,6 +879,37 @@ namespace DisplayProfileManager.UI.Windows
             Grid.SetRow(primaryPanel, 2);
             contentGrid.Children.Add(primaryPanel);
 
+            // HDR Panel
+            var hdrPanel = new StackPanel { VerticalAlignment = VerticalAlignment.Bottom };
+            
+            var logger = LoggerHelper.GetLogger();
+            logger.Debug($"UI CONTROL DEBUG: Initializing HDR checkbox for {_setting.DeviceName}:");
+            logger.Debug($"UI CONTROL DEBUG:   Setting IsHdrSupported: {_setting.IsHdrSupported}");
+            logger.Debug($"UI CONTROL DEBUG:   Setting IsHdrEnabled: {_setting.IsHdrEnabled}");
+            logger.Debug($"UI CONTROL DEBUG:   Checkbox will be checked: {_setting.IsHdrEnabled && _setting.IsHdrSupported}");
+            logger.Debug($"UI CONTROL DEBUG:   Checkbox will be enabled: {_setting.IsHdrSupported}");
+            
+            _hdrCheckBox = new CheckBox
+            {
+                Content = _setting.IsHdrSupported ? "HDR" : "HDR (Not Supported)",
+                IsChecked = _setting.IsHdrEnabled && _setting.IsHdrSupported,
+                IsEnabled = _setting.IsHdrSupported,
+                FontSize = 14,
+                Foreground = (Brush)Application.Current.Resources["PrimaryTextBrush"],
+                ToolTip = _setting.IsHdrSupported ? 
+                    "Enable High Dynamic Range (HDR) for this monitor" : 
+                    "This monitor does not support HDR"
+            };
+            
+            logger.Debug($"UI CONTROL DEBUG: HDR checkbox created - IsChecked: {_hdrCheckBox.IsChecked}, IsEnabled: {_hdrCheckBox.IsEnabled}");
+            
+            _hdrCheckBox.Checked += HdrCheckBox_CheckedChanged;
+            _hdrCheckBox.Unchecked += HdrCheckBox_CheckedChanged;
+            hdrPanel.Children.Add(_hdrCheckBox);
+            Grid.SetColumn(hdrPanel, 0);
+            Grid.SetRow(hdrPanel, 4);
+            contentGrid.Children.Add(hdrPanel);
+
             mainPanel.Children.Add(contentGrid);
 
             var separator = new Border
@@ -890,6 +932,11 @@ namespace DisplayProfileManager.UI.Windows
             UpdateControlStates();
         }
 
+        private void HdrCheckBox_CheckedChanged(object sender, RoutedEventArgs e)
+        {
+            _setting.IsHdrEnabled = _hdrCheckBox.IsChecked == true && _setting.IsHdrSupported;
+        }
+
         private void UpdateControlStates()
         {
             bool isEnabled = _setting.IsEnabled;
@@ -900,6 +947,7 @@ namespace DisplayProfileManager.UI.Windows
             _refreshRateComboBox.IsEnabled = isEnabled;
             _dpiComboBox.IsEnabled = isEnabled;
             _primaryCheckBox.IsEnabled = isEnabled;
+            _hdrCheckBox.IsEnabled = isEnabled && _setting.IsHdrSupported;
 
             // Update opacity to provide visual feedback
             double opacity = isEnabled ? 1.0 : 0.5;
@@ -908,6 +956,7 @@ namespace DisplayProfileManager.UI.Windows
             _refreshRateComboBox.Opacity = opacity;
             _dpiComboBox.Opacity = opacity;
             _primaryCheckBox.Opacity = opacity;
+            _hdrCheckBox.Opacity = opacity;
 
             // Ensure at least one display remains enabled
             var parent = Parent as Panel;
@@ -1182,7 +1231,9 @@ namespace DisplayProfileManager.UI.Windows
                 SerialNumberID = _setting.SerialNumberID,
                 AvailableResolutions = _setting.AvailableResolutions,
                 AvailableDpiScaling = _setting.AvailableDpiScaling,
-                AvailableRefreshRates = _setting.AvailableRefreshRates
+                AvailableRefreshRates = _setting.AvailableRefreshRates,
+                IsHdrSupported = _setting.IsHdrSupported,
+                IsHdrEnabled = _hdrCheckBox.IsChecked == true && _setting.IsHdrSupported
             };
         }
 

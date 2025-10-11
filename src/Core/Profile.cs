@@ -135,6 +135,12 @@ namespace DisplayProfileManager.Core
         [JsonProperty("availableRefreshRates")]
         public Dictionary<string, List<int>> AvailableRefreshRates { get; set; } = new Dictionary<string, List<int>>();
 
+        [JsonProperty("isHdrSupported")]
+        public bool IsHdrSupported { get; set; } = false;
+
+        [JsonProperty("isHdrEnabled")]
+        public bool IsHdrEnabled { get; set; } = false;
+
         public DisplaySetting()
         {
         }
@@ -152,7 +158,8 @@ namespace DisplayProfileManager.Core
         public override string ToString()
         {
             var enabledStatus = IsEnabled ? "Enabled" : "Disabled";
-            return $"{DeviceName}: {GetResolutionString()}, DPI: {GetDpiString()} [{enabledStatus}]";
+            var hdrStatus = IsHdrSupported ? (IsHdrEnabled ? "HDR On" : "HDR Off") : "No HDR";
+            return $"{DeviceName}: {GetResolutionString()}, DPI: {GetDpiString()}, {hdrStatus} [{enabledStatus}]";
         }
 
         public void UpdateDeviceNameFromWMI()

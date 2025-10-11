@@ -41,6 +41,12 @@ namespace DisplayProfileManager.Helpers
         [DllImport("user32.dll")]
         private static extern int DisplayConfigGetDeviceInfo(ref DISPLAYCONFIG_TARGET_DEVICE_NAME deviceName);
 
+        [DllImport("user32.dll")]
+        private static extern int DisplayConfigGetDeviceInfo(ref DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO colorInfo);
+
+        [DllImport("user32.dll")]
+        private static extern int DisplayConfigSetDeviceInfo(ref DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE colorState);
+
         #endregion
 
         #region Constants
@@ -305,6 +311,51 @@ namespace DisplayProfileManager.Helpers
 
         public const uint DISPLAYCONFIG_PATH_MODE_IDX_INVALID = 0xffffffff;
 
+        [StructLayout(LayoutKind.Sequential)]
+        public struct DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO
+        {
+            public DISPLAYCONFIG_DEVICE_INFO_HEADER header;
+            public DISPLAYCONFIG_ADVANCED_COLOR_INFO_FLAGS values;
+            public DISPLAYCONFIG_COLOR_ENCODING colorEncoding;
+            public int bitsPerColorChannel;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE
+        {
+            public DISPLAYCONFIG_DEVICE_INFO_HEADER header;
+            public DISPLAYCONFIG_SET_ADVANCED_COLOR_FLAGS values;
+        }
+
+        [Flags]
+        public enum DISPLAYCONFIG_ADVANCED_COLOR_INFO_FLAGS : uint
+        {
+            // A type of advanced color is supported
+            AdvancedColorSupported = 0x1,
+            // A type of advanced color is enabled  
+            AdvancedColorEnabled = 0x2,
+            // Wide color gamut is enabled
+            WideColorEnforced = 0x4,
+            // Advanced color is force disabled due to system/OS policy
+            AdvancedColorForceDisabled = 0x8
+        }
+
+        [Flags]
+        public enum DISPLAYCONFIG_SET_ADVANCED_COLOR_FLAGS : uint
+        {
+            EnableAdvancedColor = 0x1
+        }
+
+        public enum DISPLAYCONFIG_COLOR_ENCODING : uint
+        {
+            DISPLAYCONFIG_COLOR_ENCODING_RGB = 0,
+            DISPLAYCONFIG_COLOR_ENCODING_YCBCR444 = 1,
+            DISPLAYCONFIG_COLOR_ENCODING_YCBCR422 = 2,
+            DISPLAYCONFIG_COLOR_ENCODING_YCBCR420 = 3,
+            DISPLAYCONFIG_COLOR_ENCODING_INTENSITY = 4,
+            DISPLAYCONFIG_COLOR_ENCODING_FORCE_UINT32 = 0xFFFFFFFF
+        }
+
         #endregion
 
         #region Public Classes
@@ -326,6 +377,10 @@ namespace DisplayProfileManager.Helpers
             public int DisplayPositionX { get; set; }
             public int DisplayPositionY { get; set; }
             public bool IsPrimary { get; set; }
+            public bool IsHdrSupported { get; set; } = false;
+            public bool IsHdrEnabled { get; set; } = false;
+            public DISPLAYCONFIG_COLOR_ENCODING ColorEncoding { get; set; } = DISPLAYCONFIG_COLOR_ENCODING.DISPLAYCONFIG_COLOR_ENCODING_RGB;
+            public uint BitsPerColorChannel { get; set; } = 8;
         }
 
         #endregion
@@ -415,6 +470,90 @@ namespace DisplayProfileManager.Helpers
                     if (result == ERROR_SUCCESS)
                     {
                         displayConfig.FriendlyName = targetName.monitorFriendlyDeviceName;
+                    }
+
+                    // Get HDR information
+                    var colorInfo = new DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO();
+                    colorInfo.header.type = DisplayConfigDeviceInfoType.DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO;
+                    colorInfo.header.size = (uint)Marshal.SizeOf(typeof(DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO));
+                    colorInfo.header.adapterId = path.targetInfo.adapterId;
+                    colorInfo.header.id = path.targetInfo.id;
+
+                    logger.Debug($"HDR DEBUG: Querying HDR info for {displayConfig.DeviceName} (TargetId: {path.targetInfo.id}, AdapterId: {path.targetInfo.adapterId.HighPart:X8}{path.targetInfo.adapterId.LowPart:X8})");
+
+                    result = DisplayConfigGetDeviceInfo(ref colorInfo);
+                    logger.Debug($"HDR DEBUG: DisplayConfigGetDeviceInfo result: {result} (0 = SUCCESS)");
+                    
+                    if (result == ERROR_SUCCESS)
+                    {
+                        logger.Debug($"HDR DEBUG: Raw values flags: 0x{colorInfo.values:X}");
+                        logger.Debug($"HDR DEBUG: Color encoding: {colorInfo.colorEncoding}");
+                        logger.Debug($"HDR DEBUG: Bits per color channel: {colorInfo.bitsPerColorChannel}");
+                        
+                        var flags = colorInfo.values;
+                        bool isSupported = (flags & DISPLAYCONFIG_ADVANCED_COLOR_INFO_FLAGS.AdvancedColorSupported) != 0;
+                        bool isEnabled = (flags & DISPLAYCONFIG_ADVANCED_COLOR_INFO_FLAGS.AdvancedColorEnabled) != 0;
+                        bool isWideColorEnforced = (flags & DISPLAYCONFIG_ADVANCED_COLOR_INFO_FLAGS.WideColorEnforced) != 0;
+                        bool isForceDisabled = (flags & DISPLAYCONFIG_ADVANCED_COLOR_INFO_FLAGS.AdvancedColorForceDisabled) != 0;
+                        
+                        logger.Debug($"HDR DEBUG: Flag breakdown - Supported: {isSupported}, Enabled: {isEnabled}, WideColor: {isWideColorEnforced}, ForceDisabled: {isForceDisabled}");
+                        logger.Debug($"HDR DEBUG: Color encoding check (YCbCr444 = HDR active): {colorInfo.colorEncoding == DISPLAYCONFIG_COLOR_ENCODING.DISPLAYCONFIG_COLOR_ENCODING_YCBCR444}");
+                        
+                        // Final decision: supported if flag is set and not force disabled
+                        bool finalSupported = isSupported && !isForceDisabled;
+                        // Final decision: enabled if flag is set or force disabled but we see YCbCr444 (some systems don't set the enabled flag correctly)
+                        bool finalEnabled = isEnabled || (finalSupported && colorInfo.colorEncoding == DISPLAYCONFIG_COLOR_ENCODING.DISPLAYCONFIG_COLOR_ENCODING_YCBCR444);
+                        
+                        logger.Debug($"HDR DEBUG: Final decisions - Supported: {finalSupported}, Enabled: {finalEnabled}");
+                        
+                        displayConfig.IsHdrSupported = finalSupported;
+                        displayConfig.IsHdrEnabled = finalEnabled;
+                        displayConfig.ColorEncoding = colorInfo.colorEncoding;
+                        displayConfig.BitsPerColorChannel = (uint)colorInfo.bitsPerColorChannel;
+                        
+                        logger.Info($"HDR INFO: {displayConfig.DeviceName} - HDR Supported: {finalSupported}, HDR Enabled: {finalEnabled}, Encoding: {colorInfo.colorEncoding}, BitsPerChannel: {colorInfo.bitsPerColorChannel}");
+                        
+                        // Double-check with our alternative method
+                        if (GetHdrCapabilities(path.targetInfo.adapterId, path.targetInfo.id, out bool altSupported, out bool altEnabled))
+                        {
+                            if (altSupported != isSupported || altEnabled != isEnabled)
+                            {
+                                logger.Warn($"HDR DEBUG: Capability mismatch! Original: S={isSupported},E={isEnabled} vs Alt: S={altSupported},E={altEnabled}");
+                            }
+                        }
+                    }
+                    else
+                    {
+                        logger.Warn($"HDR DEBUG: Failed to get HDR info for {displayConfig.DeviceName}: error code {result}");
+                        
+                        // Detailed error logging
+                        switch (result)
+                        {
+                            case ERROR_INVALID_PARAMETER:
+                                logger.Warn("HDR DEBUG: ERROR_INVALID_PARAMETER - The parameter is incorrect");
+                                break;
+                            case ERROR_GEN_FAILURE:
+                                logger.Warn("HDR DEBUG: ERROR_GEN_FAILURE - A device attached to the system is not functioning");
+                                break;
+                            default:
+                                logger.Warn($"HDR DEBUG: Unknown error code: {result}");
+                                break;
+                        }
+                        
+                        // Try our alternative method as fallback
+                        logger.Debug("HDR DEBUG: Trying alternative capability detection method...");
+                        if (GetHdrCapabilities(path.targetInfo.adapterId, path.targetInfo.id, out bool fallbackSupported, out bool fallbackEnabled))
+                        {
+                            logger.Info($"HDR DEBUG: Alternative method succeeded - Supported: {fallbackSupported}, Enabled: {fallbackEnabled}");
+                            displayConfig.IsHdrSupported = fallbackSupported;
+                            displayConfig.IsHdrEnabled = fallbackEnabled;
+                        }
+                        else
+                        {
+                            logger.Warn("HDR DEBUG: Alternative method also failed - setting defaults");
+                            displayConfig.IsHdrSupported = false;
+                            displayConfig.IsHdrEnabled = false;
+                        }
                     }
 
                     // Get resolution and refresh rate if display is active
@@ -892,6 +1031,145 @@ namespace DisplayProfileManager.Helpers
                 logger.Error(ex, "Error setting primary display");
                 return false;
             }
+        }
+
+        public static bool GetHdrCapabilities(LUID adapterId, uint targetId, out bool isSupported, out bool isEnabled)
+        {
+            isSupported = false;
+            isEnabled = false;
+            
+            try
+            {
+                var colorInfo = new DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO();
+                colorInfo.header.type = DisplayConfigDeviceInfoType.DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO;
+                colorInfo.header.size = (uint)Marshal.SizeOf(typeof(DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO));
+                colorInfo.header.adapterId = adapterId;
+                colorInfo.header.id = targetId;
+
+                logger.Debug($"HDR CAPABILITIES: Querying TargetId {targetId}, AdapterId {adapterId.HighPart:X8}{adapterId.LowPart:X8}");
+
+                int result = DisplayConfigGetDeviceInfo(ref colorInfo);
+                logger.Debug($"HDR CAPABILITIES: API result {result}, raw flags 0x{colorInfo.values:X}");
+                
+                if (result == ERROR_SUCCESS)
+                {
+                    var flags = colorInfo.values;
+                    logger.Debug($"HDR CAPABILITIES: Flag analysis:");
+                    logger.Debug($"  AdvancedColorSupported (0x1): {(flags & DISPLAYCONFIG_ADVANCED_COLOR_INFO_FLAGS.AdvancedColorSupported) != 0}");
+                    logger.Debug($"  AdvancedColorEnabled (0x2): {(flags & DISPLAYCONFIG_ADVANCED_COLOR_INFO_FLAGS.AdvancedColorEnabled) != 0}");
+                    logger.Debug($"  WideColorEnforced (0x4): {(flags & DISPLAYCONFIG_ADVANCED_COLOR_INFO_FLAGS.WideColorEnforced) != 0}");
+                    logger.Debug($"  AdvancedColorForceDisabled (0x8): {(flags & DISPLAYCONFIG_ADVANCED_COLOR_INFO_FLAGS.AdvancedColorForceDisabled) != 0}");
+                    logger.Debug($"  Raw value: 0x{flags:X}");
+                    logger.Debug($"  Color encoding: {colorInfo.colorEncoding}");
+                    
+                    bool flagSupported = (flags & DISPLAYCONFIG_ADVANCED_COLOR_INFO_FLAGS.AdvancedColorSupported) != 0;
+                    bool flagEnabled = (flags & DISPLAYCONFIG_ADVANCED_COLOR_INFO_FLAGS.AdvancedColorEnabled) != 0;
+                    bool flagForceDisabled = (flags & DISPLAYCONFIG_ADVANCED_COLOR_INFO_FLAGS.AdvancedColorForceDisabled) != 0;
+                    bool yuvMode = colorInfo.colorEncoding == DISPLAYCONFIG_COLOR_ENCODING.DISPLAYCONFIG_COLOR_ENCODING_YCBCR444;
+                    
+                    isSupported = flagSupported && !flagForceDisabled;
+                    isEnabled = flagEnabled || (isSupported && yuvMode);
+                    
+                    logger.Debug($"HDR CAPABILITIES: Final decisions - Supported: {isSupported}, Enabled: {isEnabled}");
+                    
+                    // Additional check: if we get any non-zero value, it might indicate capability
+                    if (!isSupported && flags != 0)
+                    {
+                        logger.Warn($"HDR CAPABILITIES: Non-zero flags (0x{flags:X}) but SUPPORTED bit not set - possible API interpretation issue");
+                    }
+                    
+                    return true;
+                }
+                else
+                {
+                    logger.Warn($"HDR CAPABILITIES: API call failed with error {result}");
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex, "HDR CAPABILITIES: Exception during HDR capability check");
+                return false;
+            }
+        }
+
+        public static bool SetHdrState(LUID adapterId, uint targetId, bool enableHdr)
+        {
+            try
+            {
+                var colorState = new DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE();
+                colorState.header.type = DisplayConfigDeviceInfoType.DISPLAYCONFIG_DEVICE_INFO_SET_ADVANCED_COLOR_STATE;
+                colorState.header.size = (uint)Marshal.SizeOf(typeof(DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE));
+                colorState.header.adapterId = adapterId;
+                colorState.header.id = targetId;
+
+                if (enableHdr)
+                {
+                    colorState.values = DISPLAYCONFIG_SET_ADVANCED_COLOR_FLAGS.EnableAdvancedColor;
+                }
+                else
+                {
+                    colorState.values = (DISPLAYCONFIG_SET_ADVANCED_COLOR_FLAGS)0;
+                }
+
+                int result = DisplayConfigSetDeviceInfo(ref colorState);
+                if (result == ERROR_SUCCESS)
+                {
+                    logger.Info($"Successfully set HDR state to {enableHdr} for target {targetId}");
+                    return true;
+                }
+                else
+                {
+                    logger.Error($"Failed to set HDR state for target {targetId}: error {result}");
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex, $"Error setting HDR state for target {targetId}");
+                return false;
+            }
+        }
+
+        public static bool ApplyHdrSettings(List<DisplayConfigInfo> displayConfigs)
+        {
+            bool allSuccessful = true;
+            logger.Info($"HDR APPLY: Starting to apply HDR settings for {displayConfigs.Count} displays");
+
+            foreach (var display in displayConfigs)
+            {
+                logger.Debug($"HDR APPLY: Processing {display.DeviceName}:");
+                logger.Debug($"HDR APPLY:   IsHdrSupported: {display.IsHdrSupported}");
+                logger.Debug($"HDR APPLY:   IsHdrEnabled: {display.IsHdrEnabled}");
+                logger.Debug($"HDR APPLY:   IsEnabled: {display.IsEnabled}");
+                logger.Debug($"HDR APPLY:   TargetId: {display.TargetId}");
+                
+                if (display.IsHdrSupported && display.IsEnabled)
+                {
+                    logger.Info($"HDR APPLY: Applying HDR state {display.IsHdrEnabled} to {display.DeviceName}");
+                    bool success = SetHdrState(display.AdapterId, display.TargetId, display.IsHdrEnabled);
+                    if (!success)
+                    {
+                        allSuccessful = false;
+                        logger.Error($"HDR APPLY: Failed to apply HDR setting for {display.DeviceName}");
+                    }
+                    else
+                    {
+                        logger.Info($"HDR APPLY: Successfully applied HDR setting for {display.DeviceName}");
+                    }
+                }
+                else if (!display.IsHdrSupported)
+                {
+                    logger.Debug($"HDR APPLY: Skipping {display.DeviceName} - HDR not supported");
+                }
+                else if (!display.IsEnabled)
+                {
+                    logger.Debug($"HDR APPLY: Skipping {display.DeviceName} - display not enabled");
+                }
+            }
+
+            logger.Info($"HDR APPLY: Completed HDR settings application. Success: {allSuccessful}");
+            return allSuccessful;
         }
 
         #endregion

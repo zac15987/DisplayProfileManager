@@ -244,6 +244,14 @@ namespace DisplayProfileManager.Core
                             setting.TargetId = foundConfig.TargetId;
                             setting.DisplayPositionX = foundConfig.DisplayPositionX;
                             setting.DisplayPositionY = foundConfig.DisplayPositionY;
+                            setting.IsHdrSupported = foundConfig.IsHdrSupported;
+                            setting.IsHdrEnabled = foundConfig.IsHdrEnabled;
+                            
+                            logger.Debug($"PROFILE DEBUG: Creating DisplaySetting for {setting.DeviceName}:");
+                            logger.Debug($"PROFILE DEBUG:   HDR Supported: {setting.IsHdrSupported}");
+                            logger.Debug($"PROFILE DEBUG:   HDR Enabled: {setting.IsHdrEnabled}");
+                            logger.Debug($"PROFILE DEBUG:   TargetId: {setting.TargetId}");
+                            logger.Debug($"PROFILE DEBUG:   AdapterId: {setting.AdapterId}");
                             setting.ManufacturerName = foundMonitorId.ManufacturerName;
                             setting.ProductCodeID = foundMonitorId.ProductCodeID;
                             setting.SerialNumberID = foundMonitorId.SerialNumberID;
@@ -332,6 +340,27 @@ namespace DisplayProfileManager.Core
                         displayConfigInfo.IsPrimary = setting.IsPrimary;
                         displayConfigInfo.Width = setting.Width;
                         displayConfigInfo.Height = setting.Height;
+                        displayConfigInfo.IsHdrSupported = setting.IsHdrSupported;
+                        displayConfigInfo.IsHdrEnabled = setting.IsHdrEnabled;
+                        
+                        // Convert AdapterId string back to LUID
+                        if (!string.IsNullOrEmpty(setting.AdapterId) && setting.AdapterId.Length == 16)
+                        {
+                            try
+                            {
+                                var highPart = Convert.ToInt32(setting.AdapterId.Substring(0, 8), 16);
+                                var lowPart = Convert.ToUInt32(setting.AdapterId.Substring(8, 8), 16);
+                                displayConfigInfo.AdapterId = new DisplayConfigHelper.LUID
+                                {
+                                    HighPart = highPart,
+                                    LowPart = lowPart
+                                };
+                            }
+                            catch (Exception ex)
+                            {
+                                logger.Warn(ex, $"Failed to parse AdapterId '{setting.AdapterId}' for {setting.DeviceName}");
+                            }
+                        }
 
                         currentDisplayConfig.Add(displayConfigInfo);
                     }
@@ -368,6 +397,13 @@ namespace DisplayProfileManager.Core
                         }
                         else
                         {
+                            // Apply HDR settings after successful topology change
+                            logger.Debug("Applying HDR settings...");
+                            bool hdrApplied = DisplayConfigHelper.ApplyHdrSettings(currentDisplayConfig);
+                            if (!hdrApplied)
+                            {
+                                logger.Warn("Failed to apply HDR settings - some monitors may not support HDR or configuration failed");
+                            }
                             logger.Info("Display topology applied successfully");
                         }
                     }
@@ -830,6 +866,8 @@ namespace DisplayProfileManager.Core
                     PathIndex = ds.PathIndex,
                     TargetId = ds.TargetId,
                     DisplayPositionX = ds.DisplayPositionX,
+                    IsHdrSupported = ds.IsHdrSupported,
+                    IsHdrEnabled = ds.IsHdrEnabled,
                     DisplayPositionY = ds.DisplayPositionY,
                     ManufacturerName = ds.ManufacturerName,
                     ProductCodeID = ds.ProductCodeID,
