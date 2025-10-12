@@ -652,39 +652,8 @@ namespace DisplayProfileManager.Helpers
                         continue;
                     }
 
-                    if (displayInfo.IsEnabled)
-                    {
-                        // Enable the display
-                        paths[foundPathIndex].flags |= (uint)DisplayConfigPathInfoFlags.DISPLAYCONFIG_PATH_ACTIVE;
-                        
-                        // Apply rotation setting
-                        paths[foundPathIndex].targetInfo.rotation = (uint)displayInfo.Rotation;
-
-                        // Find and assign the correct mode
-                        var bestModeIndex = FindBestModeIndex(
-                            paths[foundPathIndex].sourceInfo.adapterId,
-                            paths[foundPathIndex].sourceInfo.id,
-                            (uint)displayInfo.Width,
-                            (uint)displayInfo.Height,
-                            displayInfo.RefreshRate,
-                            modes);
-
-                        if (bestModeIndex != DISPLAYCONFIG_PATH_MODE_IDX_INVALID)
-                        {
-                            paths[foundPathIndex].sourceInfo.modeInfoIdx = bestModeIndex;
-                            logger.Debug($"Assigned ModeIndex {bestModeIndex} for {displayInfo.DeviceName}");
-                        }
-                        else
-                        {
-                            logger.Warn($"Could not find a matching mode for {displayInfo.DeviceName} at {displayInfo.Width}x{displayInfo.Height}@{displayInfo.RefreshRate}Hz");
-                        }
-                    }
-                    else
-                    {
-                        // Disable the display
-                        paths[foundPathIndex].flags &= ~(uint)DisplayConfigPathInfoFlags.DISPLAYCONFIG_PATH_ACTIVE;
-                        paths[foundPathIndex].sourceInfo.modeInfoIdx = DISPLAYCONFIG_PATH_MODE_IDX_INVALID;
-                    }
+                    // Refactored logic: Call the new helper method
+                    AssignModeToPath(ref paths[foundPathIndex], displayInfo, modes);
 
                     logger.Debug($"Setting targetId {displayInfo.TargetId} ({displayInfo.DeviceName}, Path:{foundPathIndex}) " +
                                   $"flags to: 0x{paths[foundPathIndex].flags:X} (Enabled: {displayInfo.IsEnabled})");
@@ -842,35 +811,9 @@ namespace DisplayProfileManager.Helpers
                         continue;
                     }
 
-                    if (displayInfo.IsEnabled)
-                    {
-                        paths[foundPathIndex].flags |= (uint)DisplayConfigPathInfoFlags.DISPLAYCONFIG_PATH_ACTIVE;
-                        paths[foundPathIndex].targetInfo.rotation = (uint)displayInfo.Rotation;
-
-                        // Find and assign the correct mode
-                        var bestModeIndex = FindBestModeIndex(
-                            paths[foundPathIndex].sourceInfo.adapterId,
-                            paths[foundPathIndex].sourceInfo.id,
-                            (uint)displayInfo.Width,
-                            (uint)displayInfo.Height,
-                            displayInfo.RefreshRate,
-                            modes);
-
-                        if (bestModeIndex != DISPLAYCONFIG_PATH_MODE_IDX_INVALID)
-                        {
-                            paths[foundPathIndex].sourceInfo.modeInfoIdx = bestModeIndex;
-                            logger.Debug($"Partially updating ModeIndex for {displayInfo.DeviceName} to {bestModeIndex}");
-                        }
-                        else
-                        {
-                            logger.Warn($"Could not find a matching mode for {displayInfo.DeviceName} at {displayInfo.Width}x{displayInfo.Height}@{displayInfo.RefreshRate}Hz during partial apply");
-                        }
-                    }
-                    else
-                    {
-                        paths[foundPathIndex].flags &= ~(uint)DisplayConfigPathInfoFlags.DISPLAYCONFIG_PATH_ACTIVE;
-                        paths[foundPathIndex].sourceInfo.modeInfoIdx = DISPLAYCONFIG_PATH_MODE_IDX_INVALID;
-                    }
+                    // Refactored logic: Call the new helper method
+                    AssignModeToPath(ref paths[foundPathIndex], displayInfo, modes);
+                    
                     logger.Debug($"Partially updating TargetId {displayInfo.TargetId} flags to: 0x{paths[foundPathIndex].flags:X}");
                 }
                 
@@ -1287,6 +1230,41 @@ namespace DisplayProfileManager.Helpers
             }
 
             return DISPLAYCONFIG_PATH_MODE_IDX_INVALID;
+        }
+
+        private static void AssignModeToPath(ref DISPLAYCONFIG_PATH_INFO path, DisplayConfigInfo displayInfo, DISPLAYCONFIG_MODE_INFO[] allModes)
+        {
+            if (displayInfo.IsEnabled)
+            {
+                // Enable the display and apply rotation
+                path.flags |= (uint)DisplayConfigPathInfoFlags.DISPLAYCONFIG_PATH_ACTIVE;
+                path.targetInfo.rotation = (uint)displayInfo.Rotation;
+
+                // Find and assign the best video mode for the target resolution and refresh rate
+                var bestModeIndex = FindBestModeIndex(
+                    path.sourceInfo.adapterId,
+                    path.sourceInfo.id,
+                    (uint)displayInfo.Width,
+                    (uint)displayInfo.Height,
+                    displayInfo.RefreshRate,
+                    allModes);
+
+                if (bestModeIndex != DISPLAYCONFIG_PATH_MODE_IDX_INVALID)
+                {
+                    path.sourceInfo.modeInfoIdx = bestModeIndex;
+                    logger.Debug($"Assigned ModeIndex {bestModeIndex} for {displayInfo.DeviceName} ({displayInfo.Width}x{displayInfo.Height}@{displayInfo.RefreshRate}Hz)");
+                }
+                else
+                {
+                    logger.Warn($"Could not find a matching mode for {displayInfo.DeviceName} at {displayInfo.Width}x{displayInfo.Height}@{displayInfo.RefreshRate}Hz. The system will use a default mode.");
+                }
+            }
+            else
+            {
+                // Disable the display
+                path.flags &= ~(uint)DisplayConfigPathInfoFlags.DISPLAYCONFIG_PATH_ACTIVE;
+                path.sourceInfo.modeInfoIdx = DISPLAYCONFIG_PATH_MODE_IDX_INVALID; // Invalidate the mode
+            }
         }
 
         #endregion
