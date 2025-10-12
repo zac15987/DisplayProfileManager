@@ -738,6 +738,7 @@ namespace DisplayProfileManager.UI.Windows
         private CheckBox _primaryCheckBox;
         private CheckBox _enabledCheckBox;
         private CheckBox _hdrCheckBox;
+        private ComboBox _rotationComboBox;
 
         public DisplaySettingControl(DisplaySetting setting, int monitorIndex = 1)
         {
@@ -762,6 +763,7 @@ namespace DisplayProfileManager.UI.Windows
 
             var headerGrid = new Grid();
             headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
@@ -791,6 +793,19 @@ namespace DisplayProfileManager.UI.Windows
             Grid.SetColumn(_enabledCheckBox, 1);
             headerGrid.Children.Add(_enabledCheckBox);
 
+            _primaryCheckBox = new CheckBox
+            {
+                Content = "Primary Display",
+                IsChecked = _setting.IsPrimary,
+                FontSize = 14,
+                Foreground = (Brush)Application.Current.Resources["PrimaryTextBrush"],
+                Margin = new Thickness(16, 0, 0, 0)
+            };
+            _primaryCheckBox.Checked += PrimaryCheckBox_Checked;
+            _primaryCheckBox.Unchecked += PrimaryCheckBox_Unchecked;
+            Grid.SetColumn(_primaryCheckBox, 2);
+            headerGrid.Children.Add(_primaryCheckBox);
+
             mainPanel.Children.Add(headerGrid);
 
             var contentGrid = new Grid();
@@ -799,6 +814,8 @@ namespace DisplayProfileManager.UI.Windows
             contentGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Resolution column
             contentGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
             contentGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Refresh rate column
+            contentGrid.RowDefinitions.Add(new RowDefinition());
+            contentGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(8) });
             contentGrid.RowDefinitions.Add(new RowDefinition());
             contentGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(8) });
             contentGrid.RowDefinitions.Add(new RowDefinition());
@@ -860,24 +877,24 @@ namespace DisplayProfileManager.UI.Windows
             };
             PopulateDpiComboBox();
             dpiPanel.Children.Add(_dpiComboBox);
-            Grid.SetColumn(dpiPanel, 2);
+            Grid.SetColumn(dpiPanel, 0);
             Grid.SetRow(dpiPanel, 2);
             contentGrid.Children.Add(dpiPanel);
 
-            var primaryPanel = new StackPanel { VerticalAlignment = VerticalAlignment.Bottom };
-            _primaryCheckBox = new CheckBox
+            var rotationPanel = new StackPanel();
+            rotationPanel.Children.Add(new TextBlock { Text = "Rotation", FontWeight = FontWeights.Medium, Margin = new Thickness(0, 0, 0, 4), Foreground = (Brush)Application.Current.Resources["PrimaryTextBrush"] });
+            _rotationComboBox = new ComboBox
             {
-                Content = "Primary Display",
-                IsChecked = _setting.IsPrimary,
-                FontSize = 14,
-                Foreground = (Brush)Application.Current.Resources["PrimaryTextBrush"]
+                Padding = new Thickness(8),
+                BorderBrush = (Brush)Application.Current.Resources["ComboBoxBorderBrush"],
+                BorderThickness = new Thickness(1),
+                Style = (Style)Application.Current.Resources["ModernComboBoxStyle"]
             };
-            _primaryCheckBox.Checked += PrimaryCheckBox_Checked;
-            _primaryCheckBox.Unchecked += PrimaryCheckBox_Unchecked;
-            primaryPanel.Children.Add(_primaryCheckBox);
-            Grid.SetColumn(primaryPanel, 4);
-            Grid.SetRow(primaryPanel, 2);
-            contentGrid.Children.Add(primaryPanel);
+            PopulateRotationComboBox();
+            rotationPanel.Children.Add(_rotationComboBox);
+            Grid.SetColumn(rotationPanel, 2);
+            Grid.SetRow(rotationPanel, 2);
+            contentGrid.Children.Add(rotationPanel);
 
             // HDR Panel
             var hdrPanel = new StackPanel { VerticalAlignment = VerticalAlignment.Bottom };
@@ -910,6 +927,7 @@ namespace DisplayProfileManager.UI.Windows
             Grid.SetRow(hdrPanel, 4);
             contentGrid.Children.Add(hdrPanel);
 
+
             mainPanel.Children.Add(contentGrid);
 
             var separator = new Border
@@ -937,6 +955,26 @@ namespace DisplayProfileManager.UI.Windows
             _setting.IsHdrEnabled = _hdrCheckBox.IsChecked == true && _setting.IsHdrSupported;
         }
 
+        private void PopulateRotationComboBox()
+        {
+            _rotationComboBox.Items.Clear();
+            _rotationComboBox.Items.Add("0° (Identity)");
+            _rotationComboBox.Items.Add("90° (Rotate90)");
+            _rotationComboBox.Items.Add("180° (Rotate180)");
+            _rotationComboBox.Items.Add("270° (Rotate270)");
+
+            // Set current rotation
+            int rotationIndex = _setting.Rotation - 1; // Convert from enum value (1-4) to index (0-3)
+            if (rotationIndex >= 0 && rotationIndex < _rotationComboBox.Items.Count)
+            {
+                _rotationComboBox.SelectedIndex = rotationIndex;
+            }
+            else
+            {
+                _rotationComboBox.SelectedIndex = 0; // Default to Identity
+            }
+        }
+
         private void UpdateControlStates()
         {
             bool isEnabled = _setting.IsEnabled;
@@ -948,6 +986,7 @@ namespace DisplayProfileManager.UI.Windows
             _dpiComboBox.IsEnabled = isEnabled;
             _primaryCheckBox.IsEnabled = isEnabled;
             _hdrCheckBox.IsEnabled = isEnabled && _setting.IsHdrSupported;
+            _rotationComboBox.IsEnabled = isEnabled;
 
             // Update opacity to provide visual feedback
             double opacity = isEnabled ? 1.0 : 0.5;
@@ -957,6 +996,7 @@ namespace DisplayProfileManager.UI.Windows
             _dpiComboBox.Opacity = opacity;
             _primaryCheckBox.Opacity = opacity;
             _hdrCheckBox.Opacity = opacity;
+            _rotationComboBox.Opacity = opacity;
 
             // Ensure at least one display remains enabled
             var parent = Parent as Panel;
@@ -1233,7 +1273,8 @@ namespace DisplayProfileManager.UI.Windows
                 AvailableDpiScaling = _setting.AvailableDpiScaling,
                 AvailableRefreshRates = _setting.AvailableRefreshRates,
                 IsHdrSupported = _setting.IsHdrSupported,
-                IsHdrEnabled = _hdrCheckBox.IsChecked == true && _setting.IsHdrSupported
+                IsHdrEnabled = _hdrCheckBox.IsChecked == true && _setting.IsHdrSupported,
+                Rotation = _rotationComboBox.SelectedIndex + 1 // Convert from index (0-3) to enum value (1-4)
             };
         }
 

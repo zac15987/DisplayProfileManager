@@ -141,6 +141,9 @@ namespace DisplayProfileManager.Core
         [JsonProperty("isHdrEnabled")]
         public bool IsHdrEnabled { get; set; } = false;
 
+        [JsonProperty("rotation")]
+        public int Rotation { get; set; } = 1; // Default to IDENTITY (1)
+
         public DisplaySetting()
         {
         }

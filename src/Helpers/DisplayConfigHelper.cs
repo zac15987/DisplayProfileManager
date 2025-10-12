@@ -356,6 +356,15 @@ namespace DisplayProfileManager.Helpers
             DISPLAYCONFIG_COLOR_ENCODING_FORCE_UINT32 = 0xFFFFFFFF
         }
 
+        public enum DISPLAYCONFIG_ROTATION : uint
+        {
+            DISPLAYCONFIG_ROTATION_IDENTITY = 1,
+            DISPLAYCONFIG_ROTATION_ROTATE90 = 2,
+            DISPLAYCONFIG_ROTATION_ROTATE180 = 3,
+            DISPLAYCONFIG_ROTATION_ROTATE270 = 4,
+            DISPLAYCONFIG_ROTATION_FORCE_UINT32 = 0xFFFFFFFF
+        }
+
         #endregion
 
         #region Public Classes
@@ -381,6 +390,7 @@ namespace DisplayProfileManager.Helpers
             public bool IsHdrEnabled { get; set; } = false;
             public DISPLAYCONFIG_COLOR_ENCODING ColorEncoding { get; set; } = DISPLAYCONFIG_COLOR_ENCODING.DISPLAYCONFIG_COLOR_ENCODING_RGB;
             public uint BitsPerColorChannel { get; set; } = 8;
+            public DISPLAYCONFIG_ROTATION Rotation { get; set; } = DISPLAYCONFIG_ROTATION.DISPLAYCONFIG_ROTATION_IDENTITY;
         }
 
         #endregion
@@ -512,15 +522,6 @@ namespace DisplayProfileManager.Helpers
                         displayConfig.BitsPerColorChannel = (uint)colorInfo.bitsPerColorChannel;
                         
                         logger.Info($"HDR INFO: {displayConfig.DeviceName} - HDR Supported: {finalSupported}, HDR Enabled: {finalEnabled}, Encoding: {colorInfo.colorEncoding}, BitsPerChannel: {colorInfo.bitsPerColorChannel}");
-                        
-                        // Double-check with our alternative method
-                        if (GetHdrCapabilities(path.targetInfo.adapterId, path.targetInfo.id, out bool altSupported, out bool altEnabled))
-                        {
-                            if (altSupported != isSupported || altEnabled != isEnabled)
-                            {
-                                logger.Warn($"HDR DEBUG: Capability mismatch! Original: S={isSupported},E={isEnabled} vs Alt: S={altSupported},E={altEnabled}");
-                            }
-                        }
                     }
                     else
                     {
@@ -540,20 +541,9 @@ namespace DisplayProfileManager.Helpers
                                 break;
                         }
                         
-                        // Try our alternative method as fallback
-                        logger.Debug("HDR DEBUG: Trying alternative capability detection method...");
-                        if (GetHdrCapabilities(path.targetInfo.adapterId, path.targetInfo.id, out bool fallbackSupported, out bool fallbackEnabled))
-                        {
-                            logger.Info($"HDR DEBUG: Alternative method succeeded - Supported: {fallbackSupported}, Enabled: {fallbackEnabled}");
-                            displayConfig.IsHdrSupported = fallbackSupported;
-                            displayConfig.IsHdrEnabled = fallbackEnabled;
-                        }
-                        else
-                        {
-                            logger.Warn("HDR DEBUG: Alternative method also failed - setting defaults");
-                            displayConfig.IsHdrSupported = false;
-                            displayConfig.IsHdrEnabled = false;
-                        }
+                        logger.Warn("HDR DEBUG: Alternative method also failed - setting defaults");
+                        displayConfig.IsHdrSupported = false;
+                        displayConfig.IsHdrEnabled = false;
                     }
 
                     // Get resolution and refresh rate if display is active
@@ -566,6 +556,7 @@ namespace DisplayProfileManager.Helpers
                             displayConfig.Height = (int)sourceMode.modeInfo.sourceMode.height;
                             displayConfig.DisplayPositionX = sourceMode.modeInfo.sourceMode.position.x;
                             displayConfig.DisplayPositionY = sourceMode.modeInfo.sourceMode.position.y;
+                            displayConfig.Rotation = (DISPLAYCONFIG_ROTATION)path.targetInfo.rotation;
                         }
                     }
 
@@ -655,15 +646,44 @@ namespace DisplayProfileManager.Helpers
                     var foundPathIndex = Array.FindIndex(paths, 
                         x => (x.targetInfo.id == displayInfo.TargetId) && (x.sourceInfo.id == displayInfo.SourceId));
 
+                    if (foundPathIndex == -1)
+                    {
+                        logger.Warn($"Could not find path for display {displayInfo.DeviceName} (TargetId: {displayInfo.TargetId}, SourceId: {displayInfo.SourceId})");
+                        continue;
+                    }
+
                     if (displayInfo.IsEnabled)
                     {
                         // Enable the display
                         paths[foundPathIndex].flags |= (uint)DisplayConfigPathInfoFlags.DISPLAYCONFIG_PATH_ACTIVE;
+                        
+                        // Apply rotation setting
+                        paths[foundPathIndex].targetInfo.rotation = (uint)displayInfo.Rotation;
+
+                        // Find and assign the correct mode
+                        var bestModeIndex = FindBestModeIndex(
+                            paths[foundPathIndex].sourceInfo.adapterId,
+                            paths[foundPathIndex].sourceInfo.id,
+                            (uint)displayInfo.Width,
+                            (uint)displayInfo.Height,
+                            displayInfo.RefreshRate,
+                            modes);
+
+                        if (bestModeIndex != DISPLAYCONFIG_PATH_MODE_IDX_INVALID)
+                        {
+                            paths[foundPathIndex].sourceInfo.modeInfoIdx = bestModeIndex;
+                            logger.Debug($"Assigned ModeIndex {bestModeIndex} for {displayInfo.DeviceName}");
+                        }
+                        else
+                        {
+                            logger.Warn($"Could not find a matching mode for {displayInfo.DeviceName} at {displayInfo.Width}x{displayInfo.Height}@{displayInfo.RefreshRate}Hz");
+                        }
                     }
                     else
                     {
                         // Disable the display
                         paths[foundPathIndex].flags &= ~(uint)DisplayConfigPathInfoFlags.DISPLAYCONFIG_PATH_ACTIVE;
+                        paths[foundPathIndex].sourceInfo.modeInfoIdx = DISPLAYCONFIG_PATH_MODE_IDX_INVALID;
                     }
 
                     logger.Debug($"Setting targetId {displayInfo.TargetId} ({displayInfo.DeviceName}, Path:{foundPathIndex}) " +
@@ -780,6 +800,104 @@ namespace DisplayProfileManager.Helpers
             catch (Exception ex)
             {
                 logger.Error(ex, "Error applying display topology");
+                return false;
+            }
+        }
+
+        public static bool ApplyPartialDisplayTopology(List<DisplayConfigInfo> partialConfig)
+        {
+            try
+            {
+                logger.Info($"Applying partial display topology for {partialConfig.Count} displays.");
+
+                uint pathCount = 0;
+                uint modeCount = 0;
+
+                int result = GetDisplayConfigBufferSizes(QueryDisplayConfigFlags.QDC_ALL_PATHS, out pathCount, out modeCount);
+                if (result != ERROR_SUCCESS)
+                {
+                    logger.Error($"GetDisplayConfigBufferSizes failed with error: {result}");
+                    return false;
+                }
+
+                var paths = new DISPLAYCONFIG_PATH_INFO[pathCount];
+                var modes = new DISPLAYCONFIG_MODE_INFO[modeCount];
+
+                result = QueryDisplayConfig(QueryDisplayConfigFlags.QDC_ALL_PATHS, ref pathCount, paths, ref modeCount, modes, IntPtr.Zero);
+                if (result != ERROR_SUCCESS)
+                {
+                    logger.Error($"QueryDisplayConfig failed with error: {result}");
+                    return false;
+                }
+
+                // Modify only the paths specified in the partialConfig
+                foreach (var displayInfo in partialConfig)
+                {
+                    var foundPathIndex = Array.FindIndex(paths,
+                        x => (x.targetInfo.id == displayInfo.TargetId) && (x.sourceInfo.id == displayInfo.SourceId));
+
+                    if (foundPathIndex == -1)
+                    {
+                        logger.Warn($"Could not find path for display {displayInfo.DeviceName} in partial application. Skipping.");
+                        continue;
+                    }
+
+                    if (displayInfo.IsEnabled)
+                    {
+                        paths[foundPathIndex].flags |= (uint)DisplayConfigPathInfoFlags.DISPLAYCONFIG_PATH_ACTIVE;
+                        paths[foundPathIndex].targetInfo.rotation = (uint)displayInfo.Rotation;
+
+                        // Find and assign the correct mode
+                        var bestModeIndex = FindBestModeIndex(
+                            paths[foundPathIndex].sourceInfo.adapterId,
+                            paths[foundPathIndex].sourceInfo.id,
+                            (uint)displayInfo.Width,
+                            (uint)displayInfo.Height,
+                            displayInfo.RefreshRate,
+                            modes);
+
+                        if (bestModeIndex != DISPLAYCONFIG_PATH_MODE_IDX_INVALID)
+                        {
+                            paths[foundPathIndex].sourceInfo.modeInfoIdx = bestModeIndex;
+                            logger.Debug($"Partially updating ModeIndex for {displayInfo.DeviceName} to {bestModeIndex}");
+                        }
+                        else
+                        {
+                            logger.Warn($"Could not find a matching mode for {displayInfo.DeviceName} at {displayInfo.Width}x{displayInfo.Height}@{displayInfo.RefreshRate}Hz during partial apply");
+                        }
+                    }
+                    else
+                    {
+                        paths[foundPathIndex].flags &= ~(uint)DisplayConfigPathInfoFlags.DISPLAYCONFIG_PATH_ACTIVE;
+                        paths[foundPathIndex].sourceInfo.modeInfoIdx = DISPLAYCONFIG_PATH_MODE_IDX_INVALID;
+                    }
+                    logger.Debug($"Partially updating TargetId {displayInfo.TargetId} flags to: 0x{paths[foundPathIndex].flags:X}");
+                }
+                
+                // NOTE: We do NOT disable unspecified monitors here. That is the key difference.
+
+                result = SetDisplayConfig(
+                    pathCount,
+                    paths,
+                    modeCount,
+                    modes,
+                    SetDisplayConfigFlags.SDC_APPLY |
+                    SetDisplayConfigFlags.SDC_USE_SUPPLIED_DISPLAY_CONFIG |
+                    SetDisplayConfigFlags.SDC_ALLOW_CHANGES |
+                    SetDisplayConfigFlags.SDC_SAVE_TO_DATABASE);
+
+                if (result != ERROR_SUCCESS)
+                {
+                    logger.Error($"SetDisplayConfig failed during partial application with error: {result}");
+                    return false;
+                }
+
+                logger.Info("Partial display topology applied successfully.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex, "Error applying partial display topology");
                 return false;
             }
         }
@@ -1033,65 +1151,6 @@ namespace DisplayProfileManager.Helpers
             }
         }
 
-        public static bool GetHdrCapabilities(LUID adapterId, uint targetId, out bool isSupported, out bool isEnabled)
-        {
-            isSupported = false;
-            isEnabled = false;
-            
-            try
-            {
-                var colorInfo = new DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO();
-                colorInfo.header.type = DisplayConfigDeviceInfoType.DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO;
-                colorInfo.header.size = (uint)Marshal.SizeOf(typeof(DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO));
-                colorInfo.header.adapterId = adapterId;
-                colorInfo.header.id = targetId;
-
-                logger.Debug($"HDR CAPABILITIES: Querying TargetId {targetId}, AdapterId {adapterId.HighPart:X8}{adapterId.LowPart:X8}");
-
-                int result = DisplayConfigGetDeviceInfo(ref colorInfo);
-                logger.Debug($"HDR CAPABILITIES: API result {result}, raw flags 0x{colorInfo.values:X}");
-                
-                if (result == ERROR_SUCCESS)
-                {
-                    var flags = colorInfo.values;
-                    logger.Debug($"HDR CAPABILITIES: Flag analysis:");
-                    logger.Debug($"  AdvancedColorSupported (0x1): {(flags & DISPLAYCONFIG_ADVANCED_COLOR_INFO_FLAGS.AdvancedColorSupported) != 0}");
-                    logger.Debug($"  AdvancedColorEnabled (0x2): {(flags & DISPLAYCONFIG_ADVANCED_COLOR_INFO_FLAGS.AdvancedColorEnabled) != 0}");
-                    logger.Debug($"  WideColorEnforced (0x4): {(flags & DISPLAYCONFIG_ADVANCED_COLOR_INFO_FLAGS.WideColorEnforced) != 0}");
-                    logger.Debug($"  AdvancedColorForceDisabled (0x8): {(flags & DISPLAYCONFIG_ADVANCED_COLOR_INFO_FLAGS.AdvancedColorForceDisabled) != 0}");
-                    logger.Debug($"  Raw value: 0x{flags:X}");
-                    logger.Debug($"  Color encoding: {colorInfo.colorEncoding}");
-                    
-                    bool flagSupported = (flags & DISPLAYCONFIG_ADVANCED_COLOR_INFO_FLAGS.AdvancedColorSupported) != 0;
-                    bool flagEnabled = (flags & DISPLAYCONFIG_ADVANCED_COLOR_INFO_FLAGS.AdvancedColorEnabled) != 0;
-                    bool flagForceDisabled = (flags & DISPLAYCONFIG_ADVANCED_COLOR_INFO_FLAGS.AdvancedColorForceDisabled) != 0;
-                    bool yuvMode = colorInfo.colorEncoding == DISPLAYCONFIG_COLOR_ENCODING.DISPLAYCONFIG_COLOR_ENCODING_YCBCR444;
-                    
-                    isSupported = flagSupported && !flagForceDisabled;
-                    isEnabled = flagEnabled || (isSupported && yuvMode);
-                    
-                    logger.Debug($"HDR CAPABILITIES: Final decisions - Supported: {isSupported}, Enabled: {isEnabled}");
-                    
-                    // Additional check: if we get any non-zero value, it might indicate capability
-                    if (!isSupported && flags != 0)
-                    {
-                        logger.Warn($"HDR CAPABILITIES: Non-zero flags (0x{flags:X}) but SUPPORTED bit not set - possible API interpretation issue");
-                    }
-                    
-                    return true;
-                }
-                else
-                {
-                    logger.Warn($"HDR CAPABILITIES: API call failed with error {result}");
-                    return false;
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.Error(ex, "HDR CAPABILITIES: Exception during HDR capability check");
-                return false;
-            }
-        }
 
         public static bool SetHdrState(LUID adapterId, uint targetId, bool enableHdr)
         {
@@ -1170,6 +1229,64 @@ namespace DisplayProfileManager.Helpers
 
             logger.Info($"HDR APPLY: Completed HDR settings application. Success: {allSuccessful}");
             return allSuccessful;
+        }
+
+
+        private static uint FindBestModeIndex(LUID adapterId, uint sourceId, uint width, uint height, double targetRefreshRate, DISPLAYCONFIG_MODE_INFO[] modes)
+        {
+            uint bestModeIndex = DISPLAYCONFIG_PATH_MODE_IDX_INVALID;
+            double bestRefreshRateDiff = double.MaxValue;
+
+            for (uint i = 0; i < modes.Length; i++)
+            {
+                var mode = modes[i];
+                if (mode.infoType == DisplayConfigModeInfoType.DISPLAYCONFIG_MODE_INFO_TYPE_SOURCE &&
+                    mode.adapterId.LowPart == adapterId.LowPart && mode.adapterId.HighPart == adapterId.HighPart &&
+                    mode.id == sourceId &&
+                    mode.modeInfo.sourceMode.width == width &&
+                    mode.modeInfo.sourceMode.height == height)
+                {
+                    // Find the corresponding target mode to get refresh rate
+                    var targetMode = Array.Find(modes, m => 
+                        m.infoType == DisplayConfigModeInfoType.DISPLAYCONFIG_MODE_INFO_TYPE_TARGET && 
+                        m.modeInfo.targetMode.targetVideoSignalInfo.activeSize.cx == width &&
+                        m.modeInfo.targetMode.targetVideoSignalInfo.activeSize.cy == height);
+
+                    if (targetMode.modeInfo.targetMode.targetVideoSignalInfo.vSyncFreq.Denominator != 0)
+                    {
+                        double refreshRate = (double)targetMode.modeInfo.targetMode.targetVideoSignalInfo.vSyncFreq.Numerator / targetMode.modeInfo.targetMode.targetVideoSignalInfo.vSyncFreq.Denominator;
+                        double diff = Math.Abs(refreshRate - targetRefreshRate);
+                        
+                        if (diff < bestRefreshRateDiff)
+                        {
+                            bestRefreshRateDiff = diff;
+                            bestModeIndex = i;
+                        }
+                    }
+                }
+            }
+            
+            // If the difference is very small, consider it a match
+            if (bestRefreshRateDiff < 0.1)
+            {
+                return bestModeIndex;
+            }
+
+            // Fallback: return first mode that matches resolution
+            for (uint i = 0; i < modes.Length; i++)
+            {
+                var mode = modes[i];
+                if (mode.infoType == DisplayConfigModeInfoType.DISPLAYCONFIG_MODE_INFO_TYPE_SOURCE &&
+                    mode.adapterId.LowPart == adapterId.LowPart && mode.adapterId.HighPart == adapterId.HighPart &&
+                    mode.id == sourceId &&
+                    mode.modeInfo.sourceMode.width == width &&
+                    mode.modeInfo.sourceMode.height == height)
+                {
+                    return i;
+                }
+            }
+
+            return DISPLAYCONFIG_PATH_MODE_IDX_INVALID;
         }
 
         #endregion

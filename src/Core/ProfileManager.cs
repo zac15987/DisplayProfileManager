@@ -246,6 +246,7 @@ namespace DisplayProfileManager.Core
                             setting.DisplayPositionY = foundConfig.DisplayPositionY;
                             setting.IsHdrSupported = foundConfig.IsHdrSupported;
                             setting.IsHdrEnabled = foundConfig.IsHdrEnabled;
+                            setting.Rotation = (int)foundConfig.Rotation;
                             
                             logger.Debug($"PROFILE DEBUG: Creating DisplaySetting for {setting.DeviceName}:");
                             logger.Debug($"PROFILE DEBUG:   HDR Supported: {setting.IsHdrSupported}");
@@ -315,7 +316,6 @@ namespace DisplayProfileManager.Core
                 bool success = true;
                 bool primaryChanged = true;
                 bool displayConfigApplied = true;
-                bool resolutionChanged = true;
                 bool dpiChanged = true;
                 bool audioSuccess = true;
 
@@ -342,6 +342,7 @@ namespace DisplayProfileManager.Core
                         displayConfigInfo.Height = setting.Height;
                         displayConfigInfo.IsHdrSupported = setting.IsHdrSupported;
                         displayConfigInfo.IsHdrEnabled = setting.IsHdrEnabled;
+                        displayConfigInfo.Rotation = (DisplayConfigHelper.DISPLAYCONFIG_ROTATION)setting.Rotation;
                         
                         // Convert AdapterId string back to LUID
                         if (!string.IsNullOrEmpty(setting.AdapterId) && setting.AdapterId.Length == 16)
@@ -387,9 +388,17 @@ namespace DisplayProfileManager.Core
 
                     try
                     {
-                        logger.Debug("Applying display topology...");
-
-                        displayConfigApplied = DisplayConfigHelper.ApplyDisplayTopology(currentDisplayConfig);
+                        if (_settingsManager.ShouldUseStagedApplication() && currentDisplayConfig.Count > 1)
+                        {
+                            logger.Info("Using staged application for complex multi-monitor profile");
+                            displayConfigApplied = ApplyStagedConfiguration(currentDisplayConfig);
+                        }
+                        else
+                        {
+                            logger.Debug("Applying display topology...");
+                            displayConfigApplied = DisplayConfigHelper.ApplyDisplayTopology(currentDisplayConfig);
+                        }
+                        
                         if (!displayConfigApplied)
                         {
                             logger.Warn("Failed to apply display topology");
@@ -397,12 +406,15 @@ namespace DisplayProfileManager.Core
                         }
                         else
                         {
-                            // Apply HDR settings after successful topology change
-                            logger.Debug("Applying HDR settings...");
-                            bool hdrApplied = DisplayConfigHelper.ApplyHdrSettings(currentDisplayConfig);
-                            if (!hdrApplied)
+                            // Apply HDR settings after successful topology change (if not already done in staged application)
+                            if (!_settingsManager.ShouldUseStagedApplication() || currentDisplayConfig.Count == 1)
                             {
-                                logger.Warn("Failed to apply HDR settings - some monitors may not support HDR or configuration failed");
+                                logger.Debug("Applying HDR settings...");
+                                bool hdrApplied = DisplayConfigHelper.ApplyHdrSettings(currentDisplayConfig);
+                                if (!hdrApplied)
+                                {
+                                    logger.Warn("Failed to apply HDR settings - some monitors may not support HDR or configuration failed");
+                                }
                             }
                             logger.Info("Display topology applied successfully");
                         }
@@ -421,19 +433,6 @@ namespace DisplayProfileManager.Core
                     {
                         if (DisplayHelper.IsMonitorConnected(setting.DeviceName))
                         {
-
-                            resolutionChanged = DisplayHelper.ChangeResolution(
-                                setting.DeviceName,
-                                setting.Width,
-                                setting.Height,
-                                setting.Frequency);
-
-                            if (!resolutionChanged)
-                            {
-                                logger.Warn($"Failed to change resolution for {setting.DeviceName}");
-                                success = false;
-                            }
-
                             dpiChanged = DpiHelper.SetDPIScaling(setting.DeviceName, setting.DpiScaling);
 
                             if (!dpiChanged)
@@ -529,7 +528,7 @@ namespace DisplayProfileManager.Core
                     Success = success,
                     PrimaryChanged = primaryChanged,
                     DisplayConfigApplied = displayConfigApplied,
-                    ResolutionChanged = resolutionChanged,
+                    ResolutionChanged = displayConfigApplied, // Resolution is now integrated with topology
                     DpiChanged = dpiChanged,
                     AudioSuccess = audioSuccess
                 };
@@ -868,6 +867,7 @@ namespace DisplayProfileManager.Core
                     DisplayPositionX = ds.DisplayPositionX,
                     IsHdrSupported = ds.IsHdrSupported,
                     IsHdrEnabled = ds.IsHdrEnabled,
+                    Rotation = ds.Rotation,
                     DisplayPositionY = ds.DisplayPositionY,
                     ManufacturerName = ds.ManufacturerName,
                     ProductCodeID = ds.ProductCodeID,
@@ -903,6 +903,83 @@ namespace DisplayProfileManager.Core
             }
 
             return null;
+        }
+
+        private bool ApplyStagedConfiguration(List<DisplayConfigHelper.DisplayConfigInfo> targetConfigs)
+        {
+            try
+            {
+                logger.Info($"Starting staged application for {targetConfigs.Count} displays");
+
+                // --- Get current system state to identify active monitors ---
+                var currentSystemDisplays = DisplayConfigHelper.GetDisplayConfigs();
+                var currentlyActiveSystemDisplayIds = new HashSet<uint>(currentSystemDisplays.Where(d => d.IsEnabled).Select(d => d.TargetId));
+                logger.Debug($"Found {currentlyActiveSystemDisplayIds.Count} currently active display(s).");
+
+                // --- Phase 1: Apply target configuration only to monitors that are already active ---
+                var phase1Configs = targetConfigs
+                    .Where(tc => currentlyActiveSystemDisplayIds.Contains(tc.TargetId) && tc.IsEnabled)
+                    .ToList();
+
+                if (phase1Configs.Any())
+                {
+                    logger.Info($"Phase 1: Applying new settings for {phase1Configs.Count} monitor(s) that are already active.");
+
+                    // Use ApplyPartialDisplayTopology to avoid disabling other monitors
+                    if (!DisplayConfigHelper.ApplyPartialDisplayTopology(phase1Configs))
+                    {
+                        logger.Error("Phase 1 (partial topology) failed. Falling back to single-step application.");
+                        return DisplayConfigHelper.ApplyDisplayTopology(targetConfigs) &&
+                               DisplayConfigHelper.ApplyDisplayPosition(targetConfigs) &&
+                               DisplayConfigHelper.ApplyHdrSettings(targetConfigs);
+                    }
+                    
+
+                    // Apply HDR settings for this subset
+                    if (!DisplayConfigHelper.ApplyHdrSettings(phase1Configs))
+                    {
+                        logger.Warn("Phase 1: Some HDR settings failed to apply.");
+                    }
+
+                    logger.Info("Phase 1 completed. Waiting for stabilization...");
+                    int pauseMs = _settingsManager.GetStagedApplicationPauseMs();
+                    System.Threading.Thread.Sleep(pauseMs);
+                }
+                else
+                {
+                    logger.Info("No currently active monitors are part of the new profile's active set. Skipping Phase 1.");
+                }
+
+                // --- Phase 2: Apply the full configuration to activate remaining monitors and finalize state ---
+                logger.Info("Phase 2: Applying the full target profile.");
+
+                // Use the standard ApplyDisplayTopology which will handle enabling/disabling correctly
+                if (!DisplayConfigHelper.ApplyDisplayTopology(targetConfigs))
+                {
+                    logger.Error("Phase 2 failed: Could not apply the full display topology.");
+                    return false;
+                }
+
+                // Apply final positions for all monitors
+                if (!DisplayConfigHelper.ApplyDisplayPosition(targetConfigs))
+                {
+                    logger.Warn("Phase 2: Failed to apply final display positions.");
+                }
+
+                // Apply final HDR settings for all monitors
+                if (!DisplayConfigHelper.ApplyHdrSettings(targetConfigs))
+                {
+                    logger.Warn("Phase 2: Some final HDR settings failed to apply.");
+                }
+
+                logger.Info("Staged application completed successfully");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex, "Error during staged application");
+                return false;
+            }
         }
 
         private readonly SettingsManager _settingsManager = SettingsManager.Instance;
