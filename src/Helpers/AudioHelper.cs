@@ -702,5 +702,81 @@ namespace DisplayProfileManager.Helpers
                 logger.Error(ex, "Error re-initializing AudioController");
             }
         }
+
+        public static bool ApplyAudioSettings(Core.AudioSetting audioSettings)
+        {
+            if (audioSettings == null)
+            {
+                logger.Debug("No audio settings to apply.");
+                return true; // No settings is not an error
+            }
+
+            bool allSucceeded = true;
+
+            try
+            {
+                // Apply playback device if enabled
+                if (audioSettings.ApplyPlaybackDevice)
+                {
+                    if (audioSettings.HasPlaybackDevice())
+                    {
+                        if (!SetDefaultPlaybackDevice(audioSettings.DefaultPlaybackDeviceId))
+                        {
+                            logger.Warn($"Failed to set playback device: {audioSettings.PlaybackDeviceName}");
+                            allSucceeded = false;
+                        }
+                        else
+                        {
+                            logger.Info($"Successfully set playback device: {audioSettings.PlaybackDeviceName}");
+                        }
+                    }
+                    else
+                    {
+                        logger.Debug("Playback device application enabled but no device configured for this profile.");
+                    }
+                }
+                else
+                {
+                    logger.Debug("Playback device application disabled for this profile.");
+                }
+
+                // Apply capture device if enabled
+                if (audioSettings.ApplyCaptureDevice)
+                {
+                    if (audioSettings.HasCaptureDevice())
+                    {
+                        if (!SetDefaultCaptureDevice(audioSettings.DefaultCaptureDeviceId))
+                        {
+                            logger.Warn($"Failed to set capture device: {audioSettings.CaptureDeviceName}");
+                            allSucceeded = false;
+                        }
+                        else
+                        {
+                            logger.Info($"Successfully set capture device: {audioSettings.CaptureDeviceName}");
+                        }
+                    }
+                    else
+                    {
+                        logger.Debug("Capture device application enabled but no device configured for this profile.");
+                    }
+                }
+                else
+                {
+                    logger.Debug("Capture device application disabled for this profile.");
+                }
+
+                if (!allSucceeded)
+                {
+                    logger.Warn("Some audio settings could not be applied.");
+                }
+
+                return allSucceeded;
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex, "An unexpected error occurred while applying audio settings.");
+                return false;
+            }
+        }
     }
 }

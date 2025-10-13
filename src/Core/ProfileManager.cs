@@ -313,243 +313,135 @@ namespace DisplayProfileManager.Core
         {
             try
             {
-                bool success = true;
-                bool primaryChanged = true;
-                bool displayConfigApplied = true;
-                bool dpiChanged = true;
-                bool audioSuccess = true;
+                ProfileApplyResult result = new ProfileApplyResult { AudioSuccess = true }; // Init audio as true
 
-                // Step 1: Apply display config (primary, enable/disable monitors)
+                // Step 1: Prepare the display configuration from the profile
+                var displayConfigs = new List<DisplayConfigHelper.DisplayConfigInfo>();
                 if (profile.DisplaySettings.Count > 0)
                 {
-                    var currentDisplayConfig = new List<DisplayConfigHelper.DisplayConfigInfo>();
-
                     foreach (var setting in profile.DisplaySettings)
                     {
                         setting.UpdateDeviceNameFromWMI();
-
-                        DisplayConfigHelper.DisplayConfigInfo displayConfigInfo = new DisplayConfigHelper.DisplayConfigInfo();
-                        displayConfigInfo.DeviceName = setting.DeviceName;
-                        displayConfigInfo.IsEnabled = setting.IsEnabled;
-                        displayConfigInfo.PathIndex = setting.PathIndex;
-                        displayConfigInfo.TargetId = setting.TargetId;
-                        displayConfigInfo.SourceId = setting.SourceId;
-                        displayConfigInfo.DisplayPositionX = setting.DisplayPositionX;
-                        displayConfigInfo.DisplayPositionY = setting.DisplayPositionY;
-                        displayConfigInfo.FriendlyName = setting.ReadableDeviceName;
-                        displayConfigInfo.IsPrimary = setting.IsPrimary;
-                        displayConfigInfo.Width = setting.Width;
-                        displayConfigInfo.Height = setting.Height;
-                        displayConfigInfo.IsHdrSupported = setting.IsHdrSupported;
-                        displayConfigInfo.IsHdrEnabled = setting.IsHdrEnabled;
-                        displayConfigInfo.Rotation = (DisplayConfigHelper.DISPLAYCONFIG_ROTATION)setting.Rotation;
-                        
-                        // Convert AdapterId string back to LUID
-                        if (!string.IsNullOrEmpty(setting.AdapterId) && setting.AdapterId.Length == 16)
+                        displayConfigs.Add(new DisplayConfigHelper.DisplayConfigInfo
                         {
-                            try
+                            DeviceName = setting.DeviceName,
+                            IsEnabled = setting.IsEnabled,
+                            IsPrimary = setting.IsPrimary,
+                            Width = setting.Width,
+                            Height = setting.Height,
+                            RefreshRate = setting.Frequency,
+                            IsHdrSupported = setting.IsHdrSupported,
+                            IsHdrEnabled = setting.IsHdrEnabled,
+                            Rotation = (DisplayConfigHelper.DISPLAYCONFIG_ROTATION)setting.Rotation,
+                            AdapterId = DisplayConfigHelper.GetLUIDFromString(setting.AdapterId),
+                            SourceId = setting.SourceId,
+                            TargetId = setting.TargetId,
+                            PathIndex = setting.PathIndex,
+                            DisplayPositionX = setting.DisplayPositionX,
+                            DisplayPositionY = setting.DisplayPositionY,
+                            FriendlyName = setting.ReadableDeviceName
+                        });
+                    }
+                }
+
+                // Step 2: Set Primary Display first (adjusts positions in the config list)
+                if (displayConfigs.Count > 0)
+                {
+                    logger.Debug("Setting primary display...");
+                    result.PrimaryChanged = DisplayConfigHelper.SetPrimaryDisplay(displayConfigs);
+                    if (!result.PrimaryChanged)
+                    {
+                        logger.Warn("Failed to set primary display.");
+                        result.Success = false;
+                    }
+                    else
+                    {
+                        logger.Info("Set primary display successfully");
+                    }
+                }
+
+                // Step 3: Choose application path (Staged or Simple)
+                if (_settingsManager.ShouldUseStagedApplication() && displayConfigs.Count > 1)
+                {
+                    logger.Info("Using staged application path.");
+                    result.DisplayConfigApplied = ApplyStagedConfiguration(displayConfigs);
+                    result.ResolutionChanged = result.DisplayConfigApplied; // Staged method handles resolution
+                }
+                else
+                {
+                    logger.Info("Using simple application path.");
+                    // --- Simple Path Logic ---
+                    // 3.1: Apply Topology
+                    result.DisplayConfigApplied = DisplayConfigHelper.ApplyDisplayTopology(displayConfigs);
+                    if(result.DisplayConfigApplied)
+                    {
+                        // 3.2: Apply Resolution/Frequency
+                        logger.Info("Applying resolution and refresh rate for all enabled monitors...");
+                        bool allResolutionsChanged = true;
+                        foreach (var setting in profile.DisplaySettings.Where(s => s.IsEnabled))
+                        {
+                            if (DisplayHelper.IsMonitorConnected(setting.DeviceName))
                             {
-                                var highPart = Convert.ToInt32(setting.AdapterId.Substring(0, 8), 16);
-                                var lowPart = Convert.ToUInt32(setting.AdapterId.Substring(8, 8), 16);
-                                displayConfigInfo.AdapterId = new DisplayConfigHelper.LUID
+                                if (!DisplayHelper.ChangeResolution(setting.DeviceName, setting.Width, setting.Height, setting.Frequency))
                                 {
-                                    HighPart = highPart,
-                                    LowPart = lowPart
-                                };
-                            }
-                            catch (Exception ex)
-                            {
-                                logger.Warn(ex, $"Failed to parse AdapterId '{setting.AdapterId}' for {setting.DeviceName}");
-                            }
-                        }
-
-                        currentDisplayConfig.Add(displayConfigInfo);
-                    }
-
-                    // Set primary monitor first (must be done before topology changes)
-                    try
-                    {
-                        logger.Debug("Setting primary display...");
-                        primaryChanged = DisplayConfigHelper.SetPrimaryDisplay(currentDisplayConfig);
-                        if (!primaryChanged)
-                        {
-                            logger.Warn("Failed to set primary display");
-                            success = false;
-                        }
-                        else
-                        {
-                            logger.Info("Set primary display successfully");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.Error(ex, "Error applying primary display");
-                    }
-
-                    try
-                    {
-                        if (_settingsManager.ShouldUseStagedApplication() && currentDisplayConfig.Count > 1)
-                        {
-                            logger.Info("Using staged application for complex multi-monitor profile");
-                            displayConfigApplied = ApplyStagedConfiguration(currentDisplayConfig);
-                        }
-                        else
-                        {
-                            logger.Debug("Applying display topology...");
-                            displayConfigApplied = DisplayConfigHelper.ApplyDisplayTopology(currentDisplayConfig);
-                        }
-                        
-                        if (!displayConfigApplied)
-                        {
-                            logger.Warn("Failed to apply display topology");
-                            success = false;
-                        }
-                        else
-                        {
-                            // Apply HDR settings after successful topology change (if not already done in staged application)
-                            if (!_settingsManager.ShouldUseStagedApplication() || currentDisplayConfig.Count == 1)
-                            {
-                                logger.Debug("Applying HDR settings...");
-                                bool hdrApplied = DisplayConfigHelper.ApplyHdrSettings(currentDisplayConfig);
-                                if (!hdrApplied)
+                                    logger.Warn($"Failed to change resolution for {setting.DeviceName}");
+                                    allResolutionsChanged = false;
+                                }
+                                else
                                 {
-                                    logger.Warn("Failed to apply HDR settings - some monitors may not support HDR or configuration failed");
+                                    logger.Info($"Successfully changed resolution for {setting.DeviceName} to {setting.Width}x{setting.Height}@{setting.Frequency}Hz");
                                 }
                             }
-                            logger.Info("Display topology applied successfully");
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.Error(ex, "Error applying display topology");
+                        result.ResolutionChanged = allResolutionsChanged;
                     }
                 }
                 
-                // Step 2: Apply resolution, refresh rate, and DPI for enabled displays only
-                List<DisplaySetting> displaySettings = profile.DisplaySettings.Where(s => s.IsEnabled).ToList();
-                foreach (var setting in displaySettings)
+                // Step 4: Apply DPI and Final HDR (DPI is always separate, HDR is final confirmation)
+                if (result.DisplayConfigApplied)
                 {
-                    try
+                    bool allDpiChanged = true;
+                    foreach (var setting in profile.DisplaySettings.Where(s => s.IsEnabled))
                     {
                         if (DisplayHelper.IsMonitorConnected(setting.DeviceName))
                         {
-                            dpiChanged = DpiHelper.SetDPIScaling(setting.DeviceName, setting.DpiScaling);
-
-                            if (!dpiChanged)
+                            if(!DpiHelper.SetDPIScaling(setting.DeviceName, setting.DpiScaling))
                             {
                                 logger.Warn($"Failed to set DPI scaling for {setting.DeviceName}");
+                                allDpiChanged = false;
                             }
                         }
-                        else
-                        {
-                            logger.Debug($"{setting.DeviceName} is not connected now");
-                        }
                     }
-                    catch (Exception ex)
+                    result.DpiChanged = allDpiChanged;
+                    
+                    logger.Debug("Applying final HDR settings...");
+                    if (!DisplayConfigHelper.ApplyHdrSettings(displayConfigs))
                     {
-                        logger.Error(ex, $"Error applying setting for {setting.DeviceName}");
-                        success = false;
+                        logger.Warn("Failed to apply final HDR settings.");
                     }
                 }
 
-                // Apply audio settings after display settings
+                result.Success = result.PrimaryChanged && result.DisplayConfigApplied && result.ResolutionChanged && result.DpiChanged;
+
+                // Step 5: Apply Audio Settings (common to both paths)
                 if (profile.AudioSettings != null)
                 {
-                    try
-                    {
-                        // Apply playback device if enabled
-                        if (profile.AudioSettings.ApplyPlaybackDevice && profile.AudioSettings.HasPlaybackDevice())
-                        {
-                            bool playbackSet = AudioHelper.SetDefaultPlaybackDevice(profile.AudioSettings.DefaultPlaybackDeviceId);
-                            if (!playbackSet)
-                            {
-                                logger.Warn($"Failed to set playback device: {profile.AudioSettings.PlaybackDeviceName}");
-                                audioSuccess = false;
-                            }
-                            else
-                            {
-                                logger.Info($"Successfully set playback device: {profile.AudioSettings.PlaybackDeviceName}");
-                            }
-                        }
-                        else if (profile.AudioSettings.ApplyPlaybackDevice)
-                        {
-                            logger.Debug("Playback device application enabled but no device configured");
-                        }
-                        else
-                        {
-                            logger.Debug("Playback device application disabled for this profile");
-                        }
-                        
-                        // Apply capture device if enabled
-                        if (profile.AudioSettings.ApplyCaptureDevice && profile.AudioSettings.HasCaptureDevice())
-                        {
-                            bool captureSet = AudioHelper.SetDefaultCaptureDevice(profile.AudioSettings.DefaultCaptureDeviceId);
-                            if (!captureSet)
-                            {
-                                logger.Warn($"Failed to set capture device: {profile.AudioSettings.CaptureDeviceName}");
-                                audioSuccess = false;
-                            }
-                            else
-                            {
-                                logger.Info($"Successfully set capture device: {profile.AudioSettings.CaptureDeviceName}");
-                            }
-                        }
-                        else if (profile.AudioSettings.ApplyCaptureDevice)
-                        {
-                            logger.Debug("Capture device application enabled but no device configured");
-                        }
-                        else
-                        {
-                            logger.Debug("Capture device application disabled for this profile");
-                        }
-
-                        // Log audio settings result but don't fail the entire profile
-                        if (!audioSuccess)
-                        {
-                            logger.Warn("Some audio settings could not be applied");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.Error(ex, "Error applying audio settings");
-                        // Don't fail the entire profile if audio settings fail
-                    }
+                    result.AudioSuccess = AudioHelper.ApplyAudioSettings(profile.AudioSettings);
                 }
 
-                if (success)
+                if (result.Success)
                 {
                     _currentProfileId = profile.Id;
                     await _settingsManager.SetCurrentProfileIdAsync(profile.Id);
                     ProfileApplied?.Invoke(this, profile);
                 }
 
-                ProfileApplyResult profileApplyResult = new ProfileApplyResult
-                {
-                    Success = success,
-                    PrimaryChanged = primaryChanged,
-                    DisplayConfigApplied = displayConfigApplied,
-                    ResolutionChanged = displayConfigApplied, // Resolution is now integrated with topology
-                    DpiChanged = dpiChanged,
-                    AudioSuccess = audioSuccess
-                };
-
-                return profileApplyResult;
+                return result;
             }
             catch (Exception ex)
             {
                 logger.Error(ex, "Error applying profile");
-
-                ProfileApplyResult profileApplyResult = new ProfileApplyResult
-                {
-                    Success = false,
-                    PrimaryChanged = false,
-                    DisplayConfigApplied = false,
-                    ResolutionChanged = false,
-                    DpiChanged = false,
-                    AudioSuccess = false
-                };
-
-                return profileApplyResult;
+                return new ProfileApplyResult { Success = false };
             }
         }
 
@@ -905,7 +797,7 @@ namespace DisplayProfileManager.Core
             return null;
         }
 
-        private bool ApplyStagedConfiguration(List<DisplayConfigHelper.DisplayConfigInfo> targetConfigs)
+private bool ApplyStagedConfiguration(List<DisplayConfigHelper.DisplayConfigInfo> targetConfigs)
         {
             try
             {
@@ -925,7 +817,7 @@ namespace DisplayProfileManager.Core
                 {
                     logger.Info($"Phase 1: Applying new settings for {phase1Configs.Count} monitor(s) that are already active.");
 
-                    // Use ApplyPartialDisplayTopology to avoid disabling other monitors
+                    // Step 1.1: Apply partial topology (activation flags, rotation)
                     if (!DisplayConfigHelper.ApplyPartialDisplayTopology(phase1Configs))
                     {
                         logger.Error("Phase 1 (partial topology) failed. Falling back to single-step application.");
@@ -934,8 +826,19 @@ namespace DisplayProfileManager.Core
                                DisplayConfigHelper.ApplyHdrSettings(targetConfigs);
                     }
                     
+                    // Step 1.2: Explicitly apply resolution and refresh rate for the active monitors.
+                    // This is the critical step to stabilize the system before adding more monitors.
+                    logger.Info("Phase 1: Applying resolution and refresh rate changes for active monitors.");
+                    foreach (var config in phase1Configs)
+                    {
+                        logger.Debug($"Phase 1: Changing mode for {config.DeviceName} to {config.Width}x{config.Height}@{config.RefreshRate}Hz");
+                        if (!DisplayHelper.ChangeResolution(config.DeviceName, config.Width, config.Height, (int)config.RefreshRate))
+                        {
+                            logger.Warn($"Phase 1: Failed to change resolution for {config.DeviceName}.");
+                        }
+                    }
 
-                    // Apply HDR settings for this subset
+                    // Step 1.3: Apply HDR settings for this subset
                     if (!DisplayConfigHelper.ApplyHdrSettings(phase1Configs))
                     {
                         logger.Warn("Phase 1: Some HDR settings failed to apply.");

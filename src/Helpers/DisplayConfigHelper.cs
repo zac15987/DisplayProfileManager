@@ -643,7 +643,7 @@ namespace DisplayProfileManager.Helpers
                 // Update path flags based on topology settings
                 foreach (var displayInfo in displayConfigs)
                 {
-                    var foundPathIndex = Array.FindIndex(paths, 
+                    var foundPathIndex = Array.FindIndex(paths,
                         x => (x.targetInfo.id == displayInfo.TargetId) && (x.sourceInfo.id == displayInfo.SourceId));
 
                     if (foundPathIndex == -1)
@@ -652,8 +652,15 @@ namespace DisplayProfileManager.Helpers
                         continue;
                     }
 
-                    // Refactored logic: Call the new helper method
-                    AssignModeToPath(ref paths[foundPathIndex], displayInfo, modes);
+                    if (displayInfo.IsEnabled)
+                    {
+                        paths[foundPathIndex].flags |= (uint)DisplayConfigPathInfoFlags.DISPLAYCONFIG_PATH_ACTIVE;
+                        paths[foundPathIndex].targetInfo.rotation = (uint)displayInfo.Rotation;
+                    }
+                    else
+                    {
+                        paths[foundPathIndex].flags &= ~(uint)DisplayConfigPathInfoFlags.DISPLAYCONFIG_PATH_ACTIVE;
+                    }
 
                     logger.Debug($"Setting targetId {displayInfo.TargetId} ({displayInfo.DeviceName}, Path:{foundPathIndex}) " +
                                   $"flags to: 0x{paths[foundPathIndex].flags:X} (Enabled: {displayInfo.IsEnabled})");
@@ -811,12 +818,19 @@ namespace DisplayProfileManager.Helpers
                         continue;
                     }
 
-                    // Refactored logic: Call the new helper method
-                    AssignModeToPath(ref paths[foundPathIndex], displayInfo, modes);
-                    
+                    if (displayInfo.IsEnabled)
+                    {
+                        paths[foundPathIndex].flags |= (uint)DisplayConfigPathInfoFlags.DISPLAYCONFIG_PATH_ACTIVE;
+                        paths[foundPathIndex].targetInfo.rotation = (uint)displayInfo.Rotation;
+                    }
+                    else
+                    {
+                        paths[foundPathIndex].flags &= ~(uint)DisplayConfigPathInfoFlags.DISPLAYCONFIG_PATH_ACTIVE;
+                    }
+
                     logger.Debug($"Partially updating TargetId {displayInfo.TargetId} flags to: 0x{paths[foundPathIndex].flags:X}");
                 }
-                
+
                 // NOTE: We do NOT disable unspecified monitors here. That is the key difference.
 
                 result = SetDisplayConfig(
@@ -1145,7 +1159,7 @@ namespace DisplayProfileManager.Helpers
                 logger.Debug($"HDR APPLY:   IsHdrEnabled: {display.IsHdrEnabled}");
                 logger.Debug($"HDR APPLY:   IsEnabled: {display.IsEnabled}");
                 logger.Debug($"HDR APPLY:   TargetId: {display.TargetId}");
-                
+
                 if (display.IsHdrSupported && display.IsEnabled)
                 {
                     logger.Info($"HDR APPLY: Applying HDR state {display.IsHdrEnabled} to {display.DeviceName}");
@@ -1174,98 +1188,29 @@ namespace DisplayProfileManager.Helpers
             return allSuccessful;
         }
 
-
-        private static uint FindBestModeIndex(LUID adapterId, uint sourceId, uint width, uint height, double targetRefreshRate, DISPLAYCONFIG_MODE_INFO[] modes)
+        public static LUID GetLUIDFromString(string adapterIdString)
         {
-            uint bestModeIndex = DISPLAYCONFIG_PATH_MODE_IDX_INVALID;
-            double bestRefreshRateDiff = double.MaxValue;
-
-            for (uint i = 0; i < modes.Length; i++)
+            if (!string.IsNullOrEmpty(adapterIdString) && adapterIdString.Length == 16)
             {
-                var mode = modes[i];
-                if (mode.infoType == DisplayConfigModeInfoType.DISPLAYCONFIG_MODE_INFO_TYPE_SOURCE &&
-                    mode.adapterId.LowPart == adapterId.LowPart && mode.adapterId.HighPart == adapterId.HighPart &&
-                    mode.id == sourceId &&
-                    mode.modeInfo.sourceMode.width == width &&
-                    mode.modeInfo.sourceMode.height == height)
+                try
                 {
-                    // Find the corresponding target mode to get refresh rate
-                    var targetMode = Array.Find(modes, m => 
-                        m.infoType == DisplayConfigModeInfoType.DISPLAYCONFIG_MODE_INFO_TYPE_TARGET && 
-                        m.modeInfo.targetMode.targetVideoSignalInfo.activeSize.cx == width &&
-                        m.modeInfo.targetMode.targetVideoSignalInfo.activeSize.cy == height);
-
-                    if (targetMode.modeInfo.targetMode.targetVideoSignalInfo.vSyncFreq.Denominator != 0)
+                    var highPart = Convert.ToInt32(adapterIdString.Substring(0, 8), 16);
+                    var lowPart = Convert.ToUInt32(adapterIdString.Substring(8, 8), 16);
+                    return new LUID
                     {
-                        double refreshRate = (double)targetMode.modeInfo.targetMode.targetVideoSignalInfo.vSyncFreq.Numerator / targetMode.modeInfo.targetMode.targetVideoSignalInfo.vSyncFreq.Denominator;
-                        double diff = Math.Abs(refreshRate - targetRefreshRate);
-                        
-                        if (diff < bestRefreshRateDiff)
-                        {
-                            bestRefreshRateDiff = diff;
-                            bestModeIndex = i;
-                        }
-                    }
+                        HighPart = highPart,
+                        LowPart = lowPart
+                    };
                 }
-            }
-            
-            // If the difference is very small, consider it a match
-            if (bestRefreshRateDiff < 0.1)
-            {
-                return bestModeIndex;
-            }
-
-            // Fallback: return first mode that matches resolution
-            for (uint i = 0; i < modes.Length; i++)
-            {
-                var mode = modes[i];
-                if (mode.infoType == DisplayConfigModeInfoType.DISPLAYCONFIG_MODE_INFO_TYPE_SOURCE &&
-                    mode.adapterId.LowPart == adapterId.LowPart && mode.adapterId.HighPart == adapterId.HighPart &&
-                    mode.id == sourceId &&
-                    mode.modeInfo.sourceMode.width == width &&
-                    mode.modeInfo.sourceMode.height == height)
+                catch (Exception ex)
                 {
-                    return i;
+                    logger.Warn(ex, $"Failed to parse AdapterId '{adapterIdString}'");
                 }
             }
-
-            return DISPLAYCONFIG_PATH_MODE_IDX_INVALID;
+            return new LUID { HighPart = 0, LowPart = 0 };
         }
 
-        private static void AssignModeToPath(ref DISPLAYCONFIG_PATH_INFO path, DisplayConfigInfo displayInfo, DISPLAYCONFIG_MODE_INFO[] allModes)
-        {
-            if (displayInfo.IsEnabled)
-            {
-                // Enable the display and apply rotation
-                path.flags |= (uint)DisplayConfigPathInfoFlags.DISPLAYCONFIG_PATH_ACTIVE;
-                path.targetInfo.rotation = (uint)displayInfo.Rotation;
 
-                // Find and assign the best video mode for the target resolution and refresh rate
-                var bestModeIndex = FindBestModeIndex(
-                    path.sourceInfo.adapterId,
-                    path.sourceInfo.id,
-                    (uint)displayInfo.Width,
-                    (uint)displayInfo.Height,
-                    displayInfo.RefreshRate,
-                    allModes);
-
-                if (bestModeIndex != DISPLAYCONFIG_PATH_MODE_IDX_INVALID)
-                {
-                    path.sourceInfo.modeInfoIdx = bestModeIndex;
-                    logger.Debug($"Assigned ModeIndex {bestModeIndex} for {displayInfo.DeviceName} ({displayInfo.Width}x{displayInfo.Height}@{displayInfo.RefreshRate}Hz)");
-                }
-                else
-                {
-                    logger.Warn($"Could not find a matching mode for {displayInfo.DeviceName} at {displayInfo.Width}x{displayInfo.Height}@{displayInfo.RefreshRate}Hz. The system will use a default mode.");
-                }
-            }
-            else
-            {
-                // Disable the display
-                path.flags &= ~(uint)DisplayConfigPathInfoFlags.DISPLAYCONFIG_PATH_ACTIVE;
-                path.sourceInfo.modeInfoIdx = DISPLAYCONFIG_PATH_MODE_IDX_INVALID; // Invalidate the mode
-            }
-        }
 
         #endregion
     }
