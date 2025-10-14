@@ -427,41 +427,43 @@
 
                     <!-- About Section -->
                     <Border Background="{DynamicResource ContentBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,0,16">
-                        <StackPanel>
-                            <TextBlock Text="About" Style="{StaticResource SectionHeaderStyle}"/>
-                            
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Version: " Style="{StaticResource ModernTextBlockStyle}"/>
-                                <TextBlock Name="VersionTextBlock" Text="1.0.0" Style="{StaticResource ModernTextBlockStyle}"/>
-                            </StackPanel>
-                            
-                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                <TextBlock Text="Settings Location: " Style="{StaticResource ModernTextBlockStyle}" FontSize="12" Foreground="{DynamicResource TertiaryTextBrush}"/>
-                                <TextBlock Name="SettingsPathTextBlock" Style="{StaticResource ModernTextBlockStyle}" 
-                                           FontSize="12" Foreground="{DynamicResource TertiaryTextBrush}" TextWrapping="Wrap"/>
-                            </StackPanel>
-                            
-                            <!-- Community Features Section -->
-                            <TextBlock Text="Community Features:" Style="{StaticResource ModernTextBlockStyle}" FontWeight="SemiBold" Margin="0,12,0,4"/>
-                            <StackPanel Name="CommunityFeaturesPanel" Margin="0,0,0,4">
-                                <!-- This will be populated programmatically -->
-                            </StackPanel>
-                            
-                            <!-- Libraries Section -->
-                            <TextBlock Text="Third-Party Libraries:" Style="{StaticResource ModernTextBlockStyle}" FontWeight="SemiBold" Margin="0,12,0,4"/>
-                            <StackPanel Name="LibrariesPanel" Margin="0,0,0,4">
-                                <!-- This will be populated programmatically -->
-                            </StackPanel>
-                            <TextBlock Style="{StaticResource ModernTextBlockStyle}" FontSize="11" Foreground="{DynamicResource TertiaryTextBrush}" Margin="0,2,0,4" FontStyle="Italic">
-                                <Run Text="See THIRD-PARTY-LICENSES.md for complete license texts"/>
-                            </TextBlock>
+                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                            <StackPanel>
+                                <TextBlock Text="About" Style="{StaticResource SectionHeaderStyle}"/>
 
-                            <!-- Contributors Section -->
-                            <TextBlock Text="Contributors:" Style="{StaticResource ModernTextBlockStyle}" FontWeight="SemiBold" Margin="0,12,0,4"/>
-                            <StackPanel Name="ContributorsPanel" Margin="0,0,0,4">
-                                <!-- This will be populated programmatically -->
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Version: " Style="{StaticResource ModernTextBlockStyle}"/>
+                                    <TextBlock Name="VersionTextBlock" Text="1.0.0" Style="{StaticResource ModernTextBlockStyle}"/>
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                    <TextBlock Text="Settings Location: " Style="{StaticResource ModernTextBlockStyle}" FontSize="12" Foreground="{DynamicResource TertiaryTextBrush}"/>
+                                    <TextBlock Name="SettingsPathTextBlock" Style="{StaticResource ModernTextBlockStyle}"
+                                               FontSize="12" Foreground="{DynamicResource TertiaryTextBrush}" TextWrapping="Wrap"/>
+                                </StackPanel>
+
+                                <!-- Community Features Section -->
+                                <TextBlock Text="Community Features:" Style="{StaticResource ModernTextBlockStyle}" FontWeight="SemiBold" Margin="0,12,0,4"/>
+                                <StackPanel Name="CommunityFeaturesPanel" Margin="0,0,0,4">
+                                    <!-- This will be populated programmatically -->
+                                </StackPanel>
+
+                                <!-- Libraries Section -->
+                                <TextBlock Text="Third-Party Libraries:" Style="{StaticResource ModernTextBlockStyle}" FontWeight="SemiBold" Margin="0,12,0,4"/>
+                                <StackPanel Name="LibrariesPanel" Margin="0,0,0,4">
+                                    <!-- This will be populated programmatically -->
+                                </StackPanel>
+                                <TextBlock Style="{StaticResource ModernTextBlockStyle}" FontSize="11" Foreground="{DynamicResource TertiaryTextBrush}" Margin="0,2,0,4" FontStyle="Italic">
+                                    <Run Text="See THIRD-PARTY-LICENSES.md for complete license texts"/>
+                                </TextBlock>
+
+                                <!-- Contributors Section -->
+                                <TextBlock Text="Contributors:" Style="{StaticResource ModernTextBlockStyle}" FontWeight="SemiBold" Margin="0,12,0,4"/>
+                                <StackPanel Name="ContributorsPanel" Margin="0,0,0,4">
+                                    <!-- This will be populated programmatically -->
+                                </StackPanel>
                             </StackPanel>
-                        </StackPanel>
+                        </ScrollViewer>
                     </Border>
                 </StackPanel>
         </ScrollViewer>

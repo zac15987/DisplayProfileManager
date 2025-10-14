@@ -64,17 +64,21 @@ namespace DisplayProfileManager.Helpers
             public const string AnodynosUrl = "https://github.com/anodynos";
             public const string XtrillaName = "@xtrilla";
             public const string XtrillaUrl = "https://github.com/xtrilla";
+            public const string JarandalName = "@jarandal";
+            public const string JarandalUrl = "https://github.com/jarandal";
             public const string AudioIssueUrl = "https://github.com/zac15987/DisplayProfileManager/issues/1";
             public const string HotkeyIssueUrl = "https://github.com/zac15987/DisplayProfileManager/issues/2";
             public const string MonitorDisableIssueUrl = "https://github.com/zac15987/DisplayProfileManager/issues/4";
             public const string MonitorSwitchingIssueUrl = "https://github.com/zac15987/DisplayProfileManager/issues/5";
+            public const string HdrPullRequestUrl = "https://github.com/zac15987/DisplayProfileManager/pull/8";
             
             public static string GetCommunityText()
             {
                 return $"Audio device switching suggested by {CatriksName} and {AlienmarioName}\n" +
                        $"Global hotkey functionality suggested by {AnodynosName}\n" +
                        $"Monitor disable/enable feature requested by {XtrillaName}\n" +
-                       $"Multi-monitor switching improvements reported by {AlienmarioName}";
+                       $"Multi-monitor switching improvements reported by {AlienmarioName}\n" +
+                       $"HDR support, rotation control, and Staged Application mode implemented by {JarandalName}";
             }
         }
 
@@ -131,7 +135,8 @@ namespace DisplayProfileManager.Helpers
                 return $"• {Community.CatriksName} - Feature request for audio device switching\n" +
                        $"• {Community.AlienmarioName} - AudioSwitcher recommendation, design suggestions, and multi-monitor switching feedback\n" +
                        $"• {Community.AnodynosName} - Feature request for global hotkey functionality\n" +
-                       $"• {Community.XtrillaName} - Feature request for monitor disable/enable in profiles";
+                       $"• {Community.XtrillaName} - Feature request for monitor disable/enable in profiles\n" +
+                       $"• {Community.JarandalName} - Implemented HDR support, screen rotation control, and Staged Application mode with enhanced display configuration engine";
             }
         }
 
@@ -148,7 +153,7 @@ namespace DisplayProfileManager.Helpers
                    $"Settings Location: {settingsPath}\n\n" +
                    "Community Features:\n" +
                    $"{Community.GetCommunityText()}\n" +
-                   $"GitHub Issues: #1, #2, #4, #5\n\n" +
+                   $"GitHub: Issues #1, #2, #4, #5 | PR #8\n\n" +
                    "Third-Party Libraries:\n" +
                    $"{Libraries.GetLibrariesText()}\n" +
                    $"{Libraries.GetLicenseInfoPath()}\n\n" +

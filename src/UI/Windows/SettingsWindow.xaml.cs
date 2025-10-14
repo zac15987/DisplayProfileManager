@@ -826,6 +826,63 @@ namespace DisplayProfileManager.UI.Windows
                 });
 
                 CommunityFeaturesPanel.Children.Add(monitorSwitchingFeaturePanel);
+
+                // HDR, rotation, and Staged Application mode implementation line
+                var hdrFeaturePanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+
+                hdrFeaturePanel.Children.Add(new TextBlock
+                {
+                    Text = "HDR support, rotation control, and Staged Application mode implemented by ",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+
+                var jarandalLink = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run(AboutHelper.Community.JarandalName))
+                {
+                    NavigateUri = new Uri(AboutHelper.Community.JarandalUrl),
+                    Foreground = (System.Windows.Media.Brush)FindResource("LinkBrush")
+                };
+                jarandalLink.RequestNavigate += Hyperlink_RequestNavigate;
+
+                hdrFeaturePanel.Children.Add(new TextBlock(jarandalLink)
+                {
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+
+                hdrFeaturePanel.Children.Add(new TextBlock
+                {
+                    Text = " (",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+
+                var hdrPrLink = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run("PR #8"))
+                {
+                    NavigateUri = new Uri(AboutHelper.Community.HdrPullRequestUrl),
+                    Foreground = (System.Windows.Media.Brush)FindResource("LinkBrush")
+                };
+                hdrPrLink.RequestNavigate += Hyperlink_RequestNavigate;
+
+                hdrFeaturePanel.Children.Add(new TextBlock(hdrPrLink)
+                {
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+
+                hdrFeaturePanel.Children.Add(new TextBlock
+                {
+                    Text = ")",
+                    Style = (Style)FindResource("ModernTextBlockStyle"),
+                    FontSize = 12,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TertiaryTextBrush")
+                });
+
+                CommunityFeaturesPanel.Children.Add(hdrFeaturePanel);
             }
             catch (Exception ex)
             {
@@ -922,7 +979,8 @@ namespace DisplayProfileManager.UI.Windows
                     new { Name = AboutHelper.Community.CatriksName, Url = AboutHelper.Community.CatriksUrl, Description = "Feature request for audio device switching" },
                     new { Name = AboutHelper.Community.AlienmarioName, Url = AboutHelper.Community.AlienmarioUrl, Description = "AudioSwitcher recommendation, design suggestions, and multi-monitor switching feedback" },
                     new { Name = AboutHelper.Community.AnodynosName, Url = AboutHelper.Community.AnodynosUrl, Description = "Feature request for global hotkey functionality" },
-                    new { Name = AboutHelper.Community.XtrillaName, Url = AboutHelper.Community.XtrillaUrl, Description = "Feature request for monitor disable/enable in profiles" }
+                    new { Name = AboutHelper.Community.XtrillaName, Url = AboutHelper.Community.XtrillaUrl, Description = "Feature request for monitor disable/enable in profiles" },
+                    new { Name = AboutHelper.Community.JarandalName, Url = AboutHelper.Community.JarandalUrl, Description = "Implemented HDR support, screen rotation control, and Staged Application mode with enhanced display configuration engine" }
                 };
 
                 foreach (var contributor in contributors)
