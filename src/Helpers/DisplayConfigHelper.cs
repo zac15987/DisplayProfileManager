@@ -41,6 +41,12 @@ namespace DisplayProfileManager.Helpers
         [DllImport("user32.dll")]
         private static extern int DisplayConfigGetDeviceInfo(ref DISPLAYCONFIG_TARGET_DEVICE_NAME deviceName);
 
+        [DllImport("user32.dll")]
+        private static extern int DisplayConfigGetDeviceInfo(ref DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO colorInfo);
+
+        [DllImport("user32.dll")]
+        private static extern int DisplayConfigSetDeviceInfo(ref DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE colorState);
+
         #endregion
 
         #region Constants
@@ -305,6 +311,60 @@ namespace DisplayProfileManager.Helpers
 
         public const uint DISPLAYCONFIG_PATH_MODE_IDX_INVALID = 0xffffffff;
 
+        [StructLayout(LayoutKind.Sequential)]
+        public struct DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO
+        {
+            public DISPLAYCONFIG_DEVICE_INFO_HEADER header;
+            public DISPLAYCONFIG_ADVANCED_COLOR_INFO_FLAGS values;
+            public DISPLAYCONFIG_COLOR_ENCODING colorEncoding;
+            public int bitsPerColorChannel;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE
+        {
+            public DISPLAYCONFIG_DEVICE_INFO_HEADER header;
+            public DISPLAYCONFIG_SET_ADVANCED_COLOR_FLAGS values;
+        }
+
+        [Flags]
+        public enum DISPLAYCONFIG_ADVANCED_COLOR_INFO_FLAGS : uint
+        {
+            // A type of advanced color is supported
+            AdvancedColorSupported = 0x1,
+            // A type of advanced color is enabled  
+            AdvancedColorEnabled = 0x2,
+            // Wide color gamut is enabled
+            WideColorEnforced = 0x4,
+            // Advanced color is force disabled due to system/OS policy
+            AdvancedColorForceDisabled = 0x8
+        }
+
+        [Flags]
+        public enum DISPLAYCONFIG_SET_ADVANCED_COLOR_FLAGS : uint
+        {
+            EnableAdvancedColor = 0x1
+        }
+
+        public enum DISPLAYCONFIG_COLOR_ENCODING : uint
+        {
+            DISPLAYCONFIG_COLOR_ENCODING_RGB = 0,
+            DISPLAYCONFIG_COLOR_ENCODING_YCBCR444 = 1,
+            DISPLAYCONFIG_COLOR_ENCODING_YCBCR422 = 2,
+            DISPLAYCONFIG_COLOR_ENCODING_YCBCR420 = 3,
+            DISPLAYCONFIG_COLOR_ENCODING_INTENSITY = 4,
+            DISPLAYCONFIG_COLOR_ENCODING_FORCE_UINT32 = 0xFFFFFFFF
+        }
+
+        public enum DISPLAYCONFIG_ROTATION : uint
+        {
+            DISPLAYCONFIG_ROTATION_IDENTITY = 1,
+            DISPLAYCONFIG_ROTATION_ROTATE90 = 2,
+            DISPLAYCONFIG_ROTATION_ROTATE180 = 3,
+            DISPLAYCONFIG_ROTATION_ROTATE270 = 4,
+            DISPLAYCONFIG_ROTATION_FORCE_UINT32 = 0xFFFFFFFF
+        }
+
         #endregion
 
         #region Public Classes
@@ -326,6 +386,11 @@ namespace DisplayProfileManager.Helpers
             public int DisplayPositionX { get; set; }
             public int DisplayPositionY { get; set; }
             public bool IsPrimary { get; set; }
+            public bool IsHdrSupported { get; set; } = false;
+            public bool IsHdrEnabled { get; set; } = false;
+            public DISPLAYCONFIG_COLOR_ENCODING ColorEncoding { get; set; } = DISPLAYCONFIG_COLOR_ENCODING.DISPLAYCONFIG_COLOR_ENCODING_RGB;
+            public uint BitsPerColorChannel { get; set; } = 8;
+            public DISPLAYCONFIG_ROTATION Rotation { get; set; } = DISPLAYCONFIG_ROTATION.DISPLAYCONFIG_ROTATION_IDENTITY;
         }
 
         #endregion
@@ -417,6 +482,70 @@ namespace DisplayProfileManager.Helpers
                         displayConfig.FriendlyName = targetName.monitorFriendlyDeviceName;
                     }
 
+                    // Get HDR information
+                    var colorInfo = new DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO();
+                    colorInfo.header.type = DisplayConfigDeviceInfoType.DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO;
+                    colorInfo.header.size = (uint)Marshal.SizeOf(typeof(DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO));
+                    colorInfo.header.adapterId = path.targetInfo.adapterId;
+                    colorInfo.header.id = path.targetInfo.id;
+
+                    logger.Debug($"HDR DEBUG: Querying HDR info for {displayConfig.DeviceName} (TargetId: {path.targetInfo.id}, AdapterId: {path.targetInfo.adapterId.HighPart:X8}{path.targetInfo.adapterId.LowPart:X8})");
+
+                    result = DisplayConfigGetDeviceInfo(ref colorInfo);
+                    logger.Debug($"HDR DEBUG: DisplayConfigGetDeviceInfo result: {result} (0 = SUCCESS)");
+                    
+                    if (result == ERROR_SUCCESS)
+                    {
+                        logger.Debug($"HDR DEBUG: Raw values flags: 0x{colorInfo.values:X}");
+                        logger.Debug($"HDR DEBUG: Color encoding: {colorInfo.colorEncoding}");
+                        logger.Debug($"HDR DEBUG: Bits per color channel: {colorInfo.bitsPerColorChannel}");
+                        
+                        var flags = colorInfo.values;
+                        bool isSupported = (flags & DISPLAYCONFIG_ADVANCED_COLOR_INFO_FLAGS.AdvancedColorSupported) != 0;
+                        bool isEnabled = (flags & DISPLAYCONFIG_ADVANCED_COLOR_INFO_FLAGS.AdvancedColorEnabled) != 0;
+                        bool isWideColorEnforced = (flags & DISPLAYCONFIG_ADVANCED_COLOR_INFO_FLAGS.WideColorEnforced) != 0;
+                        bool isForceDisabled = (flags & DISPLAYCONFIG_ADVANCED_COLOR_INFO_FLAGS.AdvancedColorForceDisabled) != 0;
+                        
+                        logger.Debug($"HDR DEBUG: Flag breakdown - Supported: {isSupported}, Enabled: {isEnabled}, WideColor: {isWideColorEnforced}, ForceDisabled: {isForceDisabled}");
+                        logger.Debug($"HDR DEBUG: Color encoding check (YCbCr444 = HDR active): {colorInfo.colorEncoding == DISPLAYCONFIG_COLOR_ENCODING.DISPLAYCONFIG_COLOR_ENCODING_YCBCR444}");
+                        
+                        // Final decision: supported if flag is set and not force disabled
+                        bool finalSupported = isSupported && !isForceDisabled;
+                        // Final decision: enabled if flag is set or force disabled but we see YCbCr444 (some systems don't set the enabled flag correctly)
+                        bool finalEnabled = isEnabled || (finalSupported && colorInfo.colorEncoding == DISPLAYCONFIG_COLOR_ENCODING.DISPLAYCONFIG_COLOR_ENCODING_YCBCR444);
+                        
+                        logger.Debug($"HDR DEBUG: Final decisions - Supported: {finalSupported}, Enabled: {finalEnabled}");
+                        
+                        displayConfig.IsHdrSupported = finalSupported;
+                        displayConfig.IsHdrEnabled = finalEnabled;
+                        displayConfig.ColorEncoding = colorInfo.colorEncoding;
+                        displayConfig.BitsPerColorChannel = (uint)colorInfo.bitsPerColorChannel;
+                        
+                        logger.Info($"HDR INFO: {displayConfig.DeviceName} - HDR Supported: {finalSupported}, HDR Enabled: {finalEnabled}, Encoding: {colorInfo.colorEncoding}, BitsPerChannel: {colorInfo.bitsPerColorChannel}");
+                    }
+                    else
+                    {
+                        logger.Warn($"HDR DEBUG: Failed to get HDR info for {displayConfig.DeviceName}: error code {result}");
+                        
+                        // Detailed error logging
+                        switch (result)
+                        {
+                            case ERROR_INVALID_PARAMETER:
+                                logger.Warn("HDR DEBUG: ERROR_INVALID_PARAMETER - The parameter is incorrect");
+                                break;
+                            case ERROR_GEN_FAILURE:
+                                logger.Warn("HDR DEBUG: ERROR_GEN_FAILURE - A device attached to the system is not functioning");
+                                break;
+                            default:
+                                logger.Warn($"HDR DEBUG: Unknown error code: {result}");
+                                break;
+                        }
+                        
+                        logger.Warn("HDR DEBUG: Alternative method also failed - setting defaults");
+                        displayConfig.IsHdrSupported = false;
+                        displayConfig.IsHdrEnabled = false;
+                    }
+
                     // Get resolution and refresh rate if display is active
                     if (displayConfig.IsEnabled && path.sourceInfo.modeInfoIdx != DISPLAYCONFIG_PATH_MODE_IDX_INVALID)
                     {
@@ -427,6 +556,7 @@ namespace DisplayProfileManager.Helpers
                             displayConfig.Height = (int)sourceMode.modeInfo.sourceMode.height;
                             displayConfig.DisplayPositionX = sourceMode.modeInfo.sourceMode.position.x;
                             displayConfig.DisplayPositionY = sourceMode.modeInfo.sourceMode.position.y;
+                            displayConfig.Rotation = (DISPLAYCONFIG_ROTATION)path.targetInfo.rotation;
                         }
                     }
 
@@ -513,17 +643,22 @@ namespace DisplayProfileManager.Helpers
                 // Update path flags based on topology settings
                 foreach (var displayInfo in displayConfigs)
                 {
-                    var foundPathIndex = Array.FindIndex(paths, 
+                    var foundPathIndex = Array.FindIndex(paths,
                         x => (x.targetInfo.id == displayInfo.TargetId) && (x.sourceInfo.id == displayInfo.SourceId));
+
+                    if (foundPathIndex == -1)
+                    {
+                        logger.Warn($"Could not find path for display {displayInfo.DeviceName} (TargetId: {displayInfo.TargetId}, SourceId: {displayInfo.SourceId})");
+                        continue;
+                    }
 
                     if (displayInfo.IsEnabled)
                     {
-                        // Enable the display
                         paths[foundPathIndex].flags |= (uint)DisplayConfigPathInfoFlags.DISPLAYCONFIG_PATH_ACTIVE;
+                        paths[foundPathIndex].targetInfo.rotation = (uint)displayInfo.Rotation;
                     }
                     else
                     {
-                        // Disable the display
                         paths[foundPathIndex].flags &= ~(uint)DisplayConfigPathInfoFlags.DISPLAYCONFIG_PATH_ACTIVE;
                     }
 
@@ -641,6 +776,85 @@ namespace DisplayProfileManager.Helpers
             catch (Exception ex)
             {
                 logger.Error(ex, "Error applying display topology");
+                return false;
+            }
+        }
+
+        public static bool ApplyPartialDisplayTopology(List<DisplayConfigInfo> partialConfig)
+        {
+            try
+            {
+                logger.Info($"Applying partial display topology for {partialConfig.Count} displays.");
+
+                uint pathCount = 0;
+                uint modeCount = 0;
+
+                int result = GetDisplayConfigBufferSizes(QueryDisplayConfigFlags.QDC_ALL_PATHS, out pathCount, out modeCount);
+                if (result != ERROR_SUCCESS)
+                {
+                    logger.Error($"GetDisplayConfigBufferSizes failed with error: {result}");
+                    return false;
+                }
+
+                var paths = new DISPLAYCONFIG_PATH_INFO[pathCount];
+                var modes = new DISPLAYCONFIG_MODE_INFO[modeCount];
+
+                result = QueryDisplayConfig(QueryDisplayConfigFlags.QDC_ALL_PATHS, ref pathCount, paths, ref modeCount, modes, IntPtr.Zero);
+                if (result != ERROR_SUCCESS)
+                {
+                    logger.Error($"QueryDisplayConfig failed with error: {result}");
+                    return false;
+                }
+
+                // Modify only the paths specified in the partialConfig
+                foreach (var displayInfo in partialConfig)
+                {
+                    var foundPathIndex = Array.FindIndex(paths,
+                        x => (x.targetInfo.id == displayInfo.TargetId) && (x.sourceInfo.id == displayInfo.SourceId));
+
+                    if (foundPathIndex == -1)
+                    {
+                        logger.Warn($"Could not find path for display {displayInfo.DeviceName} in partial application. Skipping.");
+                        continue;
+                    }
+
+                    if (displayInfo.IsEnabled)
+                    {
+                        paths[foundPathIndex].flags |= (uint)DisplayConfigPathInfoFlags.DISPLAYCONFIG_PATH_ACTIVE;
+                        paths[foundPathIndex].targetInfo.rotation = (uint)displayInfo.Rotation;
+                    }
+                    else
+                    {
+                        paths[foundPathIndex].flags &= ~(uint)DisplayConfigPathInfoFlags.DISPLAYCONFIG_PATH_ACTIVE;
+                    }
+
+                    logger.Debug($"Partially updating TargetId {displayInfo.TargetId} flags to: 0x{paths[foundPathIndex].flags:X}");
+                }
+
+                // NOTE: We do NOT disable unspecified monitors here. That is the key difference.
+
+                result = SetDisplayConfig(
+                    pathCount,
+                    paths,
+                    modeCount,
+                    modes,
+                    SetDisplayConfigFlags.SDC_APPLY |
+                    SetDisplayConfigFlags.SDC_USE_SUPPLIED_DISPLAY_CONFIG |
+                    SetDisplayConfigFlags.SDC_ALLOW_CHANGES |
+                    SetDisplayConfigFlags.SDC_SAVE_TO_DATABASE);
+
+                if (result != ERROR_SUCCESS)
+                {
+                    logger.Error($"SetDisplayConfig failed during partial application with error: {result}");
+                    return false;
+                }
+
+                logger.Info("Partial display topology applied successfully.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex, "Error applying partial display topology");
                 return false;
             }
         }
@@ -893,6 +1107,110 @@ namespace DisplayProfileManager.Helpers
                 return false;
             }
         }
+
+
+        public static bool SetHdrState(LUID adapterId, uint targetId, bool enableHdr)
+        {
+            try
+            {
+                var colorState = new DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE();
+                colorState.header.type = DisplayConfigDeviceInfoType.DISPLAYCONFIG_DEVICE_INFO_SET_ADVANCED_COLOR_STATE;
+                colorState.header.size = (uint)Marshal.SizeOf(typeof(DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE));
+                colorState.header.adapterId = adapterId;
+                colorState.header.id = targetId;
+
+                if (enableHdr)
+                {
+                    colorState.values = DISPLAYCONFIG_SET_ADVANCED_COLOR_FLAGS.EnableAdvancedColor;
+                }
+                else
+                {
+                    colorState.values = (DISPLAYCONFIG_SET_ADVANCED_COLOR_FLAGS)0;
+                }
+
+                int result = DisplayConfigSetDeviceInfo(ref colorState);
+                if (result == ERROR_SUCCESS)
+                {
+                    logger.Info($"Successfully set HDR state to {enableHdr} for target {targetId}");
+                    return true;
+                }
+                else
+                {
+                    logger.Error($"Failed to set HDR state for target {targetId}: error {result}");
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex, $"Error setting HDR state for target {targetId}");
+                return false;
+            }
+        }
+
+        public static bool ApplyHdrSettings(List<DisplayConfigInfo> displayConfigs)
+        {
+            bool allSuccessful = true;
+            logger.Info($"HDR APPLY: Starting to apply HDR settings for {displayConfigs.Count} displays");
+
+            foreach (var display in displayConfigs)
+            {
+                logger.Debug($"HDR APPLY: Processing {display.DeviceName}:");
+                logger.Debug($"HDR APPLY:   IsHdrSupported: {display.IsHdrSupported}");
+                logger.Debug($"HDR APPLY:   IsHdrEnabled: {display.IsHdrEnabled}");
+                logger.Debug($"HDR APPLY:   IsEnabled: {display.IsEnabled}");
+                logger.Debug($"HDR APPLY:   TargetId: {display.TargetId}");
+
+                if (display.IsHdrSupported && display.IsEnabled)
+                {
+                    logger.Info($"HDR APPLY: Applying HDR state {display.IsHdrEnabled} to {display.DeviceName}");
+                    bool success = SetHdrState(display.AdapterId, display.TargetId, display.IsHdrEnabled);
+                    if (!success)
+                    {
+                        allSuccessful = false;
+                        logger.Error($"HDR APPLY: Failed to apply HDR setting for {display.DeviceName}");
+                    }
+                    else
+                    {
+                        logger.Info($"HDR APPLY: Successfully applied HDR setting for {display.DeviceName}");
+                    }
+                }
+                else if (!display.IsHdrSupported)
+                {
+                    logger.Debug($"HDR APPLY: Skipping {display.DeviceName} - HDR not supported");
+                }
+                else if (!display.IsEnabled)
+                {
+                    logger.Debug($"HDR APPLY: Skipping {display.DeviceName} - display not enabled");
+                }
+            }
+
+            logger.Info($"HDR APPLY: Completed HDR settings application. Success: {allSuccessful}");
+            return allSuccessful;
+        }
+
+        public static LUID GetLUIDFromString(string adapterIdString)
+        {
+            if (!string.IsNullOrEmpty(adapterIdString) && adapterIdString.Length == 16)
+            {
+                try
+                {
+                    var highPart = Convert.ToInt32(adapterIdString.Substring(0, 8), 16);
+                    var lowPart = Convert.ToUInt32(adapterIdString.Substring(8, 8), 16);
+                    return new LUID
+                    {
+                        HighPart = highPart,
+                        LowPart = lowPart
+                    };
+                }
+                catch (Exception ex)
+                {
+                    logger.Warn(ex, $"Failed to parse AdapterId '{adapterIdString}'");
+                }
+            }
+            return new LUID { HighPart = 0, LowPart = 0 };
+        }
+
+
 
         #endregion
     }

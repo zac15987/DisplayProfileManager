@@ -322,6 +322,76 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- Display Configuration Section -->
+                    <Border Background="{DynamicResource ContentBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBlock Text="Display Configuration" Style="{StaticResource SectionHeaderStyle}"/>
+                            
+                            <CheckBox Name="UseStagedApplicationCheckBox" Content="Use staged application for multi-monitor profiles" 
+                                      Style="{StaticResource ModernCheckBoxStyle}"
+                                      Checked="UseStagedApplicationCheckBox_Changed"
+                                      Unchecked="UseStagedApplicationCheckBox_Changed"/>
+                            
+                            <TextBlock Style="{StaticResource ModernTextBlockStyle}" 
+                                       FontSize="11" 
+                                       Foreground="{DynamicResource TertiaryTextBrush}" 
+                                       Margin="20,0,0,8"
+                                       TextWrapping="Wrap">
+                                Applies complex configurations in phases to avoid errors when switching to multi-monitor profiles with HDR or high refresh rates.
+                            </TextBlock>
+                            
+                            <StackPanel Name="PauseDurationPanel" Margin="0,8,0,0">
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="Opacity" Value="1"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding ElementName=UseStagedApplicationCheckBox, Path=IsChecked}" Value="False">
+                                                <Setter Property="Opacity" Value="0.4"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+                                
+                                <TextBlock Text="Pause duration between application phases:" 
+                                           Style="{StaticResource LabelTextBlockStyle}" 
+                                           Margin="0,0,0,4"
+                                           IsEnabled="{Binding ElementName=UseStagedApplicationCheckBox, Path=IsChecked}"/>
+                                <Grid Margin="20,0,0,0" IsEnabled="{Binding ElementName=UseStagedApplicationCheckBox, Path=IsChecked}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="60"/>
+                                    </Grid.ColumnDefinitions>
+                                    
+                                    <Slider Name="StagedApplicationPauseSlider" 
+                                            Grid.Column="0"
+                                            Minimum="1" 
+                                            Maximum="5000" 
+                                            Value="1000"
+                                            TickFrequency="100"
+                                            IsSnapToTickEnabled="True"
+                                            ValueChanged="StagedApplicationPauseSlider_ValueChanged"
+                                            Margin="0,0,8,0"/>
+                                    
+                                    <TextBlock Name="PauseDurationTextBlock" 
+                                               Grid.Column="1"
+                                               Text="1000ms" 
+                                               Style="{StaticResource ModernTextBlockStyle}" 
+                                               VerticalAlignment="Center" 
+                                               HorizontalAlignment="Right"/>
+                                </Grid>
+                                
+                                <TextBlock Style="{StaticResource ModernTextBlockStyle}" 
+                                           FontSize="11" 
+                                           Foreground="{DynamicResource TertiaryTextBrush}" 
+                                           Margin="20,4,0,0"
+                                           TextWrapping="Wrap"
+                                           IsEnabled="{Binding ElementName=UseStagedApplicationCheckBox, Path=IsChecked}">
+                                    Higher values provide more stability for complex configurations but slower profile switching.
+                                </TextBlock>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
                     <!-- Global Hotkeys Section -->
                     <Border Background="{DynamicResource ContentBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,0,16">
                         <StackPanel>

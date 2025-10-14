@@ -19,6 +19,7 @@ namespace DisplayProfileManager.UI.Windows
         private readonly ProfileManager _profileManager;
         private readonly AutoStartHelper _autoStartHelper;
         private bool _isLoadingSettings;
+        private System.Threading.Timer _pauseDurationSaveTimer;
 
         public SettingsWindow()
         {
@@ -77,6 +78,11 @@ namespace DisplayProfileManager.UI.Windows
                 
                 // Notifications settings
                 ShowNotificationsCheckBox.IsChecked = settings.ShowNotifications;
+                
+                // Display configuration settings
+                UseStagedApplicationCheckBox.IsChecked = settings.UseStagedApplication;
+                StagedApplicationPauseSlider.Value = settings.StagedApplicationPauseMs;
+                PauseDurationTextBlock.Text = $"{settings.StagedApplicationPauseMs}ms";
                 
                 // Global hotkeys settings
                 RefreshHotkeyList();
@@ -334,6 +340,58 @@ namespace DisplayProfileManager.UI.Windows
             
             var isChecked = ShowNotificationsCheckBox.IsChecked ?? false;
             await _settingsManager.SetNotificationsAsync(isChecked);
+        }
+
+        private async void UseStagedApplicationCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_isLoadingSettings || _settingsManager == null) return;
+            
+            try
+            {
+                var isChecked = UseStagedApplicationCheckBox.IsChecked ?? false;
+                await _settingsManager.SetUseStagedApplicationAsync(isChecked);
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex, "Error updating staged application setting");
+            }
+        }
+
+        private void StagedApplicationPauseSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_isLoadingSettings || _settingsManager == null) return;
+            
+            var value = (int)e.NewValue;
+            if (PauseDurationTextBlock != null)
+            {
+                PauseDurationTextBlock.Text = $"{value}ms";
+            }
+            
+            // Only save the value if staged application is enabled
+            if (UseStagedApplicationCheckBox?.IsChecked == true)
+            {
+                // Cancel previous timer if it exists
+                _pauseDurationSaveTimer?.Dispose();
+                
+                // Start new timer with 500ms delay (debounce)
+                _pauseDurationSaveTimer = new System.Threading.Timer(async _ =>
+                {
+                    try
+                    {
+                        await _settingsManager.SetStagedApplicationPauseMsAsync(value);
+                        logger.Debug($"Staged application pause duration saved: {value}ms");
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.Error(ex, "Error updating staged application pause duration");
+                    }
+                    finally
+                    {
+                        _pauseDurationSaveTimer?.Dispose();
+                        _pauseDurationSaveTimer = null;
+                    }
+                }, null, 500, System.Threading.Timeout.Infinite);
+            }
         }
 
         private void RefreshHotkeyList()
@@ -916,6 +974,27 @@ namespace DisplayProfileManager.UI.Windows
 
         protected override void OnClosed(EventArgs e)
         {
+            // Dispose timer and save any pending changes
+            if (_pauseDurationSaveTimer != null)
+            {
+                _pauseDurationSaveTimer.Dispose();
+                _pauseDurationSaveTimer = null;
+                
+                // Save the final value if staged application is enabled
+                if (UseStagedApplicationCheckBox?.IsChecked == true && StagedApplicationPauseSlider != null)
+                {
+                    try
+                    {
+                        var value = (int)StagedApplicationPauseSlider.Value;
+                        _settingsManager.SetStagedApplicationPauseMsAsync(value).Wait(1000); // Wait max 1 second
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.Error(ex, "Error saving final staged application pause duration on window close");
+                    }
+                }
+            }
+            
             base.OnClosed(e);
         }
     }

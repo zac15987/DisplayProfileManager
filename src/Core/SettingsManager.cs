@@ -52,6 +52,12 @@ namespace DisplayProfileManager.Core
         [JsonProperty("currentProfileId")]
         public string CurrentProfileId { get; set; } = string.Empty;
 
+        [JsonProperty("useStagedApplication")]
+        public bool UseStagedApplication { get; set; } = false;
+
+        [JsonProperty("stagedApplicationPauseMs")]
+        public int StagedApplicationPauseMs { get; set; } = 1000;
+
         [JsonProperty("lastUpdated")]
         public DateTime LastUpdated { get; set; } = DateTime.Now;
     }
@@ -456,6 +462,30 @@ namespace DisplayProfileManager.Core
         public async Task<bool> SetCurrentProfileIdAsync(string profileId)
         {
             _settings.CurrentProfileId = profileId;
+            return await SaveSettingsAsync();
+        }
+
+        public bool ShouldUseStagedApplication()
+        {
+            return _settings.UseStagedApplication;
+        }
+
+        public async Task<bool> SetUseStagedApplicationAsync(bool useStagedApplication)
+        {
+            _settings.UseStagedApplication = useStagedApplication;
+            return await SaveSettingsAsync();
+        }
+
+        public int GetStagedApplicationPauseMs()
+        {
+            return _settings.StagedApplicationPauseMs;
+        }
+
+        public async Task<bool> SetStagedApplicationPauseMsAsync(int pauseMs)
+        {
+            // Clamp value between 1 and 5000
+            pauseMs = Math.Max(1, Math.Min(5000, pauseMs));
+            _settings.StagedApplicationPauseMs = pauseMs;
             return await SaveSettingsAsync();
         }
 
