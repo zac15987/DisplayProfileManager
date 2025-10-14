@@ -25,6 +25,9 @@ A lightweight Windows desktop application for managing display profiles with qui
 - 🖥️ **Primary Display Management** - Control which monitor is set as primary
 - 📋 **Profile Duplication** - Quickly duplicate existing profiles for easy modifications
 - 🔍 **Monitor Identification Overlay** - Visual overlay to identify monitors during configuration
+- 🎨 **HDR Support** - Enable/disable High Dynamic Range for HDR-capable displays
+- 🔄 **Screen Rotation Control** - Configure screen orientation (0°, 90°, 180°, 270°) per monitor
+- ⚙️ **Staged Application Mode** - Optional two-phase settings application for enhanced stability on complex multi-monitor setups
 
 ## 📸 Screenshots
 
@@ -36,7 +39,7 @@ A lightweight Windows desktop application for managing display profiles with qui
 
 ### Profile Editor
 
-*Configure resolution, refresh rate, DPI settings for each monitor, hotkey, and audio device preferences*
+*Configure resolution, refresh rate, HDR, rotation, DPI settings for each monitor, hotkey, and audio device preferences*
 
 ![Profile Editor](docs/screenshots/edit-screen.png)
 ![Profile Editor](docs/screenshots/edit-screen2.png)
@@ -75,7 +78,7 @@ A lightweight Windows desktop application for managing display profiles with qui
 ### Creating a Profile
 1. Right-click the system tray icon and select "Manage Profiles"
 2. Click "Add New Profile"
-3. Configure your desired resolution, refresh rate, and DPI settings for each monitor
+3. Configure your desired resolution, refresh rate, HDR, rotation, and DPI settings for each monitor
 4. Optionally select default playback and recording audio devices for the profile
 5. Choose which audio devices to apply (playback, recording, or both) using the checkboxes
 6. Click "Save" to store the profile
@@ -91,6 +94,9 @@ A lightweight Windows desktop application for managing display profiles with qui
   - **Task Scheduler Mode**: Requires admin for initial setup, provides faster launch times
 - Choose your default profile to apply on Windows startup
 - Toggle between light, dark or system themes
+- Configure advanced display settings:
+  - **Staged Application Mode**: Enable two-phase profile application for complex multi-monitor setups (improves stability)
+  - **Application Pause Duration**: Adjust the delay between phases (1-5000ms)
 
 ## 🛠️ Development
 
@@ -164,7 +170,7 @@ DisplayProfileManager/
 - **Logs**: `%AppData%\DisplayProfileManager\Logs\` (NLog with daily rotation, 30-day retention)
 
 **APIs & Libraries**
-- **Display Management**: Windows Display Configuration APIs via P/Invoke
+- **Display Management**: Windows Display Configuration APIs (SetDisplayConfig) via P/Invoke for atomic topology changes
 - **Audio Management**: AudioSwitcher.AudioApi for device control
 - **Logging**: NLog for structured logging with automatic daily file rotation
 - **Serialization**: Newtonsoft.Json for profile and settings persistence
@@ -226,6 +232,7 @@ For detailed license information about third-party dependencies, see [THIRD-PART
 - [@Alienmario](https://github.com/Alienmario) - Recommended AudioSwitcher.AudioApi library, suggested per-device "Don't change" options ([#1](https://github.com/zac15987/DisplayProfileManager/issues/1)), and reported multi-monitor switching issues ([#5](https://github.com/zac15987/DisplayProfileManager/issues/5))
 - [@anodynos](https://github.com/anodynos) - Suggested global hotkey functionality for quick profile switching ([#2](https://github.com/zac15987/DisplayProfileManager/issues/2))
 - [@xtrilla](https://github.com/xtrilla) - Requested monitor disable/enable feature for selective display control ([#4](https://github.com/zac15987/DisplayProfileManager/issues/4))
+- [@jarandal](https://github.com/jarandal) - Implemented HDR support, screen rotation control, and Staged Application mode with enhanced display configuration engine ([#8](https://github.com/zac15987/DisplayProfileManager/pull/8))
 - The open-source community for inspiration and support
 
 ---
