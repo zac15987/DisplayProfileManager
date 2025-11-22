@@ -58,20 +58,56 @@ namespace DisplayProfileManager.UI.Windows
             }
         }
 
+        private void LoadDisplaySettings(List<DisplaySetting> settings)
+        {
+            DisplaySettingsPanel.Children.Clear();
+            _displayControls.Clear();
+
+            if (settings.Count == 0)
+                return;
+
+            // Use helper to group displays
+            var displayGroups = DisplayGroupingHelper.GroupDisplaysForUI(settings);
+            var cloneGroupCount = displayGroups.Count(g => g.IsCloneGroup);
+
+            var logger = LoggerHelper.GetLogger();
+            if (cloneGroupCount > 0)
+            {
+                var cloneGroupDisplayCount = displayGroups.Where(g => g.IsCloneGroup).Sum(g => g.AllMembers.Count);
+                logger.Info($"Loading {settings.Count} displays with {cloneGroupCount} clone group(s)");
+            }
+
+            int monitorIndex = 1;
+            foreach (var group in displayGroups)
+            {
+                AddDisplaySettingControl(
+                    group.RepresentativeSetting, 
+                    monitorIndex, 
+                    isCloneGroup: group.IsCloneGroup, 
+                    cloneGroupMembers: group.AllMembers);
+                monitorIndex++;
+            }
+
+            if (cloneGroupCount > 0)
+            {
+                var cloneGroupDisplayCount = displayGroups.Where(g => g.IsCloneGroup).Sum(g => g.AllMembers.Count);
+                StatusTextBlock.Text = $"Loaded {_displayControls.Count} display(s) " +
+                                     $"({cloneGroupCount} clone group(s) with {cloneGroupDisplayCount} displays)";
+            }
+            else
+            {
+                StatusTextBlock.Text = $"Loaded {settings.Count} display(s)";
+            }
+        }
+
         private void PopulateFields()
         {
             ProfileNameTextBox.Text = _profile.Name;
             ProfileDescriptionTextBox.Text = _profile.Description;
             DefaultProfileCheckBox.IsChecked = _profile.IsDefault;
 
-            if (_profile.DisplaySettings.Count > 0)
-            {
-                DisplaySettingsPanel.Children.Clear();
-                foreach (var setting in _profile.DisplaySettings)
-                {
-                    AddDisplaySettingControl(setting);
-                }
-            }
+            // Load display settings using shared method
+            LoadDisplaySettings(_profile.DisplaySettings);
 
             // Initialize hotkey configuration
             if (_profile.HotkeyConfig != null)
@@ -100,9 +136,6 @@ namespace DisplayProfileManager.UI.Windows
 
                 var currentSettings = await _profileManager.GetCurrentDisplaySettingsAsync();
 
-                DisplaySettingsPanel.Children.Clear();
-                _displayControls.Clear();
-
                 // Ensure at least one monitor is marked as primary
                 bool hasPrimary = currentSettings.Any(s => s.IsPrimary && s.IsEnabled);
                 if (!hasPrimary)
@@ -115,12 +148,12 @@ namespace DisplayProfileManager.UI.Windows
                     }
                 }
 
-                foreach (var setting in currentSettings)
-                {
-                    AddDisplaySettingControl(setting);
-                }
-
-                StatusTextBlock.Text = $"Detected {currentSettings.Count} display(s)";
+                // Load display settings using shared method
+                LoadDisplaySettings(currentSettings);
+                
+                var logger = LoggerHelper.GetLogger();
+                logger.Info($"Detect Current: {currentSettings.Count} physical displays detected, " +
+                          $"{_displayControls.Count} controls created");
             }
             catch (Exception ex)
             {
@@ -134,7 +167,8 @@ namespace DisplayProfileManager.UI.Windows
             }
         }
 
-        private void AddDisplaySettingControl(DisplaySetting setting)
+        private void AddDisplaySettingControl(DisplaySetting setting, int monitorIndex = 0,
+            bool isCloneGroup = false, List<DisplaySetting> cloneGroupMembers = null)
         {
             if (DisplaySettingsPanel.Children.Count == 1 &&
                 DisplaySettingsPanel.Children[0] is TextBlock)
@@ -142,9 +176,13 @@ namespace DisplayProfileManager.UI.Windows
                 DisplaySettingsPanel.Children.Clear();
             }
 
-            // Calculate monitor index (1-based)
-            int monitorIndex = _displayControls.Count + 1;
-            var control = new DisplaySettingControl(setting, monitorIndex);
+            // Calculate monitor index if not provided (1-based)
+            if (monitorIndex == 0)
+            {
+                monitorIndex = _displayControls.Count + 1;
+            }
+            
+            var control = new DisplaySettingControl(setting, monitorIndex, isCloneGroup, cloneGroupMembers);
             _displayControls.Add(control);
             DisplaySettingsPanel.Children.Add(control);
         }
@@ -166,8 +204,8 @@ namespace DisplayProfileManager.UI.Windows
                     {
                         foreach (var control in _displayControls)
                         {
-                            var setting = control.GetDisplaySetting();
-                            if (setting != null)
+                            var settings = control.GetDisplaySettings();
+                            foreach (var setting in settings)
                             {
                                 displaySettings.Add(setting);
                             }
@@ -241,8 +279,8 @@ namespace DisplayProfileManager.UI.Windows
 
                 foreach (var control in _displayControls)
                 {
-                    var setting = control.GetDisplaySetting();
-                    if (setting != null)
+                    var settings = control.GetDisplaySettings();
+                    foreach (var setting in settings)
                     {
                         _profile.DisplaySettings.Add(setting);
                     }
@@ -739,20 +777,21 @@ namespace DisplayProfileManager.UI.Windows
         private CheckBox _enabledCheckBox;
         private CheckBox _hdrCheckBox;
         private ComboBox _rotationComboBox;
+        private List<DisplaySetting> _cloneGroupMembers;
+        private bool _isCloneGroup;
 
-        public DisplaySettingControl(DisplaySetting setting, int monitorIndex = 1)
+        public DisplaySettingControl(DisplaySetting setting, int monitorIndex = 1, 
+            bool isCloneGroup = false, List<DisplaySetting> cloneGroupMembers = null)
         {
             setting.UpdateDeviceNameFromWMI();
 
             _setting = setting;
             _monitorIndex = monitorIndex;
+            _isCloneGroup = isCloneGroup;
+            _cloneGroupMembers = cloneGroupMembers ?? new List<DisplaySetting> { setting };
             
             // Debug logging for HDR state
             var logger = LoggerHelper.GetLogger();
-            logger.Debug($"UI CONTROL DEBUG: Creating DisplaySettingControl for {setting.DeviceName}:");
-            logger.Debug($"UI CONTROL DEBUG:   IsHdrSupported: {setting.IsHdrSupported}");
-            logger.Debug($"UI CONTROL DEBUG:   IsHdrEnabled: {setting.IsHdrEnabled}");
-            logger.Debug($"UI CONTROL DEBUG:   MonitorIndex: {monitorIndex}");
             
             InitializeControl();
         }
@@ -767,9 +806,11 @@ namespace DisplayProfileManager.UI.Windows
             headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
+            string headerTextString = $"Monitor {_monitorIndex}";
+            
             var headerText = new TextBlock
             {
-                Text = $"Monitor {_monitorIndex}",
+                Text = headerTextString,
                 FontWeight = FontWeights.Medium,
                 FontSize = 14,
                 Margin = new Thickness(0, 0, 0, 8),
@@ -900,12 +941,6 @@ namespace DisplayProfileManager.UI.Windows
             var hdrPanel = new StackPanel { VerticalAlignment = VerticalAlignment.Bottom };
             
             var logger = LoggerHelper.GetLogger();
-            logger.Debug($"UI CONTROL DEBUG: Initializing HDR checkbox for {_setting.DeviceName}:");
-            logger.Debug($"UI CONTROL DEBUG:   Setting IsHdrSupported: {_setting.IsHdrSupported}");
-            logger.Debug($"UI CONTROL DEBUG:   Setting IsHdrEnabled: {_setting.IsHdrEnabled}");
-            logger.Debug($"UI CONTROL DEBUG:   Checkbox will be checked: {_setting.IsHdrEnabled && _setting.IsHdrSupported}");
-            logger.Debug($"UI CONTROL DEBUG:   Checkbox will be enabled: {_setting.IsHdrSupported}");
-            
             _hdrCheckBox = new CheckBox
             {
                 Content = _setting.IsHdrSupported ? "HDR" : "HDR (Not Supported)",
@@ -918,7 +953,6 @@ namespace DisplayProfileManager.UI.Windows
                     "This monitor does not support HDR"
             };
             
-            logger.Debug($"UI CONTROL DEBUG: HDR checkbox created - IsChecked: {_hdrCheckBox.IsChecked}, IsEnabled: {_hdrCheckBox.IsEnabled}");
             
             _hdrCheckBox.Checked += HdrCheckBox_CheckedChanged;
             _hdrCheckBox.Unchecked += HdrCheckBox_CheckedChanged;
@@ -1163,13 +1197,36 @@ namespace DisplayProfileManager.UI.Windows
 
         private void PopulateDeviceComboBox()
         {
-            _deviceTextBox.Text = _setting.ReadableDeviceName;
-            _deviceTextBox.Tag = _setting.DeviceName;
-            _deviceTextBox.ToolTip = 
-                $"Name: {_setting.ReadableDeviceName}\n" +
-                $"Device Name: {_setting.DeviceName}\n" +
-                $"Target ID: {_setting.TargetId}\n" +
-                $"EDID: {_setting.ManufacturerName}-{_setting.ProductCodeID}-{_setting.SerialNumberID}";
+            if (_isCloneGroup && _cloneGroupMembers.Count > 1)
+            {
+                // For clone groups, show all members on separate lines
+                _deviceTextBox.Text = string.Join(Environment.NewLine, _cloneGroupMembers.Select(m => m.ReadableDeviceName));
+                _deviceTextBox.Tag = _setting.DeviceName;
+                _deviceTextBox.AcceptsReturn = true;
+                _deviceTextBox.TextWrapping = TextWrapping.Wrap;
+                
+                // Tooltip shows details for all members
+                var tooltipLines = new List<string> { "Clone Group Members:" };
+                foreach (var member in _cloneGroupMembers)
+                {
+                    tooltipLines.Add($"\n{member.ReadableDeviceName}:");
+                    tooltipLines.Add($"  Device: {member.DeviceName}");
+                    tooltipLines.Add($"  Target ID: {member.TargetId}");
+                    tooltipLines.Add($"  EDID: {member.ManufacturerName}-{member.ProductCodeID}-{member.SerialNumberID}");
+                }
+                _deviceTextBox.ToolTip = string.Join("\n", tooltipLines);
+            }
+            else
+            {
+                // Single display
+                _deviceTextBox.Text = _setting.ReadableDeviceName;
+                _deviceTextBox.Tag = _setting.DeviceName;
+                _deviceTextBox.ToolTip = 
+                    $"Name: {_setting.ReadableDeviceName}\n" +
+                    $"Device Name: {_setting.DeviceName}\n" +
+                    $"Target ID: {_setting.TargetId}\n" +
+                    $"EDID: {_setting.ManufacturerName}-{_setting.ProductCodeID}-{_setting.SerialNumberID}";
+            }
         }
 
         private void ResolutionComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -1213,10 +1270,12 @@ namespace DisplayProfileManager.UI.Windows
             }
         }
 
-        public DisplaySetting GetDisplaySetting()
+        public List<DisplaySetting> GetDisplaySettings()
         {
+            var settings = new List<DisplaySetting>();
+            
             if (_resolutionComboBox.SelectedItem == null || _dpiComboBox.SelectedItem == null || _refreshRateComboBox.SelectedItem == null)
-                return null;
+                return settings;
 
             var resolutionText = _resolutionComboBox.SelectedItem.ToString();
             var dpiText = _dpiComboBox.SelectedItem.ToString();
@@ -1224,10 +1283,10 @@ namespace DisplayProfileManager.UI.Windows
 
             // Handle both old format (with @ and Hz) and new format (just WIDTHxHEIGHT)
             var resolutionParts = resolutionText.Split('x');
-            if (resolutionParts.Length < 2) return null;
+            if (resolutionParts.Length < 2) return settings;
 
             if (!int.TryParse(resolutionParts[0], out int width))
-                return null;
+                return settings;
 
             // Extract height (might have @ and Hz suffix from old format)
             string heightPart = resolutionParts[1];
@@ -1237,45 +1296,67 @@ namespace DisplayProfileManager.UI.Windows
             }
 
             if (!int.TryParse(heightPart, out int height))
-                return null;
+                return settings;
 
             if (!uint.TryParse(dpiText.Replace("%", ""), out uint dpiScaling))
-                return null;
+                return settings;
 
             // Extract frequency from refresh rate text (remove Hz suffix)
             if (!int.TryParse(refreshRateText.Replace("Hz", ""), out int frequency))
                 frequency = 60; // Fallback to 60Hz
 
-            var deviceName = _deviceTextBox?.Tag?.ToString() ?? "";
-            var readableDeviceName = _deviceTextBox?.Text?.ToString() ?? "";
+            var rotation = _rotationComboBox.SelectedIndex + 1;
+            var isPrimary = _primaryCheckBox.IsChecked == true;
+            var isEnabled = _enabledCheckBox.IsChecked == true;
+            var isHdrEnabled = _hdrCheckBox.IsChecked == true;
 
-            return new DisplaySetting
+            // Create DisplaySetting for each member of clone group
+            bool isFirst = true;
+            foreach (var originalSetting in _cloneGroupMembers)
             {
-                DeviceName = deviceName,
-                DeviceString = _setting.DeviceString,
-                ReadableDeviceName = readableDeviceName,
-                Width = width,
-                Height = height,
-                Frequency = frequency,
-                DpiScaling = dpiScaling,
-                IsPrimary = _primaryCheckBox.IsChecked == true,
-                IsEnabled = _enabledCheckBox.IsChecked == true,
-                AdapterId = _setting.AdapterId,
-                SourceId = _setting.SourceId,
-                PathIndex = _setting.PathIndex,
-                TargetId = _setting.TargetId,
-                DisplayPositionX = _setting.DisplayPositionX,
-                DisplayPositionY = _setting.DisplayPositionY,
-                ManufacturerName = _setting.ManufacturerName,
-                ProductCodeID = _setting.ProductCodeID,
-                SerialNumberID = _setting.SerialNumberID,
-                AvailableResolutions = _setting.AvailableResolutions,
-                AvailableDpiScaling = _setting.AvailableDpiScaling,
-                AvailableRefreshRates = _setting.AvailableRefreshRates,
-                IsHdrSupported = _setting.IsHdrSupported,
-                IsHdrEnabled = _hdrCheckBox.IsChecked == true && _setting.IsHdrSupported,
-                Rotation = _rotationComboBox.SelectedIndex + 1 // Convert from index (0-3) to enum value (1-4)
-            };
+                var displaySetting = new DisplaySetting
+                {
+                    // Copy identification from original
+                    DeviceName = originalSetting.DeviceName,
+                    DeviceString = originalSetting.DeviceString,
+                    ReadableDeviceName = originalSetting.ReadableDeviceName,
+                    AdapterId = originalSetting.AdapterId,
+                    SourceId = originalSetting.SourceId,
+                    TargetId = originalSetting.TargetId,
+                    PathIndex = originalSetting.PathIndex,
+                    ManufacturerName = originalSetting.ManufacturerName,
+                    ProductCodeID = originalSetting.ProductCodeID,
+                    SerialNumberID = originalSetting.SerialNumberID,
+                    CloneGroupId = originalSetting.CloneGroupId,
+                    
+                    // Apply common values from UI
+                    Width = width,
+                    Height = height,
+                    Frequency = frequency,
+                    DpiScaling = dpiScaling,
+                    Rotation = rotation,
+                    IsEnabled = isEnabled,
+                    IsHdrSupported = originalSetting.IsHdrSupported,
+                    IsHdrEnabled = isHdrEnabled && originalSetting.IsHdrSupported,
+                    
+                    // Clone group members share position
+                    DisplayPositionX = originalSetting.DisplayPositionX,
+                    DisplayPositionY = originalSetting.DisplayPositionY,
+                    
+                    // Primary flag only on first member
+                    IsPrimary = isFirst && isPrimary,
+                    
+                    // Capabilities
+                    AvailableResolutions = originalSetting.AvailableResolutions,
+                    AvailableDpiScaling = originalSetting.AvailableDpiScaling,
+                    AvailableRefreshRates = originalSetting.AvailableRefreshRates
+                };
+                
+                settings.Add(displaySetting);
+                isFirst = false;
+            }
+            
+            return settings;
         }
 
         public bool ValidateInput()
@@ -1421,5 +1502,66 @@ namespace DisplayProfileManager.UI.Windows
             }
         }
 
+    }
+
+    /// <summary>
+    /// Helper class for grouping displays for UI display
+    /// </summary>
+    public static class DisplayGroupingHelper
+    {
+        /// <summary>
+        /// Represents a display group (either a single display or a clone group)
+        /// </summary>
+        public class DisplayGroup
+        {
+            public DisplaySetting RepresentativeSetting { get; set; }
+            public List<DisplaySetting> AllMembers { get; set; }
+            public bool IsCloneGroup => AllMembers.Count > 1;
+        }
+
+        /// <summary>
+        /// Groups display settings by clone groups for UI display.
+        /// Clone groups are shown as single entries with multiple members.
+        /// </summary>
+        public static List<DisplayGroup> GroupDisplaysForUI(List<DisplaySetting> displaySettings)
+        {
+            var result = new List<DisplayGroup>();
+
+            // Group by CloneGroupId to identify clone groups
+            var cloneGroups = displaySettings
+                .Where(s => s.IsPartOfCloneGroup())
+                .GroupBy(s => s.CloneGroupId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            var processedCloneGroups = new HashSet<string>();
+
+            foreach (var setting in displaySettings)
+            {
+                // Skip if this is part of a clone group that we've already processed
+                if (setting.IsPartOfCloneGroup() && processedCloneGroups.Contains(setting.CloneGroupId))
+                {
+                    continue;
+                }
+
+                // Mark clone group as processed
+                if (setting.IsPartOfCloneGroup())
+                {
+                    processedCloneGroups.Add(setting.CloneGroupId);
+                }
+
+                // Get all members if this is a clone group
+                var members = setting.IsPartOfCloneGroup()
+                    ? cloneGroups[setting.CloneGroupId]
+                    : new List<DisplaySetting> { setting };
+
+                result.Add(new DisplayGroup
+                {
+                    RepresentativeSetting = setting,
+                    AllMembers = members
+                });
+            }
+
+            return result;
+        }
     }
 }
