@@ -5,6 +5,14 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Built with Claude Code](https://img.shields.io/badge/Built%20with-Claude%20Code-orange.svg)](https://claude.ai/code)
 
+---
+
+⚠️ Project Maintenance Notice
+
+Due to my current workload and academic commitments, I have limited time to actively maintain this project. Updates, responses, issue handling, and PR reviews may be slower than usual. Thank you for your understanding and patience — I will address everything as soon as my schedule allows.
+
+---
+
 A lightweight Windows desktop application for managing display profiles with quick switching from the system tray. Perfect for users who frequently change display settings for different tasks or setups.
 
 ## ✨ Features
