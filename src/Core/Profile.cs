@@ -144,6 +144,9 @@ namespace DisplayProfileManager.Core
         [JsonProperty("rotation")]
         public int Rotation { get; set; } = 1; // Default to IDENTITY (1)
 
+        [JsonProperty("cloneGroupId")]
+        public string CloneGroupId { get; set; } = string.Empty;
+
         public DisplaySetting()
         {
         }
@@ -165,15 +168,20 @@ namespace DisplayProfileManager.Core
             return $"{DeviceName}: {GetResolutionString()}, DPI: {GetDpiString()}, {hdrStatus} [{enabledStatus}]";
         }
 
-        public void UpdateDeviceNameFromWMI()
+        public void UpdateDeviceNameFromWMI(List<DisplayHelper.MonitorIdInfo> monitorIds = null)
         {
-            string resolvedDeviceName = DisplayHelper.GetDeviceNameFromWMIMonitorID(ManufacturerName, ProductCodeID, SerialNumberID);
+            string resolvedDeviceName = DisplayHelper.GetDeviceNameFromWMIMonitorID(ManufacturerName, ProductCodeID, SerialNumberID, monitorIds);
             if (string.IsNullOrEmpty(resolvedDeviceName))
             {
                 resolvedDeviceName = DeviceName;
             }
 
             DeviceName = resolvedDeviceName;
+        }
+
+        public bool IsPartOfCloneGroup()
+        {
+            return !string.IsNullOrEmpty(CloneGroupId);
         }
     }
 
