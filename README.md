@@ -7,9 +7,13 @@
 
 ---
 
-⚠️ Project Maintenance Notice
+⚠️ Project Maintenance Status
 
-Due to my current workload and academic commitments, I have limited time to actively maintain this project. Updates, responses, issue handling, and PR reviews may be slower than usual. Thank you for your understanding and patience — I will address everything as soon as my schedule allows.
+At this time, I will be pausing maintenance of this project for the time being due to personal reasons.
+
+Development progress, issue discussions, and pull request reviews may be slow or temporarily on hold. I will also keep an eye out for potential contributors who may be interested in helping with or continuing maintenance of the project.
+
+Thank you for your patience and for being part of this project. Your support means a great deal to me.
 
 ---
 
