@@ -1,0 +1,48 @@
+{
+  "app.title": "Display Profile Manager",
+
+  "menu.file": "Файл",
+  "menu.settings": "Настройки",
+  "menu.about": "О программе",
+  "menu.exit": "Выход",
+
+  "window.main.title": "Профили мониторов",
+  "window.settings.title": "Настройки",
+  "window.about.title": "О Display Profile Manager",
+
+  "button.apply": "Применить",
+  "button.ok": "OK",
+  "button.cancel": "Отмена",
+  "button.add": "Добавить",
+  "button.remove": "Удалить",
+  "button.edit": "Редактировать",
+  "button.close": "Закрыть",
+
+  "label.currentProfile": "Текущий профиль",
+  "label.display": "Монитор",
+  "label.resolution": "Разрешение",
+  "label.refreshRate": "Частота обновления",
+  "label.scaling": "Масштаб",
+  "label.colorDepth": "Глубина цвета",
+
+  "settings.language": "Язык",
+  "settings.startWithWindows": "Запускать вместе с Windows",
+  "settings.minimizeToTray": "Сворачивать в трей",
+  "settings.applyOnStartup": "Применять профиль при запуске",
+
+  "tray.show": "Открыть",
+  "tray.exit": "Выход",
+
+  "dialog.confirm.title": "Подтверждение",
+  "dialog.confirm.message": "Вы действительно хотите продолжить?",
+
+  "dialog.deleteProfile.title": "Удалить профиль",
+  "dialog.deleteProfile.message": "Вы действительно хотите удалить этот профиль?",
+
+  "status.ready": "Готово",
+  "status.profileApplied": "Профиль применён",
+
+  "error.generic": "Произошла непредвиденная ошибка",
+  "error.loadProfiles": "Не удалось загрузить профили",
+  "error.applyProfile": "Не удалось применить профиль"
+}

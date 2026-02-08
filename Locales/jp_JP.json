@@ -1,0 +1,48 @@
+{
+  "app.title": "Display Profile Manager",
+
+  "menu.file": "ファイル",
+  "menu.settings": "設定",
+  "menu.about": "Display Profile Managerについて",
+  "menu.exit": "終了",
+
+  "window.main.title": "表示プロファイル",
+  "window.settings.title": "設定",
+  "window.about.title": "Display Profile Managerについて",
+
+  "button.apply": "適用",
+  "button.ok": "OK",
+  "button.cancel": "キャンセル",
+  "button.add": "追加",
+  "button.remove": "削除",
+  "button.edit": "編集",
+  "button.close": "閉じる",
+
+  "label.currentProfile": "現在のプロファイル",
+  "label.display": "ディスプレイ",
+  "label.resolution": "解像度",
+  "label.refreshRate": "リフレッシュレート",
+  "label.scaling": "スケーリング",
+  "label.colorDepth": "色深度",
+
+  "settings.language": "言語",
+  "settings.startWithWindows": "自動起動",
+  "settings.minimizeToTray": "トレイに最小化",
+  "settings.applyOnStartup": "起動時にプロファイルを適用する",
+
+  "tray.show": "開く",
+  "tray.exit": "終了",
+
+  "dialog.confirm.title": "確認",
+  "dialog.confirm.message": "本当に続行しますか？",
+
+  "dialog.deleteProfile.title": "プロファイル削除",
+  "dialog.deleteProfile.message": "このプロファイルを削除してもよろしいですか？",
+
+  "status.ready": "準備完了",
+  "status.profileApplied": "プロファイルを適用しました",
+
+  "error.generic": "予期しないエラーが発生しました",
+  "error.loadProfiles": "ディスプレイプロファイルの読み込みに失敗しました",
+  "error.applyProfile": "ディスプレイプロファイルの適用に失敗しました"
+}
