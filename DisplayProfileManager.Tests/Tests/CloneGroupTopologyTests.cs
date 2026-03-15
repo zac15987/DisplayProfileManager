@@ -170,21 +170,15 @@ namespace DisplayProfileManager.Tests.Tests
         // ────────────────────────────────────────────────────────────────────
 
         [TestMethod]
-        [TestCategory("TDD")]
-        [Description("Bug #5 — ApplyDisplayPosition não é chamado pelo fluxo principal. " +
-                     "Este teste verifica que o método existe atualmente (dead code). " +
-                     "Após o fix (remoção), trocar para Assert.IsNull.")]
-        public void ApplyDisplayPosition_CurrentlyExistsAsDeadCode()
+        [TestCategory("Regression")]
+        [Description("Bug #5 — ApplyDisplayPosition era dead code (não chamado pelo fluxo principal) e foi removido.")]
+        public void ApplyDisplayPosition_WasRemovedAsDeadCode()
         {
             var method = typeof(DisplayConfigHelper).GetMethod(
                 "ApplyDisplayPosition",
                 System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
 
-            // PASSA agora (método existe = dead code confirmado).
-            // Após remoção: este Assert deve ser trocado por Assert.IsNull.
-            Assert.IsNotNull(method,
-                "ApplyDisplayPosition existe mas não é chamado por ApplyUnifiedConfiguration. " +
-                "É dead code. Remover como parte do fix do Bug #5 e atualizar este teste.");
+            Assert.IsNull(method, "ApplyDisplayPosition deve ter sido removido por ser dead code.");
         }
 
         [TestMethod]
