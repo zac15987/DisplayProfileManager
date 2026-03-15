@@ -1787,6 +1787,8 @@ namespace DisplayProfileManager.UI.Windows
         {
             var newCloneGroupId = "clone-" + Guid.NewGuid().ToString("N").Substring(0, 8);
             uint sharedSourceId = _setting.SourceId;
+            int sharedX = _setting.DisplayPositionX;
+            int sharedY = _setting.DisplayPositionY;
 
             foreach (var member in _cloneGroupMembers)
                 member.CloneGroupId = newCloneGroupId;
@@ -1795,6 +1797,9 @@ namespace DisplayProfileManager.UI.Windows
             {
                 member.CloneGroupId = newCloneGroupId;
                 member.SourceId = sharedSourceId;
+                // Clone members share the same source so they must share the same position
+                member.DisplayPositionX = sharedX;
+                member.DisplayPositionY = sharedY;
             }
 
             OnCloneGroupChanged?.Invoke();

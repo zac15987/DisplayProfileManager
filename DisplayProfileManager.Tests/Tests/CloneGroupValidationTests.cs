@@ -242,5 +242,23 @@ namespace DisplayProfileManager.Tests.Tests
 
             Assert.IsFalse(Validate(settings));
         }
+
+        [TestMethod]
+        [TestCategory("Regression")]
+        public void ValidateCloneGroups_WhenCloneGroupMemberRetainsExtendedDesktopPosition_ReturnsFalse()
+        {
+            // Regression: ExecuteClone() was not syncing DisplayPositionX/Y to clone group members.
+            // A display from an extended layout (e.g. at -1920,0) would join a clone group with the
+            // primary at (0,0) but keep its old position, causing SetDisplayConfig to reject the config.
+            // Reproduces the exact scenario from New.dpm: DISPLAY1 at (0,0) and DISPLAY2 at (-1920,0)
+            // both assigned to the same clone group with sourceId=0.
+            var settings = new List<DisplaySetting>
+            {
+                new DisplaySettingBuilder().WithCloneGroup("clone-f543fe96").WithSourceId(0).WithPosition(0, 0).Build(),
+                new DisplaySettingBuilder().WithCloneGroup("clone-f543fe96").WithSourceId(0).WithPosition(-1920, 0).Build(),
+            };
+
+            Assert.IsFalse(Validate(settings));
+        }
     }
 }
