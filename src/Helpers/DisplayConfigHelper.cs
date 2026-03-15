@@ -186,7 +186,7 @@ namespace DisplayProfileManager.Helpers
             public uint SourceModeInfoIdx
             {
                 get => modeInfoIdx >> 16;
-                set => modeInfoIdx = (value << 16) | CloneGroupId;
+                set => modeInfoIdx = value;
             }
 
             /// <summary>
