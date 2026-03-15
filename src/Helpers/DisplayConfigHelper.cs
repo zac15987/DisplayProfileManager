@@ -1028,17 +1028,28 @@ namespace DisplayProfileManager.Helpers
                     modes,
                     SetDisplayConfigFlags.SDC_USE_SUPPLIED_DISPLAY_CONFIG |
                     SetDisplayConfigFlags.SDC_APPLY |
+                    SetDisplayConfigFlags.SDC_ALLOW_CHANGES |
                     SetDisplayConfigFlags.SDC_SAVE_TO_DATABASE |
                     SetDisplayConfigFlags.SDC_VIRTUAL_MODE_AWARE);
 
                 if (result != ERROR_SUCCESS)
                 {
-                    logger.Error($"SetDisplayConfig failed with error: {result}");
-                    if (result == 87)
+                    logger.Warn($"SetDisplayConfig returned non-zero ({result}) — verifying whether config was applied anyway...");
+                    // Windows CCD sometimes applies the configuration but returns a non-zero code
+                    // (e.g. when SDC_SAVE_TO_DATABASE hits a transient OS issue, or a display's EDID
+                    // has a minor inconsistency). Verify before treating it as a hard failure.
+                    System.Threading.Thread.Sleep(300);
+                    if (VerifyDisplayConfiguration(displayConfigs))
                     {
-                        logger.Error("ERROR_INVALID_PARAMETER - The display configuration is invalid");
+                        logger.Info("✓ Configuration verified as applied despite non-zero SetDisplayConfig return code");
                     }
-                    return false;
+                    else
+                    {
+                        logger.Error($"SetDisplayConfig failed (error {result}) and configuration was not applied");
+                        if (result == 87)
+                            logger.Error("ERROR_INVALID_PARAMETER — the supplied display configuration is invalid");
+                        return false;
+                    }
                 }
 
                 logger.Info("✓ Display configuration applied successfully");
