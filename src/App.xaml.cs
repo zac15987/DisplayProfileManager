@@ -70,19 +70,21 @@ namespace DisplayProfileManager
 
             // Parse command line arguments
             bool startInTray = false;
+            bool devMode = false;
             if (e.Args != null && e.Args.Length > 0)
             {
                 foreach (var arg in e.Args)
                 {
                     if (arg.Equals("--tray", StringComparison.OrdinalIgnoreCase))
-                    {
                         startInTray = true;
-                        break;
-                    }
+                    else if (arg.Equals("--dev", StringComparison.OrdinalIgnoreCase))
+                        devMode = true;
                 }
             }
 
-            if (!CheckSingleInstance())
+            if (devMode)
+                logger.Info("DEV MODE: single-instance check bypassed");
+            else if (!CheckSingleInstance())
             {
                 Shutdown();
                 return;
