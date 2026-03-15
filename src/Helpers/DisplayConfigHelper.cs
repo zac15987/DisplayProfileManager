@@ -865,51 +865,59 @@ namespace DisplayProfileManager.Helpers
 
                 // Modify mode array for resolution, refresh rate, and position
                 logger.Debug("Configuring mode array (resolution, refresh rate, position)...");
-                
+
                 // Track which source modes we've used per adapter
                 var adapterSourceModeUsage = new Dictionary<LUID, int>();
-                
+
+                // Group enabled displays by SourceId — clone group members share one source mode.
+                // Windows creates exactly one source mode per unique SourceId after Phase 1, so we
+                // must consume one source mode per SourceId group, not one per enabled display.
+                var displaysBySourceId = new Dictionary<uint, List<(int pathIndex, DisplayConfigInfo info)>>();
                 foreach (var displayInfo in displayConfigs.Where(d => d.IsEnabled))
                 {
-                    if (!targetIdToPathIndex.TryGetValue(displayInfo.TargetId, out int pathIndex))
+                    if (!targetIdToPathIndex.TryGetValue(displayInfo.TargetId, out int gPathIndex))
                         continue;
+                    if (!displaysBySourceId.ContainsKey(displayInfo.SourceId))
+                        displaysBySourceId[displayInfo.SourceId] = new List<(int, DisplayConfigInfo)>();
+                    displaysBySourceId[displayInfo.SourceId].Add((gPathIndex, displayInfo));
+                }
 
-                    // Find a source mode for this display's adapter
-                    LUID adapterId = paths[pathIndex].sourceInfo.adapterId;
-                    
+                foreach (var kvp in displaysBySourceId)
+                {
+                    uint sourceId = kvp.Key;
+                    var groupDisplays = kvp.Value;
+                    LUID adapterId = paths[groupDisplays[0].pathIndex].sourceInfo.adapterId;
+
                     if (!adapterSourceModeUsage.ContainsKey(adapterId))
-                    {
                         adapterSourceModeUsage[adapterId] = 0;
-                    }
-                    
-                    if (!adapterToSourceModes.ContainsKey(adapterId) || 
+
+                    if (!adapterToSourceModes.ContainsKey(adapterId) ||
                         adapterSourceModeUsage[adapterId] >= adapterToSourceModes[adapterId].Count)
                     {
-                        logger.Warn($"TargetId {displayInfo.TargetId}: No available source mode for adapter");
+                        logger.Warn($"SourceId {sourceId}: No available source mode for adapter");
                         continue;
                     }
-                    
-                    // Get the next available source mode for this adapter
-                    int sourceModeIdx = adapterToSourceModes[adapterId][adapterSourceModeUsage[adapterId]++];
-                    
-                    // Update the path to point to this source mode
-                    paths[pathIndex].sourceInfo.SourceModeInfoIdx = (uint)sourceModeIdx;
-                    
-                    // Ensure mode's adapterId matches the path's adapterId
-                    modes[sourceModeIdx].adapterId = paths[pathIndex].sourceInfo.adapterId;
-                    
-                    // Set resolution and position
-                    modes[sourceModeIdx].modeInfo.sourceMode.width = (uint)displayInfo.Width;
-                    modes[sourceModeIdx].modeInfo.sourceMode.height = (uint)displayInfo.Height;
-                    modes[sourceModeIdx].modeInfo.sourceMode.position.x = displayInfo.DisplayPositionX;
-                    modes[sourceModeIdx].modeInfo.sourceMode.position.y = displayInfo.DisplayPositionY;
-                    logger.Debug($"TargetId {displayInfo.TargetId}: Set source mode {sourceModeIdx} to {displayInfo.Width}x{displayInfo.Height} at ({displayInfo.DisplayPositionX},{displayInfo.DisplayPositionY})");
 
-                    // Target mode: refresh rate
-                    uint targetModeIdx = paths[pathIndex].targetInfo.modeInfoIdx;
-                    if (targetModeIdx != DISPLAYCONFIG_PATH_MODE_IDX_INVALID && targetModeIdx < modes.Length)
+                    // Consume ONE source mode for this SourceId (clone members share the same source mode)
+                    int sourceModeIdx = adapterToSourceModes[adapterId][adapterSourceModeUsage[adapterId]++];
+                    var primary = groupDisplays[0].info; // Clone members share resolution/position
+
+                    modes[sourceModeIdx].adapterId = adapterId;
+                    modes[sourceModeIdx].modeInfo.sourceMode.width = (uint)primary.Width;
+                    modes[sourceModeIdx].modeInfo.sourceMode.height = (uint)primary.Height;
+                    modes[sourceModeIdx].modeInfo.sourceMode.position.x = primary.DisplayPositionX;
+                    modes[sourceModeIdx].modeInfo.sourceMode.position.y = primary.DisplayPositionY;
+                    logger.Debug($"SourceId {sourceId}: Set source mode {sourceModeIdx} to {primary.Width}x{primary.Height} at ({primary.DisplayPositionX},{primary.DisplayPositionY}) [{groupDisplays.Count} display(s)]");
+
+                    foreach (var (pathIndex, displayInfo) in groupDisplays)
                     {
-                        if (modes[targetModeIdx].infoType == DisplayConfigModeInfoType.DISPLAYCONFIG_MODE_INFO_TYPE_TARGET)
+                        // Point all paths in this clone group to the same source mode index
+                        paths[pathIndex].sourceInfo.SourceModeInfoIdx = (uint)sourceModeIdx;
+
+                        // Target mode: refresh rate (each physical display has its own target mode)
+                        uint targetModeIdx = paths[pathIndex].targetInfo.modeInfoIdx;
+                        if (targetModeIdx != DISPLAYCONFIG_PATH_MODE_IDX_INVALID && targetModeIdx < modes.Length &&
+                            modes[targetModeIdx].infoType == DisplayConfigModeInfoType.DISPLAYCONFIG_MODE_INFO_TYPE_TARGET)
                         {
                             uint numerator = (uint)(displayInfo.RefreshRate * 1000);
                             uint denominator = 1000;
