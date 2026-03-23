@@ -9,11 +9,7 @@
 
 ⚠️ Project Maintenance Status
 
-At this time, I will be pausing maintenance of this project for the time being due to personal reasons.
-
-Development progress, issue discussions, and pull request reviews may be slow or temporarily on hold. I will also keep an eye out for potential contributors who may be interested in helping with or continuing maintenance of the project.
-
-Thank you for your patience and for being part of this project. Your support means a great deal to me.
+This project is currently **on hold** — updates and maintenance are paused for now. If I regain interest in the future, I may resume development and maintenance. Thank you for your understanding!
 
 ---
 
