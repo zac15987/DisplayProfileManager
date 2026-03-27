@@ -5,8 +5,11 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shell;
 using NLog;
@@ -58,20 +61,56 @@ namespace DisplayProfileManager.UI.Windows
             }
         }
 
+        private void LoadDisplaySettings(List<DisplaySetting> settings)
+        {
+            DisplaySettingsPanel.Children.Clear();
+            _displayControls.Clear();
+
+            if (settings.Count == 0)
+                return;
+
+            // Use helper to group displays
+            var displayGroups = DisplayGroupingHelper.GroupDisplaysForUI(settings);
+            var cloneGroupCount = displayGroups.Count(g => g.IsCloneGroup);
+
+            var logger = LoggerHelper.GetLogger();
+            if (cloneGroupCount > 0)
+            {
+                var cloneGroupDisplayCount = displayGroups.Where(g => g.IsCloneGroup).Sum(g => g.AllMembers.Count);
+                logger.Info($"Loading {settings.Count} displays with {cloneGroupCount} clone group(s)");
+            }
+
+            int monitorIndex = 1;
+            foreach (var group in displayGroups)
+            {
+                AddDisplaySettingControl(
+                    group.RepresentativeSetting, 
+                    monitorIndex, 
+                    isCloneGroup: group.IsCloneGroup, 
+                    cloneGroupMembers: group.AllMembers);
+                monitorIndex++;
+            }
+
+            if (cloneGroupCount > 0)
+            {
+                var cloneGroupDisplayCount = displayGroups.Where(g => g.IsCloneGroup).Sum(g => g.AllMembers.Count);
+                StatusTextBlock.Text = $"Loaded {_displayControls.Count} display(s) " +
+                                     $"({cloneGroupCount} clone group(s) with {cloneGroupDisplayCount} displays)";
+            }
+            else
+            {
+                StatusTextBlock.Text = $"Loaded {settings.Count} display(s)";
+            }
+        }
+
         private void PopulateFields()
         {
             ProfileNameTextBox.Text = _profile.Name;
             ProfileDescriptionTextBox.Text = _profile.Description;
             DefaultProfileCheckBox.IsChecked = _profile.IsDefault;
 
-            if (_profile.DisplaySettings.Count > 0)
-            {
-                DisplaySettingsPanel.Children.Clear();
-                foreach (var setting in _profile.DisplaySettings)
-                {
-                    AddDisplaySettingControl(setting);
-                }
-            }
+            // Load display settings using shared method
+            LoadDisplaySettings(_profile.DisplaySettings);
 
             // Initialize hotkey configuration
             if (_profile.HotkeyConfig != null)
@@ -100,9 +139,6 @@ namespace DisplayProfileManager.UI.Windows
 
                 var currentSettings = await _profileManager.GetCurrentDisplaySettingsAsync();
 
-                DisplaySettingsPanel.Children.Clear();
-                _displayControls.Clear();
-
                 // Ensure at least one monitor is marked as primary
                 bool hasPrimary = currentSettings.Any(s => s.IsPrimary && s.IsEnabled);
                 if (!hasPrimary)
@@ -115,12 +151,12 @@ namespace DisplayProfileManager.UI.Windows
                     }
                 }
 
-                foreach (var setting in currentSettings)
-                {
-                    AddDisplaySettingControl(setting);
-                }
-
-                StatusTextBlock.Text = $"Detected {currentSettings.Count} display(s)";
+                // Load display settings using shared method
+                LoadDisplaySettings(currentSettings);
+                
+                var logger = LoggerHelper.GetLogger();
+                logger.Info($"Detect Current: {currentSettings.Count} physical displays detected, " +
+                          $"{_displayControls.Count} controls created");
             }
             catch (Exception ex)
             {
@@ -134,7 +170,8 @@ namespace DisplayProfileManager.UI.Windows
             }
         }
 
-        private void AddDisplaySettingControl(DisplaySetting setting)
+        private void AddDisplaySettingControl(DisplaySetting setting, int monitorIndex = 0,
+            bool isCloneGroup = false, List<DisplaySetting> cloneGroupMembers = null)
         {
             if (DisplaySettingsPanel.Children.Count == 1 &&
                 DisplaySettingsPanel.Children[0] is TextBlock)
@@ -142,11 +179,22 @@ namespace DisplayProfileManager.UI.Windows
                 DisplaySettingsPanel.Children.Clear();
             }
 
-            // Calculate monitor index (1-based)
-            int monitorIndex = _displayControls.Count + 1;
-            var control = new DisplaySettingControl(setting, monitorIndex);
+            // Calculate monitor index if not provided (1-based)
+            if (monitorIndex == 0)
+            {
+                monitorIndex = _displayControls.Count + 1;
+            }
+            
+            var control = new DisplaySettingControl(setting, monitorIndex, isCloneGroup, cloneGroupMembers);
+            control.OnCloneGroupChanged = RebuildDisplayControls;
             _displayControls.Add(control);
             DisplaySettingsPanel.Children.Add(control);
+        }
+
+        private void RebuildDisplayControls()
+        {
+            var allSettings = _displayControls.SelectMany(c => c.GetDisplaySettings()).ToList();
+            LoadDisplaySettings(allSettings);
         }
 
         private async void IdentifyDisplaysButton_Click(object sender, RoutedEventArgs e)
@@ -166,8 +214,8 @@ namespace DisplayProfileManager.UI.Windows
                     {
                         foreach (var control in _displayControls)
                         {
-                            var setting = control.GetDisplaySetting();
-                            if (setting != null)
+                            var settings = control.GetDisplaySettings();
+                            foreach (var setting in settings)
                             {
                                 displaySettings.Add(setting);
                             }
@@ -241,8 +289,8 @@ namespace DisplayProfileManager.UI.Windows
 
                 foreach (var control in _displayControls)
                 {
-                    var setting = control.GetDisplaySetting();
-                    if (setting != null)
+                    var settings = control.GetDisplaySettings();
+                    foreach (var setting in settings)
                     {
                         _profile.DisplaySettings.Add(setting);
                     }
@@ -732,6 +780,126 @@ namespace DisplayProfileManager.UI.Windows
         private DisplaySetting _setting;
         private int _monitorIndex;
         private TextBox _deviceTextBox;
+
+        // Builds a secondary button style from theme brushes (Application resources).
+        // Cannot use Window.Resources["SecondaryButtonStyle"] here because the control
+        // may not be in the visual tree yet when InitializeControl() runs.
+        private static Style BuildSecondaryButtonStyle()
+        {
+            var bg        = (Brush)Application.Current.Resources["SecondaryButtonBackgroundBrush"];
+            var fg        = (Brush)Application.Current.Resources["SecondaryButtonForegroundBrush"];
+            var hoverBg   = (Brush)Application.Current.Resources["SecondaryButtonHoverBackgroundBrush"];
+            var pressedBg = (Brush)Application.Current.Resources["SecondaryButtonPressedBackgroundBrush"];
+
+            var borderFactory = new FrameworkElementFactory(typeof(Border));
+            borderFactory.SetValue(Border.BackgroundProperty,        new TemplateBindingExtension(Button.BackgroundProperty));
+            borderFactory.SetValue(Border.CornerRadiusProperty,      new CornerRadius(4));
+            borderFactory.SetValue(Border.BorderThicknessProperty,   new TemplateBindingExtension(Button.BorderThicknessProperty));
+            borderFactory.SetValue(Border.PaddingProperty,           new TemplateBindingExtension(Button.PaddingProperty));
+
+            var contentFactory = new FrameworkElementFactory(typeof(ContentPresenter));
+            contentFactory.SetValue(ContentPresenter.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            contentFactory.SetValue(ContentPresenter.VerticalAlignmentProperty,   VerticalAlignment.Center);
+            borderFactory.AppendChild(contentFactory);
+
+            var template = new ControlTemplate(typeof(Button)) { VisualTree = borderFactory };
+
+            var hoverTrigger = new Trigger { Property = Button.IsMouseOverProperty, Value = true };
+            hoverTrigger.Setters.Add(new Setter(Button.BackgroundProperty, hoverBg));
+            template.Triggers.Add(hoverTrigger);
+
+            var pressedTrigger = new Trigger { Property = Button.IsPressedProperty, Value = true };
+            pressedTrigger.Setters.Add(new Setter(Button.BackgroundProperty, pressedBg));
+            template.Triggers.Add(pressedTrigger);
+
+            var style = new Style(typeof(Button));
+            style.Setters.Add(new Setter(Button.TemplateProperty,       template));
+            style.Setters.Add(new Setter(Button.BackgroundProperty,     bg));
+            style.Setters.Add(new Setter(Button.ForegroundProperty,     fg));
+            style.Setters.Add(new Setter(Button.BorderThicknessProperty, new Thickness(0)));
+            style.Setters.Add(new Setter(Button.PaddingProperty,        new Thickness(8, 6, 8, 6)));
+            style.Setters.Add(new Setter(Button.FontSizeProperty,       14.0));
+            style.Setters.Add(new Setter(Button.FontWeightProperty,     FontWeights.Medium));
+            style.Setters.Add(new Setter(Button.CursorProperty,         Cursors.Hand));
+            return style;
+        }
+
+        private static Style BuildPrimaryButtonStyle()
+        {
+            var bg        = (Brush)Application.Current.Resources["ButtonBackgroundBrush"];
+            var fg        = (Brush)Application.Current.Resources["ButtonForegroundBrush"];
+            var hoverBg   = (Brush)Application.Current.Resources["ButtonHoverBackgroundBrush"];
+            var pressedBg = (Brush)Application.Current.Resources["ButtonPressedBackgroundBrush"];
+
+            var borderFactory = new FrameworkElementFactory(typeof(Border));
+            borderFactory.SetValue(Border.BackgroundProperty,        new TemplateBindingExtension(Button.BackgroundProperty));
+            borderFactory.SetValue(Border.CornerRadiusProperty,      new CornerRadius(4));
+            borderFactory.SetValue(Border.BorderThicknessProperty,   new TemplateBindingExtension(Button.BorderThicknessProperty));
+            borderFactory.SetValue(Border.PaddingProperty,           new TemplateBindingExtension(Button.PaddingProperty));
+
+            var contentFactory = new FrameworkElementFactory(typeof(ContentPresenter));
+            contentFactory.SetValue(ContentPresenter.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            contentFactory.SetValue(ContentPresenter.VerticalAlignmentProperty,   VerticalAlignment.Center);
+            borderFactory.AppendChild(contentFactory);
+
+            var template = new ControlTemplate(typeof(Button)) { VisualTree = borderFactory };
+
+            var hoverTrigger = new Trigger { Property = Button.IsMouseOverProperty, Value = true };
+            hoverTrigger.Setters.Add(new Setter(Button.BackgroundProperty, hoverBg));
+            template.Triggers.Add(hoverTrigger);
+
+            var pressedTrigger = new Trigger { Property = Button.IsPressedProperty, Value = true };
+            pressedTrigger.Setters.Add(new Setter(Button.BackgroundProperty, pressedBg));
+            template.Triggers.Add(pressedTrigger);
+
+            var style = new Style(typeof(Button));
+            style.Setters.Add(new Setter(Button.TemplateProperty,       template));
+            style.Setters.Add(new Setter(Button.BackgroundProperty,     bg));
+            style.Setters.Add(new Setter(Button.ForegroundProperty,     fg));
+            style.Setters.Add(new Setter(Button.BorderThicknessProperty, new Thickness(0)));
+            style.Setters.Add(new Setter(Button.PaddingProperty,        new Thickness(10, 6, 10, 6)));
+            style.Setters.Add(new Setter(Button.FontSizeProperty,       13.0));
+            style.Setters.Add(new Setter(Button.FontWeightProperty,     FontWeights.Medium));
+            style.Setters.Add(new Setter(Button.CursorProperty,         Cursors.Hand));
+            return style;
+        }
+
+        private static Style BuildDropdownButtonStyle()
+        {
+            var bg      = (Brush)Application.Current.Resources["ComboBoxBackgroundBrush"];
+            var fg      = (Brush)Application.Current.Resources["PrimaryTextBrush"];
+            var hoverBg = (Brush)Application.Current.Resources["ComboBoxHoverBackgroundBrush"];
+            var border  = (Brush)Application.Current.Resources["ComboBoxBorderBrush"];
+
+            var borderFactory = new FrameworkElementFactory(typeof(Border));
+            borderFactory.SetValue(Border.BackgroundProperty,      new TemplateBindingExtension(Button.BackgroundProperty));
+            borderFactory.SetValue(Border.BorderBrushProperty,     new TemplateBindingExtension(Button.BorderBrushProperty));
+            borderFactory.SetValue(Border.BorderThicknessProperty, new TemplateBindingExtension(Button.BorderThicknessProperty));
+            borderFactory.SetValue(Border.CornerRadiusProperty,    new CornerRadius(4));
+            borderFactory.SetValue(Border.PaddingProperty,         new TemplateBindingExtension(Button.PaddingProperty));
+
+            var content = new FrameworkElementFactory(typeof(ContentPresenter));
+            content.SetValue(ContentPresenter.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            content.SetValue(ContentPresenter.VerticalAlignmentProperty,   VerticalAlignment.Center);
+            borderFactory.AppendChild(content);
+
+            var template = new ControlTemplate(typeof(Button)) { VisualTree = borderFactory };
+            var hoverTrigger = new Trigger { Property = Button.IsMouseOverProperty, Value = true };
+            hoverTrigger.Setters.Add(new Setter(Button.BackgroundProperty, hoverBg));
+            template.Triggers.Add(hoverTrigger);
+
+            var style = new Style(typeof(Button));
+            style.Setters.Add(new Setter(Button.TemplateProperty,        template));
+            style.Setters.Add(new Setter(Button.BackgroundProperty,      bg));
+            style.Setters.Add(new Setter(Button.ForegroundProperty,      fg));
+            style.Setters.Add(new Setter(Button.BorderBrushProperty,     border));
+            style.Setters.Add(new Setter(Button.BorderThicknessProperty, new Thickness(1)));
+            style.Setters.Add(new Setter(Button.PaddingProperty,         new Thickness(8, 6, 8, 6)));
+            style.Setters.Add(new Setter(Button.FontSizeProperty,        14.0));
+            style.Setters.Add(new Setter(Button.CursorProperty,          Cursors.Hand));
+            return style;
+        }
+
         private ComboBox _resolutionComboBox;
         private ComboBox _refreshRateComboBox;
         private ComboBox _dpiComboBox;
@@ -739,74 +907,185 @@ namespace DisplayProfileManager.UI.Windows
         private CheckBox _enabledCheckBox;
         private CheckBox _hdrCheckBox;
         private ComboBox _rotationComboBox;
+        private List<DisplaySetting> _cloneGroupMembers;
+        private bool _isCloneGroup;
 
-        public DisplaySettingControl(DisplaySetting setting, int monitorIndex = 1)
+        public DisplaySettingControl(DisplaySetting setting, int monitorIndex = 1, 
+            bool isCloneGroup = false, List<DisplaySetting> cloneGroupMembers = null)
         {
             setting.UpdateDeviceNameFromWMI();
 
             _setting = setting;
             _monitorIndex = monitorIndex;
+            _isCloneGroup = isCloneGroup;
+            _cloneGroupMembers = cloneGroupMembers ?? new List<DisplaySetting> { setting };
             
             // Debug logging for HDR state
             var logger = LoggerHelper.GetLogger();
-            logger.Debug($"UI CONTROL DEBUG: Creating DisplaySettingControl for {setting.DeviceName}:");
-            logger.Debug($"UI CONTROL DEBUG:   IsHdrSupported: {setting.IsHdrSupported}");
-            logger.Debug($"UI CONTROL DEBUG:   IsHdrEnabled: {setting.IsHdrEnabled}");
-            logger.Debug($"UI CONTROL DEBUG:   MonitorIndex: {monitorIndex}");
             
             InitializeControl();
         }
 
         private void InitializeControl()
         {
-            var mainPanel = new StackPanel { Margin = new Thickness(0, 0, 0, 16) };
+            var mainPanel = new StackPanel { Margin = new Thickness(0, 0, 0, 28) };
 
-            var headerGrid = new Grid();
-            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var primaryFg   = (Brush)Application.Current.Resources["PrimaryTextBrush"];
+            var secondaryFg = (Brush)Application.Current.Resources["SecondaryTextBrush"];
 
-            var headerText = new TextBlock
+            // ── Row 1: name area ─────────────────────────────────────────────
+            FrameworkElement nameRow;
+            if (_isCloneGroup && _cloneGroupMembers.Count > 1)
             {
-                Text = $"Monitor {_monitorIndex}",
-                FontWeight = FontWeights.Medium,
-                FontSize = 14,
-                Margin = new Thickness(0, 0, 0, 8),
-                Foreground = (Brush)Application.Current.Resources["PrimaryTextBrush"]
-            };
-            Grid.SetColumn(headerText, 0);
-            headerGrid.Children.Add(headerText);
+                // Clone group: 🔗 icon (large) + stacked member names + CLONE badge
+                var nameGrid = new Grid { Margin = new Thickness(0, 0, 0, 16) };
+                nameGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });        // icon
+                nameGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // names
+                nameGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });        // badge
 
-            // Add Enable/Disable checkbox
+                var icon = new TextBlock
+                {
+                    Text = "\uE71B",
+                    FontFamily = new FontFamily("Segoe MDL2 Assets"),
+                    FontSize = 18,
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x4F, 0xC3, 0xF7)),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 0, 10, 0)
+                };
+                Grid.SetColumn(icon, 0);
+                nameGrid.Children.Add(icon);
+
+                var namesPanel = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+                foreach (var member in _cloneGroupMembers)
+                {
+                    namesPanel.Children.Add(new TextBlock
+                    {
+                        Text = member.ReadableDeviceName,
+                        FontWeight = FontWeights.Medium,
+                        FontSize = 14,
+                        Foreground = primaryFg,
+                        Margin = new Thickness(0, 2, 0, 0),
+                        TextTrimming = TextTrimming.CharacterEllipsis
+                    });
+                }
+                Grid.SetColumn(namesPanel, 1);
+                nameGrid.Children.Add(namesPanel);
+
+                var breakBtnContent = new StackPanel { Orientation = Orientation.Horizontal };
+                breakBtnContent.Children.Add(new TextBlock
+                {
+                    Text = "\uE8E6",
+                    FontFamily = new FontFamily("Segoe MDL2 Assets"),
+                    FontSize = 13,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 1, 7, 0)
+                });
+                breakBtnContent.Children.Add(new TextBlock
+                {
+                    Text = "Break Clone",
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+                var breakBtn = new Button
+                {
+                    Content = breakBtnContent,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(12, 0, 0, 0),
+                    Style = BuildPrimaryButtonStyle()
+                };
+                breakBtn.Click += (s, e) => ExecuteBreakClone();
+                Grid.SetColumn(breakBtn, 2);
+                nameGrid.Children.Add(breakBtn);
+
+                nameRow = nameGrid;
+            }
+            else
+            {
+                // Single display: name left, clone dropdown right
+                var singleGrid = new Grid { Margin = new Thickness(0, 0, 0, 16) };
+                singleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                singleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                var nameBlock = new TextBlock
+                {
+                    Text = $"Monitor {_monitorIndex} — {_setting.ReadableDeviceName}",
+                    FontWeight = FontWeights.Medium,
+                    FontSize = 14,
+                    Foreground = primaryFg,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    TextTrimming = TextTrimming.CharacterEllipsis
+                };
+                Grid.SetColumn(nameBlock, 0);
+                singleGrid.Children.Add(nameBlock);
+
+                var cloneBtnContent = new StackPanel { Orientation = Orientation.Horizontal };
+                cloneBtnContent.Children.Add(new TextBlock
+                {
+                    Text = "Clone",
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+                cloneBtnContent.Children.Add(new TextBlock
+                {
+                    Text = "\u25BC",
+                    FontSize = 9,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(10, 2, 0, 0)
+                });
+
+                var cloneBtn = new Button
+                {
+                    Content = cloneBtnContent,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(12, 0, 0, 0),
+                    Style = BuildDropdownButtonStyle()
+                };
+                cloneBtn.Click += CloneButton_Click;
+                Grid.SetColumn(cloneBtn, 1);
+                singleGrid.Children.Add(cloneBtn);
+
+                nameRow = singleGrid;
+            }
+            mainPanel.Children.Add(nameRow);
+
+            // ── Row 2: controls (checkboxes left, action button right) ────────
+            var controlsGrid = new Grid { Margin = new Thickness(0, 0, 0, 16) };
+            controlsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            controlsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var checkboxPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
             _enabledCheckBox = new CheckBox
             {
                 Content = "Enabled",
                 IsChecked = _setting.IsEnabled,
                 FontSize = 14,
-                Margin = new Thickness(0, 0, 16, 8),
+                Margin = new Thickness(0, 0, 20, 0),
                 VerticalAlignment = VerticalAlignment.Center,
-                Foreground = (Brush)Application.Current.Resources["PrimaryTextBrush"]
+                Foreground = primaryFg
             };
             _enabledCheckBox.Checked += EnabledCheckBox_CheckedChanged;
             _enabledCheckBox.Unchecked += EnabledCheckBox_CheckedChanged;
-            Grid.SetColumn(_enabledCheckBox, 1);
-            headerGrid.Children.Add(_enabledCheckBox);
+            checkboxPanel.Children.Add(_enabledCheckBox);
 
             _primaryCheckBox = new CheckBox
             {
                 Content = "Primary Display",
                 IsChecked = _setting.IsPrimary,
                 FontSize = 14,
-                Foreground = (Brush)Application.Current.Resources["PrimaryTextBrush"],
-                Margin = new Thickness(16, 0, 0, 0)
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = primaryFg
             };
             _primaryCheckBox.Checked += PrimaryCheckBox_Checked;
             _primaryCheckBox.Unchecked += PrimaryCheckBox_Unchecked;
-            Grid.SetColumn(_primaryCheckBox, 2);
-            headerGrid.Children.Add(_primaryCheckBox);
+            checkboxPanel.Children.Add(_primaryCheckBox);
 
-            mainPanel.Children.Add(headerGrid);
+            Grid.SetColumn(checkboxPanel, 0);
+            controlsGrid.Children.Add(checkboxPanel);
+
+            mainPanel.Children.Add(controlsGrid);
 
             var contentGrid = new Grid();
             contentGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.5, GridUnitType.Star) }); // Monitor column - wider
@@ -815,11 +1094,11 @@ namespace DisplayProfileManager.UI.Windows
             contentGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
             contentGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Refresh rate column
             contentGrid.RowDefinitions.Add(new RowDefinition());
-            contentGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(8) });
+            contentGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(14) });
             contentGrid.RowDefinitions.Add(new RowDefinition());
-            contentGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(8) });
+            contentGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(14) });
             contentGrid.RowDefinitions.Add(new RowDefinition());
-            contentGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(8) });
+            contentGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(14) });
             contentGrid.RowDefinitions.Add(new RowDefinition());
 
             var devicePanel = new StackPanel();
@@ -900,12 +1179,6 @@ namespace DisplayProfileManager.UI.Windows
             var hdrPanel = new StackPanel { VerticalAlignment = VerticalAlignment.Bottom };
             
             var logger = LoggerHelper.GetLogger();
-            logger.Debug($"UI CONTROL DEBUG: Initializing HDR checkbox for {_setting.DeviceName}:");
-            logger.Debug($"UI CONTROL DEBUG:   Setting IsHdrSupported: {_setting.IsHdrSupported}");
-            logger.Debug($"UI CONTROL DEBUG:   Setting IsHdrEnabled: {_setting.IsHdrEnabled}");
-            logger.Debug($"UI CONTROL DEBUG:   Checkbox will be checked: {_setting.IsHdrEnabled && _setting.IsHdrSupported}");
-            logger.Debug($"UI CONTROL DEBUG:   Checkbox will be enabled: {_setting.IsHdrSupported}");
-            
             _hdrCheckBox = new CheckBox
             {
                 Content = _setting.IsHdrSupported ? "HDR" : "HDR (Not Supported)",
@@ -918,7 +1191,6 @@ namespace DisplayProfileManager.UI.Windows
                     "This monitor does not support HDR"
             };
             
-            logger.Debug($"UI CONTROL DEBUG: HDR checkbox created - IsChecked: {_hdrCheckBox.IsChecked}, IsEnabled: {_hdrCheckBox.IsEnabled}");
             
             _hdrCheckBox.Checked += HdrCheckBox_CheckedChanged;
             _hdrCheckBox.Unchecked += HdrCheckBox_CheckedChanged;
@@ -1163,13 +1435,36 @@ namespace DisplayProfileManager.UI.Windows
 
         private void PopulateDeviceComboBox()
         {
-            _deviceTextBox.Text = _setting.ReadableDeviceName;
-            _deviceTextBox.Tag = _setting.DeviceName;
-            _deviceTextBox.ToolTip = 
-                $"Name: {_setting.ReadableDeviceName}\n" +
-                $"Device Name: {_setting.DeviceName}\n" +
-                $"Target ID: {_setting.TargetId}\n" +
-                $"EDID: {_setting.ManufacturerName}-{_setting.ProductCodeID}-{_setting.SerialNumberID}";
+            if (_isCloneGroup && _cloneGroupMembers.Count > 1)
+            {
+                // For clone groups, show all members on separate lines
+                _deviceTextBox.Text = string.Join(Environment.NewLine, _cloneGroupMembers.Select(m => m.ReadableDeviceName));
+                _deviceTextBox.Tag = _setting.DeviceName;
+                _deviceTextBox.AcceptsReturn = true;
+                _deviceTextBox.TextWrapping = TextWrapping.Wrap;
+                
+                // Tooltip shows details for all members
+                var tooltipLines = new List<string> { "Clone Group Members:" };
+                foreach (var member in _cloneGroupMembers)
+                {
+                    tooltipLines.Add($"\n{member.ReadableDeviceName}:");
+                    tooltipLines.Add($"  Device: {member.DeviceName}");
+                    tooltipLines.Add($"  Target ID: {member.TargetId}");
+                    tooltipLines.Add($"  EDID: {member.ManufacturerName}-{member.ProductCodeID}-{member.SerialNumberID}");
+                }
+                _deviceTextBox.ToolTip = string.Join("\n", tooltipLines);
+            }
+            else
+            {
+                // Single display
+                _deviceTextBox.Text = _setting.ReadableDeviceName;
+                _deviceTextBox.Tag = _setting.DeviceName;
+                _deviceTextBox.ToolTip = 
+                    $"Name: {_setting.ReadableDeviceName}\n" +
+                    $"Device Name: {_setting.DeviceName}\n" +
+                    $"Target ID: {_setting.TargetId}\n" +
+                    $"EDID: {_setting.ManufacturerName}-{_setting.ProductCodeID}-{_setting.SerialNumberID}";
+            }
         }
 
         private void ResolutionComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -1213,10 +1508,12 @@ namespace DisplayProfileManager.UI.Windows
             }
         }
 
-        public DisplaySetting GetDisplaySetting()
+        public List<DisplaySetting> GetDisplaySettings()
         {
+            var settings = new List<DisplaySetting>();
+            
             if (_resolutionComboBox.SelectedItem == null || _dpiComboBox.SelectedItem == null || _refreshRateComboBox.SelectedItem == null)
-                return null;
+                return settings;
 
             var resolutionText = _resolutionComboBox.SelectedItem.ToString();
             var dpiText = _dpiComboBox.SelectedItem.ToString();
@@ -1224,10 +1521,10 @@ namespace DisplayProfileManager.UI.Windows
 
             // Handle both old format (with @ and Hz) and new format (just WIDTHxHEIGHT)
             var resolutionParts = resolutionText.Split('x');
-            if (resolutionParts.Length < 2) return null;
+            if (resolutionParts.Length < 2) return settings;
 
             if (!int.TryParse(resolutionParts[0], out int width))
-                return null;
+                return settings;
 
             // Extract height (might have @ and Hz suffix from old format)
             string heightPart = resolutionParts[1];
@@ -1237,45 +1534,67 @@ namespace DisplayProfileManager.UI.Windows
             }
 
             if (!int.TryParse(heightPart, out int height))
-                return null;
+                return settings;
 
             if (!uint.TryParse(dpiText.Replace("%", ""), out uint dpiScaling))
-                return null;
+                return settings;
 
             // Extract frequency from refresh rate text (remove Hz suffix)
             if (!int.TryParse(refreshRateText.Replace("Hz", ""), out int frequency))
                 frequency = 60; // Fallback to 60Hz
 
-            var deviceName = _deviceTextBox?.Tag?.ToString() ?? "";
-            var readableDeviceName = _deviceTextBox?.Text?.ToString() ?? "";
+            var rotation = _rotationComboBox.SelectedIndex + 1;
+            var isPrimary = _primaryCheckBox.IsChecked == true;
+            var isEnabled = _enabledCheckBox.IsChecked == true;
+            var isHdrEnabled = _hdrCheckBox.IsChecked == true;
 
-            return new DisplaySetting
+            // Create DisplaySetting for each member of clone group
+            bool isFirst = true;
+            foreach (var originalSetting in _cloneGroupMembers)
             {
-                DeviceName = deviceName,
-                DeviceString = _setting.DeviceString,
-                ReadableDeviceName = readableDeviceName,
-                Width = width,
-                Height = height,
-                Frequency = frequency,
-                DpiScaling = dpiScaling,
-                IsPrimary = _primaryCheckBox.IsChecked == true,
-                IsEnabled = _enabledCheckBox.IsChecked == true,
-                AdapterId = _setting.AdapterId,
-                SourceId = _setting.SourceId,
-                PathIndex = _setting.PathIndex,
-                TargetId = _setting.TargetId,
-                DisplayPositionX = _setting.DisplayPositionX,
-                DisplayPositionY = _setting.DisplayPositionY,
-                ManufacturerName = _setting.ManufacturerName,
-                ProductCodeID = _setting.ProductCodeID,
-                SerialNumberID = _setting.SerialNumberID,
-                AvailableResolutions = _setting.AvailableResolutions,
-                AvailableDpiScaling = _setting.AvailableDpiScaling,
-                AvailableRefreshRates = _setting.AvailableRefreshRates,
-                IsHdrSupported = _setting.IsHdrSupported,
-                IsHdrEnabled = _hdrCheckBox.IsChecked == true && _setting.IsHdrSupported,
-                Rotation = _rotationComboBox.SelectedIndex + 1 // Convert from index (0-3) to enum value (1-4)
-            };
+                var displaySetting = new DisplaySetting
+                {
+                    // Copy identification from original
+                    DeviceName = originalSetting.DeviceName,
+                    DeviceString = originalSetting.DeviceString,
+                    ReadableDeviceName = originalSetting.ReadableDeviceName,
+                    AdapterId = originalSetting.AdapterId,
+                    SourceId = originalSetting.SourceId,
+                    TargetId = originalSetting.TargetId,
+                    PathIndex = originalSetting.PathIndex,
+                    ManufacturerName = originalSetting.ManufacturerName,
+                    ProductCodeID = originalSetting.ProductCodeID,
+                    SerialNumberID = originalSetting.SerialNumberID,
+                    CloneGroupId = originalSetting.CloneGroupId,
+                    
+                    // Apply common values from UI
+                    Width = width,
+                    Height = height,
+                    Frequency = frequency,
+                    DpiScaling = dpiScaling,
+                    Rotation = rotation,
+                    IsEnabled = isEnabled,
+                    IsHdrSupported = originalSetting.IsHdrSupported,
+                    IsHdrEnabled = isHdrEnabled && originalSetting.IsHdrSupported,
+                    
+                    // Clone group members share position
+                    DisplayPositionX = originalSetting.DisplayPositionX,
+                    DisplayPositionY = originalSetting.DisplayPositionY,
+                    
+                    // Primary flag only on first member
+                    IsPrimary = isFirst && isPrimary,
+                    
+                    // Capabilities
+                    AvailableResolutions = originalSetting.AvailableResolutions,
+                    AvailableDpiScaling = originalSetting.AvailableDpiScaling,
+                    AvailableRefreshRates = originalSetting.AvailableRefreshRates
+                };
+                
+                settings.Add(displaySetting);
+                isFirst = false;
+            }
+            
+            return settings;
         }
 
         public bool ValidateInput()
@@ -1392,6 +1711,123 @@ namespace DisplayProfileManager.UI.Windows
             _setting.IsPrimary = false;
         }
 
+        // Callback fired after any clone group change so the parent window can rebuild controls
+        public Action OnCloneGroupChanged;
+
+        private void CloneButton_Click(object sender, RoutedEventArgs e)
+        {
+            var button = (Button)sender;
+            var panel = Parent as Panel;
+            if (panel == null) return;
+
+            var available = panel.Children
+                .OfType<DisplaySettingControl>()
+                .Where(c => c != this && !c._isCloneGroup)
+                .ToList();
+
+            if (!available.Any())
+            {
+                MessageBox.Show("No other displays available to clone with.", "Clone Display",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var bg      = (Brush)Application.Current.Resources["ContentBackgroundBrush"];
+            var fg      = (Brush)Application.Current.Resources["PrimaryTextBrush"];
+            var border  = (Brush)Application.Current.Resources["BorderBrush"];
+            var hoverBg = (Brush)Application.Current.Resources["ControlHoverBackgroundBrush"];
+
+            var stack = new StackPanel { MinWidth = 220 };
+            foreach (var target in available)
+            {
+                var num = Regex.Match(target._setting.DeviceName ?? "", @"\d+$").Value;
+                var label = string.IsNullOrEmpty(num)
+                    ? target._setting.ReadableDeviceName
+                    : $"Display {num}  ·  {target._setting.ReadableDeviceName}";
+
+                var row = new Border
+                {
+                    Background = Brushes.Transparent,
+                    Padding = new Thickness(12, 8, 12, 8),
+                    Cursor = Cursors.Hand,
+                    Child = new TextBlock { Text = label, Foreground = fg, FontSize = 13 }
+                };
+                row.MouseEnter += (s, ev) => row.Background = hoverBg;
+                row.MouseLeave += (s, ev) => row.Background = Brushes.Transparent;
+
+                var captured = target;
+                row.MouseLeftButtonUp += (s, ev) =>
+                {
+                    ((Popup)((Border)((StackPanel)row.Parent).Parent).Parent).IsOpen = false;
+                    ExecuteClone(captured);
+                };
+                stack.Children.Add(row);
+            }
+
+            var popup = new Popup
+            {
+                PlacementTarget = button,
+                Placement = PlacementMode.Bottom,
+                StaysOpen = false,
+                AllowsTransparency = true,
+                Child = new Border
+                {
+                    Background = bg,
+                    BorderBrush = border,
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(4),
+                    Padding = new Thickness(0, 4, 0, 4),
+                    Child = stack
+                }
+            };
+            popup.IsOpen = true;
+        }
+
+        private void ExecuteClone(DisplaySettingControl other)
+        {
+            var newCloneGroupId = "clone-" + Guid.NewGuid().ToString("N").Substring(0, 8);
+            uint sharedSourceId = _setting.SourceId;
+            int sharedX = _setting.DisplayPositionX;
+            int sharedY = _setting.DisplayPositionY;
+
+            foreach (var member in _cloneGroupMembers)
+                member.CloneGroupId = newCloneGroupId;
+
+            foreach (var member in other._cloneGroupMembers)
+            {
+                member.CloneGroupId = newCloneGroupId;
+                member.SourceId = sharedSourceId;
+                // Clone members share the same source so they must share the same position
+                member.DisplayPositionX = sharedX;
+                member.DisplayPositionY = sharedY;
+            }
+
+            OnCloneGroupChanged?.Invoke();
+        }
+
+        private void ExecuteBreakClone()
+        {
+            var panel = Parent as Panel;
+            uint maxSourceId = 0;
+            if (panel != null)
+            {
+                foreach (var ctrl in panel.Children.OfType<DisplaySettingControl>())
+                    foreach (var m in ctrl._cloneGroupMembers)
+                        maxSourceId = Math.Max(maxSourceId, m.SourceId);
+            }
+
+            bool isFirst = true;
+            foreach (var member in _cloneGroupMembers)
+            {
+                member.CloneGroupId = string.Empty;
+                if (!isFirst)
+                    member.SourceId = ++maxSourceId;
+                isFirst = false;
+            }
+
+            OnCloneGroupChanged?.Invoke();
+        }
+
         public void SetPrimary(bool isPrimary)
         {
             // Set this control's primary status without triggering events
@@ -1421,5 +1857,66 @@ namespace DisplayProfileManager.UI.Windows
             }
         }
 
+    }
+
+    /// <summary>
+    /// Helper class for grouping displays for UI display
+    /// </summary>
+    public static class DisplayGroupingHelper
+    {
+        /// <summary>
+        /// Represents a display group (either a single display or a clone group)
+        /// </summary>
+        public class DisplayGroup
+        {
+            public DisplaySetting RepresentativeSetting { get; set; }
+            public List<DisplaySetting> AllMembers { get; set; }
+            public bool IsCloneGroup => AllMembers.Count > 1;
+        }
+
+        /// <summary>
+        /// Groups display settings by clone groups for UI display.
+        /// Clone groups are shown as single entries with multiple members.
+        /// </summary>
+        public static List<DisplayGroup> GroupDisplaysForUI(List<DisplaySetting> displaySettings)
+        {
+            var result = new List<DisplayGroup>();
+
+            // Group by CloneGroupId to identify clone groups
+            var cloneGroups = displaySettings
+                .Where(s => s.IsPartOfCloneGroup())
+                .GroupBy(s => s.CloneGroupId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            var processedCloneGroups = new HashSet<string>();
+
+            foreach (var setting in displaySettings)
+            {
+                // Skip if this is part of a clone group that we've already processed
+                if (setting.IsPartOfCloneGroup() && processedCloneGroups.Contains(setting.CloneGroupId))
+                {
+                    continue;
+                }
+
+                // Mark clone group as processed
+                if (setting.IsPartOfCloneGroup())
+                {
+                    processedCloneGroups.Add(setting.CloneGroupId);
+                }
+
+                // Get all members if this is a clone group
+                var members = setting.IsPartOfCloneGroup()
+                    ? cloneGroups[setting.CloneGroupId]
+                    : new List<DisplaySetting> { setting };
+
+                result.Add(new DisplayGroup
+                {
+                    RepresentativeSetting = setting,
+                    AllMembers = members
+                });
+            }
+
+            return result;
+        }
     }
 }

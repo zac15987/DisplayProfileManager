@@ -253,8 +253,8 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock Grid.Column="0" Text="Display Settings" 
-                               Style="{StaticResource LabelTextBlockStyle}" 
+                    <TextBlock Grid.Column="0" Text="Display Settings"
+                               Style="{StaticResource LabelTextBlockStyle}"
                                FontSize="16" VerticalAlignment="Center"/>
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal">

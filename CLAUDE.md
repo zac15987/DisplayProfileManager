@@ -35,7 +35,7 @@ cmd.exe //c "msbuild DisplayProfileManager.sln /p:Configuration=Release /p:Platf
 ### Key Components
 - **ProfileManager**: Thread-safe singleton for profile CRUD and application. Stores individual `.dpm` files in `%AppData%/DisplayProfileManager/Profiles/`. Core method: `ApplyProfileAsync(Profile)` returns `ProfileApplyResult`.
 - **SettingsManager**: Thread-safe singleton for app settings. Supports dual auto-start modes (Registry or Task Scheduler) and staged application configuration.
-- **DisplayConfigHelper**: Modern Windows Display Configuration API wrapper using `SetDisplayConfig`. Handles atomic topology application (resolution, refresh rate, position, primary, HDR, rotation, enable/disable). **Critical**: This replaces legacy `ChangeDisplaySettingsEx` for reliability.
+- **DisplayConfigHelper**: Modern Windows Display Configuration API wrapper using `SetDisplayConfig`. Handles atomic topology application (resolution, refresh rate, position, primary, HDR, rotation, enable/disable). Clone mode support is in development. **Critical**: This replaces legacy `ChangeDisplaySettingsEx` for reliability.
 - **DisplayHelper**: Legacy display API wrapper (being phased out in favor of DisplayConfigHelper for topology changes).
 - **DpiHelper**: System-wide DPI scaling via P/Invoke (adapted from windows-DPI-scaling-sample).
 - **AudioHelper**: Audio device management using AudioSwitcher.AudioApi for playback/recording device switching.
@@ -43,18 +43,45 @@ cmd.exe //c "msbuild DisplayProfileManager.sln /p:Configuration=Release /p:Platf
 - **GlobalHotkeyHelper**: System-wide hotkey registration using `RegisterHotKey` for profile switching.
 - **TrayIcon**: System tray integration with dynamically generated context menu from profiles.
 
-### Display Configuration Engine (Modern Approach)
+### Display Configuration Engine
 The application uses Windows Display Configuration API (`SetDisplayConfig`) for atomic, reliable profile switching:
 
-**Flow**: `ProfileManager.ApplyProfileAsync` → builds `List<DisplayConfigInfo>` → `DisplayConfigHelper.ApplyDisplayTopology` or `ApplyStagedConfiguration` → `SetDisplayConfig` → `ApplyHdrSettings`
+**Two-Phase Application Flow**:
+1. **Phase 1 - Enable Displays and Set Clone Groups**: 
+   - `EnableDisplays()` activates or deactivates displays
+   - Sets **final clone groups from profile** (displays that should mirror get same clone group ID)
+   - Uses `SDC_TOPOLOGY_SUPPLIED | SDC_APPLY | SDC_ALLOW_PATH_ORDER_CHANGES | SDC_VIRTUAL_MODE_AWARE`
+   - Uses null mode array (Windows chooses appropriate modes for topology)
+   - Assigns unique `sourceId` per display per adapter (0, 1, 2...)
+   - Purpose: Establish display topology and clone mode before applying detailed settings
+   
+2. **Stabilization Pause**: Configurable delay (default 1000ms, range 1-5000ms) for driver and hardware initialization
 
-**Staged Application Mode**: Optional two-phase application for complex multi-monitor setups:
-- Phase 1: Apply topology to currently active displays only (partial update)
-- Configurable pause (default 1000ms, range 1-5000ms)
-- Phase 2: Apply full target topology including newly enabled displays
-- Controlled by `UseStagedApplication` and `StagedApplicationPauseMs` settings
+3. **Phase 2 - Apply Resolution, Position, and Refresh Rate**:
+   - `ApplyDisplayTopology()` applies detailed display settings:
+     - Resolution (modifies `sourceMode.width` and `sourceMode.height`)
+     - Desktop position (modifies `sourceMode.position.x` and `sourceMode.position.y`)
+     - Refresh rate (modifies `targetMode.vSyncFreq`)
+     - Rotation (modifies `path.targetInfo.rotation`)
+   - Uses `SDC_USE_SUPPLIED_DISPLAY_CONFIG | SDC_APPLY | SDC_SAVE_TO_DATABASE | SDC_VIRTUAL_MODE_AWARE`
+   - Queries current config (with Phase 1 clone groups) and modifies mode array ONLY
+   - **Critical**: Does NOT modify clone groups or source IDs (already correct from Phase 1)
+   - Modifying clone groups in Phase 2 would invalidate mode indices and break the configuration
+   
+4. **Primary Display**: Display at position (0,0) automatically becomes primary (no separate API call needed)
+   
+5. **HDR & DPI**: Applied per-display after topology configuration using separate API calls
 
-**Why Staged Mode**: Prevents driver instability when enabling new displays with complex settings (HDR, high refresh rate) while simultaneously changing existing displays.
+6. **Audio Devices**: Switched to configured playback/recording devices if specified
+
+**Clone Group Implementation**:
+- Clone groups enable display mirroring (duplicate displays showing identical content)
+- Implemented via `CloneGroupId` field in `DISPLAYCONFIG_PATH_SOURCE_INFO.modeInfoIdx` (lower 16 bits)
+- Displays with same `CloneGroupId` will mirror each other
+- Each active display gets a unique `sourceId` per adapter (0, 1, 2...) regardless of clone grouping
+- For extended mode: each display gets unique `CloneGroupId` (0, 1, 2...)
+- For clone mode: displays in same group share the same `CloneGroupId`
+- Clone groups MUST be set in Phase 1 with `SDC_TOPOLOGY_SUPPLIED` before mode modifications
 
 ### Data Storage
 - Profiles: `%AppData%/DisplayProfileManager/Profiles/*.dpm` (JSON, one file per profile)
@@ -71,6 +98,91 @@ Each monitor in a profile includes:
 - `IsHdrSupported`, `IsHdrEnabled`: HDR capability and state
 - `Rotation`: Screen orientation (1=0°, 2=90°, 3=180°, 4=270°) - maps to `DISPLAYCONFIG_ROTATION` enum
 - `DpiScaling`: Windows DPI scaling percentage
+- `CloneGroupId`: Optional identifier for clone/duplicate display groups
+
+### Clone Groups (Duplicate Displays)
+
+Displays can be configured in clone/duplicate mode where multiple monitors show identical content:
+
+**Clone Group Representation:**
+- Multiple `DisplaySetting` objects with same `CloneGroupId`
+- Same `SourceId`, `DeviceName`, resolution, refresh rate, position
+- Different `TargetId` (unique per physical monitor)
+- Empty `CloneGroupId` = extended mode (independent display)
+
+**Example Profile Structure:**
+```json
+{
+  "displaySettings": [
+    {
+      "deviceName": "\\\\.\\DISPLAY1",
+      "sourceId": 0,
+      "targetId": 0,
+      "width": 1920,
+      "height": 1080,
+      "frequency": 60,
+      "displayPositionX": 0,
+      "displayPositionY": 0,
+      "cloneGroupId": "clone-group-1"
+    },
+    {
+      "deviceName": "\\\\.\\DISPLAY1",
+      "sourceId": 0,
+      "targetId": 1,
+      "width": 1920,
+      "height": 1080,
+      "frequency": 60,
+      "displayPositionX": 0,
+      "displayPositionY": 0,
+      "cloneGroupId": "clone-group-1"
+    }
+  ]
+}
+```
+
+**Detection:** `GetCurrentDisplaySettingsAsync()` groups displays by `(DeviceName, SourceId)` to identify clone groups automatically.
+
+**Validation:** 
+- `ValidateCloneGroups()` ensures consistent resolution, refresh rate, and position within groups
+- Warns about DPI differences (non-blocking)
+- Applied before profile application in `ApplyProfileAsync()`
+
+**UI Behavior:**
+- Clone groups shown as single control with all member names
+- Editing one control applies settings to all clone group members
+- Saving creates multiple `DisplaySetting` objects (one per physical display)
+
+**Application:**
+- **Implementation:** Two-phase approach in `DisplayConfigHelper.cs`
+- **API Used:** Windows CCD (Connected Display Configuration) API
+- **Clone Group Encoding:**
+  - Uses `modeInfoIdx` field in `DISPLAYCONFIG_PATH_SOURCE_INFO` structure
+  - Lower 16 bits: Clone Group ID (displays with same ID will mirror)
+  - Upper 16 bits: Source Mode Index (index into mode array, or 0xFFFF if invalid)
+  - Accessed via `CloneGroupId` and `SourceModeInfoIdx` properties in C#
+- **Phase 1 (`EnableDisplays`):**
+  - Maps profile displays by `SourceId` to determine clone groups
+  - Displays with same profile `SourceId` get same `CloneGroupId` (for mirroring)
+  - Invalidates all mode indices (target and source)
+  - Sets `DISPLAYCONFIG_PATH_ACTIVE` flag for enabled displays
+  - Calls `ResetModeAndSetCloneGroup()` to set clone group ID (invalidates source mode index)
+  - Assigns unique `sourceId` per display per adapter
+  - Applies with `SDC_TOPOLOGY_SUPPLIED | SDC_APPLY | SDC_ALLOW_PATH_ORDER_CHANGES | SDC_VIRTUAL_MODE_AWARE`
+  - Uses null mode array (Windows chooses modes)
+- **Phase 2 (`ApplyDisplayTopology`):**
+  - Queries current config (includes clone groups from Phase 1)
+  - Finds source modes in mode array for each adapter
+  - Modifies `sourceMode`: resolution (`width`, `height`), position (`position.x`, `position.y`)
+  - Modifies `targetMode`: refresh rate (`vSyncFreq.Numerator` / `vSyncFreq.Denominator`)
+  - Sets rotation in path array: `path.targetInfo.rotation`
+  - **Does NOT modify clone groups or source IDs** (would break mode indices)
+  - Applies with `SDC_USE_SUPPLIED_DISPLAY_CONFIG | SDC_APPLY | SDC_SAVE_TO_DATABASE | SDC_VIRTUAL_MODE_AWARE`
+- **Key Insight:** Clone groups can only be set with `SDC_TOPOLOGY_SUPPLIED` + null modes. Once mode array is used for resolution/position, clone groups cannot be changed without invalidating mode indices.
+- **Reference:** Based on DisplayConfig PowerShell module implementation (Enable-Display + Use-DisplayConfig pattern)
+
+**Mixed Mode Support:** Profiles can contain both clone groups and independent displays in the same configuration.
+
+**Backward Compatibility:** Old profiles without `CloneGroupId` load normally (defaults to empty string = extended mode).
 
 ## Dependencies
 - **.NET Framework 4.8**: WPF support, required for Windows 7+ compatibility

@@ -194,49 +194,48 @@ namespace DisplayProfileManager.Core
                     // Get display configs using QueueDisplayConfig
                     List<DisplayConfigHelper.DisplayConfigInfo> displayConfigs = DisplayConfigHelper.GetDisplayConfigs();
                     
-                    if (displays.Count > 0 &&
-                        monitors.Count > 0 &&
+                    if (monitors.Count > 0 &&
                         monitorIDs.Count > 0 &&
                         displayConfigs.Count > 0)
                     {
-                        for (int i = 0; i < displays.Count; i++)
+                        // Iterate through displayConfigs (modern API that properly detects all displays including clones)
+                        for (int i = 0; i < displayConfigs.Count; i++)
                         {
-                            var foundConfig = displayConfigs.Find(x => x.DeviceName == displays[i].DeviceName);
-
-                            if (foundConfig == null)
-                            {
-                                logger.Debug("No display config found for " + displays[i].DeviceName);
-                                continue;
-                            }
+                            var foundConfig = displayConfigs[i];
+                            
+                            // Try to find matching display from old API (for frequency info)
+                            var foundDisplay = displays.Find(x => x.DeviceName == foundConfig.DeviceName);
 
                             var foundMonitor = monitors.Find(x => x.DeviceID.Contains($"UID{foundConfig.TargetId}"));
 
                             if (foundMonitor == null)
                             {
-                                logger.Debug("No monitor found for " + foundConfig.TargetId);
-                                continue;
+                                logger.Warn($"No WMI monitor found for TargetId {foundConfig.TargetId} - using DisplayConfigHelper data");
                             }
 
-                            var foundMonitorId = monitorIDs.Find(x => x.InstanceName.ToUpper().Contains(foundMonitor.PnPDeviceID.ToUpper()));
-
-                            if(foundMonitorId == null)
+                            DisplayHelper.MonitorIdInfo foundMonitorId = null;
+                            if (foundMonitor != null)
                             {
-                                logger.Debug("No monitor ID found for " + foundMonitor.PnPDeviceID);
-                                continue;
+                                foundMonitorId = monitorIDs.Find(x => x.InstanceName.ToUpper().Contains(foundMonitor.PnPDeviceID.ToUpper()));
+                                
+                                if(foundMonitorId == null)
+                                {
+                                    logger.Warn($"No WMI monitor ID found for {foundMonitor.PnPDeviceID} - using generic data");
+                                }
                             }    
 
                             string adpaterIdText = $"{foundConfig.AdapterId.HighPart:X8}{foundConfig.AdapterId.LowPart:X8}";
-                            DpiHelper.DPIScalingInfo dpiInfo = DpiHelper.GetDPIScalingInfo(displays[i].DeviceName);
+                            DpiHelper.DPIScalingInfo dpiInfo = DpiHelper.GetDPIScalingInfo(foundConfig.DeviceName, foundConfig);
 
                             DisplaySetting setting = new DisplaySetting();
-                            setting.DeviceName = displays[i].DeviceName;
-                            setting.DeviceString = displays[i].DeviceString;
-                            setting.ReadableDeviceName = foundMonitor.Name;
+                            setting.DeviceName = foundConfig.DeviceName;
+                            setting.DeviceString = foundDisplay?.DeviceString ?? foundConfig.DeviceName;
+                            setting.ReadableDeviceName = foundMonitor?.Name ?? foundConfig.FriendlyName;
                             setting.Width = foundConfig.Width;
                             setting.Height = foundConfig.Height;
-                            setting.Frequency = displays[i].Frequency;
+                            setting.Frequency = foundDisplay?.Frequency ?? (int)foundConfig.RefreshRate;
                             setting.DpiScaling = dpiInfo.Current;
-                            setting.IsPrimary = displays[i].IsPrimary;
+                            setting.IsPrimary = foundDisplay?.IsPrimary ?? foundConfig.IsPrimary;
                             setting.AdapterId = adpaterIdText;
                             setting.SourceId = foundConfig.SourceId;
                             setting.IsEnabled = foundConfig.IsEnabled;
@@ -248,14 +247,9 @@ namespace DisplayProfileManager.Core
                             setting.IsHdrEnabled = foundConfig.IsHdrEnabled;
                             setting.Rotation = (int)foundConfig.Rotation;
                             
-                            logger.Debug($"PROFILE DEBUG: Creating DisplaySetting for {setting.DeviceName}:");
-                            logger.Debug($"PROFILE DEBUG:   HDR Supported: {setting.IsHdrSupported}");
-                            logger.Debug($"PROFILE DEBUG:   HDR Enabled: {setting.IsHdrEnabled}");
-                            logger.Debug($"PROFILE DEBUG:   TargetId: {setting.TargetId}");
-                            logger.Debug($"PROFILE DEBUG:   AdapterId: {setting.AdapterId}");
-                            setting.ManufacturerName = foundMonitorId.ManufacturerName;
-                            setting.ProductCodeID = foundMonitorId.ProductCodeID;
-                            setting.SerialNumberID = foundMonitorId.SerialNumberID;
+                            setting.ManufacturerName = foundMonitorId?.ManufacturerName ?? "";
+                            setting.ProductCodeID = foundMonitorId?.ProductCodeID ?? "";
+                            setting.SerialNumberID = foundMonitorId?.SerialNumberID ?? "";
 
                             // Capture available options for this monitor
                             try
@@ -297,7 +291,30 @@ namespace DisplayProfileManager.Core
                             settings.Add(setting);
                         }
 
-                        logger.Info($"Found {settings.Count} display settings");
+                        logger.Info($"Successfully created {settings.Count} display settings from {displayConfigs.Count} display configs");
+                        
+                        // Detect clone groups by grouping displays with same DeviceName and SourceId
+                        var cloneGroups = settings
+                            .GroupBy(s => new { s.DeviceName, s.SourceId })
+                            .Where(g => g.Count() > 1)
+                            .ToList();
+
+                        if (cloneGroups.Any())
+                        {
+                            int cloneGroupIndex = 1;
+                            foreach (var group in cloneGroups)
+                            {
+                                string cloneGroupId = $"clone-group-{cloneGroupIndex}";
+                                foreach (var setting in group)
+                                {
+                                    setting.CloneGroupId = cloneGroupId;
+                                    logger.Info($"Detected clone group '{cloneGroupId}': " +
+                                              $"{setting.ReadableDeviceName} (TargetId: {setting.TargetId})");
+                                }
+                                cloneGroupIndex++;
+                            }
+                            logger.Info($"Detected {cloneGroups.Count} clone group(s) with {cloneGroups.Sum(g => g.Count())} total displays");
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -315,13 +332,23 @@ namespace DisplayProfileManager.Core
             {
                 ProfileApplyResult result = new ProfileApplyResult { AudioSuccess = true }; // Init audio as true
 
-                // Step 1: Prepare the display configuration from the profile
+                // Validate clone groups before applying
+                if (!ValidateCloneGroups(profile.DisplaySettings))
+                {
+                    logger.Error("Clone group validation failed - profile not applied");
+                    return new ProfileApplyResult { Success = false };
+                }
+
+                // Prepare the display configuration from the profile
                 var displayConfigs = new List<DisplayConfigHelper.DisplayConfigInfo>();
                 if (profile.DisplaySettings.Count > 0)
                 {
+                    // Query WMI once for all displays (cache it)
+                    var wmiMonitorIds = DisplayHelper.GetMonitorIDsFromWmiMonitorID();
+                    
                     foreach (var setting in profile.DisplaySettings)
                     {
-                        setting.UpdateDeviceNameFromWMI();
+                        setting.UpdateDeviceNameFromWMI(wmiMonitorIds);
                         displayConfigs.Add(new DisplayConfigHelper.DisplayConfigInfo
                         {
                             DeviceName = setting.DeviceName,
@@ -344,7 +371,65 @@ namespace DisplayProfileManager.Core
                     }
                 }
 
-                // Step 2: Set Primary Display first (adjusts positions in the config list)
+                // Log clone groups being applied
+                var cloneGroupsToApply = displayConfigs
+                    .GroupBy(dc => dc.SourceId)
+                    .Where(g => g.Count() > 1)
+                    .ToList();
+
+                if (cloneGroupsToApply.Any())
+                {
+                    foreach (var group in cloneGroupsToApply)
+                    {
+                        var targetIds = string.Join(", ", group.Select(dc => dc.TargetId));
+                        var displayNames = string.Join(", ", group.Select(dc => dc.FriendlyName));
+                        logger.Info($"Applying clone group: Source {group.Key} → " +
+                                   $"Targets [{targetIds}] ({displayNames})");
+                    }
+                    logger.Info($"Total clone groups to apply: {cloneGroupsToApply.Count}");
+                }
+
+                // === Phase 1: Enable all displays ===
+                logger.Info("Phase 1: Enabling displays...");
+                if (!DisplayConfigHelper.EnableDisplays(displayConfigs))
+                {
+                    logger.Error("Phase 1 (enable displays) failed.");
+                    result.Success = false;
+                    return result;
+                }
+                
+                // Verify all displays are now active
+                logger.Debug("Verifying displays were enabled...");
+                var currentDisplays = DisplayConfigHelper.GetDisplayConfigs();
+                var currentActiveTargetIds = new HashSet<uint>(currentDisplays.Where(d => d.IsEnabled).Select(d => d.TargetId));
+                var expectedActiveTargetIds = displayConfigs.Where(d => d.IsEnabled).Select(d => d.TargetId).ToList();
+                
+                foreach (var targetId in expectedActiveTargetIds)
+                {
+                    if (currentActiveTargetIds.Contains(targetId))
+                    {
+                        logger.Debug($"✓ TargetId {targetId} is active");
+                    }
+                    else
+                    {
+                        logger.Warn($"✗ TargetId {targetId} is NOT active after Phase 1");
+                    }
+                }
+                
+                int activeCount = expectedActiveTargetIds.Count(id => currentActiveTargetIds.Contains(id));
+                logger.Info($"Phase 1 verification: {activeCount}/{expectedActiveTargetIds.Count} displays active");
+                
+                // Wait for driver stabilization
+                int pauseMs = _settingsManager.GetStagedApplicationPauseMs();
+                logger.Info($"Phase 1 completed. Waiting {pauseMs}ms for stabilization...");
+                System.Threading.Thread.Sleep(pauseMs);
+                
+                // === Phase 2: Apply full configuration ===
+                logger.Info("Phase 2: Applying full display configuration...");
+                result.DisplayConfigApplied = ApplyUnifiedConfiguration(displayConfigs);
+                result.ResolutionChanged = result.DisplayConfigApplied;
+                
+                // Set Primary Display (after topology and clone groups are applied)
                 if (displayConfigs.Count > 0)
                 {
                     logger.Debug("Setting primary display...");
@@ -352,56 +437,26 @@ namespace DisplayProfileManager.Core
                     if (!result.PrimaryChanged)
                     {
                         logger.Warn("Failed to set primary display.");
-                        result.Success = false;
                     }
                     else
                     {
                         logger.Info("Set primary display successfully");
                     }
                 }
-
-                // Step 3: Choose application path (Staged or Simple)
-                if (_settingsManager.ShouldUseStagedApplication() && displayConfigs.Count > 1)
-                {
-                    logger.Info("Using staged application path.");
-                    result.DisplayConfigApplied = ApplyStagedConfiguration(displayConfigs);
-                    result.ResolutionChanged = result.DisplayConfigApplied; // Staged method handles resolution
-                }
-                else
-                {
-                    logger.Info("Using simple application path.");
-                    // --- Simple Path Logic ---
-                    // 3.1: Apply Topology
-                    result.DisplayConfigApplied = DisplayConfigHelper.ApplyDisplayTopology(displayConfigs);
-                    if(result.DisplayConfigApplied)
-                    {
-                        // 3.2: Apply Resolution/Frequency
-                        logger.Info("Applying resolution and refresh rate for all enabled monitors...");
-                        bool allResolutionsChanged = true;
-                        foreach (var setting in profile.DisplaySettings.Where(s => s.IsEnabled))
-                        {
-                            if (DisplayHelper.IsMonitorConnected(setting.DeviceName))
-                            {
-                                if (!DisplayHelper.ChangeResolution(setting.DeviceName, setting.Width, setting.Height, setting.Frequency))
-                                {
-                                    logger.Warn($"Failed to change resolution for {setting.DeviceName}");
-                                    allResolutionsChanged = false;
-                                }
-                                else
-                                {
-                                    logger.Info($"Successfully changed resolution for {setting.DeviceName} to {setting.Width}x{setting.Height}@{setting.Frequency}Hz");
-                                }
-                            }
-                        }
-                        result.ResolutionChanged = allResolutionsChanged;
-                    }
-                }
                 
-                // Step 4: Apply DPI and Final HDR (DPI is always separate, HDR is final confirmation)
+                // Apply DPI and Final HDR (DPI is always separate, HDR is final confirmation)
                 if (result.DisplayConfigApplied)
                 {
                     bool allDpiChanged = true;
-                    foreach (var setting in profile.DisplaySettings.Where(s => s.IsEnabled))
+                    
+                    // Group by DeviceName to handle clone groups (same DeviceName, different TargetIds)
+                    var uniqueDevicesForDpi = profile.DisplaySettings
+                        .Where(s => s.IsEnabled)
+                        .GroupBy(s => s.DeviceName)
+                        .Select(g => g.First()) // Take first setting for each unique device
+                        .ToList();
+                    
+                    foreach (var setting in uniqueDevicesForDpi)
                     {
                         if (DisplayHelper.IsMonitorConnected(setting.DeviceName))
                         {
@@ -423,7 +478,7 @@ namespace DisplayProfileManager.Core
 
                 result.Success = result.PrimaryChanged && result.DisplayConfigApplied && result.ResolutionChanged && result.DpiChanged;
 
-                // Step 5: Apply Audio Settings (common to both paths)
+                // Apply Audio Settings
                 if (profile.AudioSettings != null)
                 {
                     result.AudioSuccess = AudioHelper.ApplyAudioSettings(profile.AudioSettings);
@@ -433,6 +488,23 @@ namespace DisplayProfileManager.Core
                 {
                     _currentProfileId = profile.Id;
                     await _settingsManager.SetCurrentProfileIdAsync(profile.Id);
+                    
+                    // Log successful application
+                    var cloneGroupCount = profile.DisplaySettings
+                        .Where(s => s.IsPartOfCloneGroup())
+                        .GroupBy(s => s.CloneGroupId)
+                        .Count();
+                    
+                    if (cloneGroupCount > 0)
+                    {
+                        logger.Info($"Successfully applied profile '{profile.Name}' with {profile.DisplaySettings.Count} displays " +
+                                  $"({cloneGroupCount} clone group(s))");
+                    }
+                    else
+                    {
+                        logger.Info($"Successfully applied profile '{profile.Name}' with {profile.DisplaySettings.Count} displays");
+                    }
+                    
                     ProfileApplied?.Invoke(this, profile);
                 }
 
@@ -797,90 +869,98 @@ namespace DisplayProfileManager.Core
             return null;
         }
 
-private bool ApplyStagedConfiguration(List<DisplayConfigHelper.DisplayConfigInfo> targetConfigs)
+        private bool ValidateCloneGroups(List<DisplaySetting> settings)
+        {
+            var cloneGroups = settings
+                .Where(s => s.IsPartOfCloneGroup())
+                .GroupBy(s => s.CloneGroupId);
+            
+            foreach (var group in cloneGroups)
+            {
+                var groupList = group.ToList();
+                if (groupList.Count < 2)
+                {
+                    logger.Warn($"Clone group {group.Key} has only one member - ignoring");
+                    continue;
+                }
+                
+                var first = groupList[0];
+                
+                foreach (var setting in groupList.Skip(1))
+                {
+                    // Critical validations (must match for clone groups)
+                    // Note: DeviceName should be DIFFERENT (different physical monitors)
+                    if (setting.Width != first.Width || 
+                        setting.Height != first.Height ||
+                        setting.Frequency != first.Frequency ||
+                        setting.SourceId != first.SourceId ||
+                        setting.DisplayPositionX != first.DisplayPositionX ||
+                        setting.DisplayPositionY != first.DisplayPositionY)
+                    {
+                        logger.Error($"Clone group {group.Key} has inconsistent critical settings: " +
+                                   $"{setting.ReadableDeviceName} ({setting.Width}x{setting.Height}@{setting.Frequency}Hz at {setting.DisplayPositionX},{setting.DisplayPositionY}) vs " +
+                                   $"{first.ReadableDeviceName} ({first.Width}x{first.Height}@{first.Frequency}Hz at {first.DisplayPositionX},{first.DisplayPositionY})");
+                        return false;
+                    }
+                    
+                    // Warning validation (should match but don't fail)
+                    if (setting.DpiScaling != first.DpiScaling)
+                    {
+                        logger.Warn($"Clone group {group.Key} has different DPI settings - " +
+                                  $"{setting.ReadableDeviceName}: {setting.DpiScaling}% vs " +
+                                  $"{first.ReadableDeviceName}: {first.DpiScaling}% - " +
+                                  $"may cause visual inconsistency");
+                    }
+                }
+                
+                logger.Debug($"Clone group {group.Key} validation passed ({groupList.Count} displays)");
+            }
+            
+            return true;
+        }
+
+        /// <summary>
+        /// Unified configuration method that handles both clone and standard topologies.
+        /// Applies topology, positions, and HDR settings in one cohesive flow.
+        /// </summary>
+        private bool ApplyUnifiedConfiguration(List<DisplayConfigHelper.DisplayConfigInfo> displayConfigs)
         {
             try
             {
-                logger.Info($"Starting staged application for {targetConfigs.Count} displays");
+                logger.Info($"Applying unified configuration for {displayConfigs.Count} displays");
 
-                // --- Get current system state to identify active monitors ---
-                var currentSystemDisplays = DisplayConfigHelper.GetDisplayConfigs();
-                var currentlyActiveSystemDisplayIds = new HashSet<uint>(currentSystemDisplays.Where(d => d.IsEnabled).Select(d => d.TargetId));
-                logger.Debug($"Found {currentlyActiveSystemDisplayIds.Count} currently active display(s).");
-
-                // --- Phase 1: Apply target configuration only to monitors that are already active ---
-                var phase1Configs = targetConfigs
-                    .Where(tc => currentlyActiveSystemDisplayIds.Contains(tc.TargetId) && tc.IsEnabled)
-                    .ToList();
-
-                if (phase1Configs.Any())
+                // Apply complete display configuration (resolution, refresh rate, position, rotation, clone groups)
+                // Uses SDC_USE_SUPPLIED_DISPLAY_CONFIG with full mode array for atomic configuration
+                if (!DisplayConfigHelper.ApplyDisplayTopology(displayConfigs))
                 {
-                    logger.Info($"Phase 1: Applying new settings for {phase1Configs.Count} monitor(s) that are already active.");
-
-                    // Step 1.1: Apply partial topology (activation flags, rotation)
-                    if (!DisplayConfigHelper.ApplyPartialDisplayTopology(phase1Configs))
-                    {
-                        logger.Error("Phase 1 (partial topology) failed. Falling back to single-step application.");
-                        return DisplayConfigHelper.ApplyDisplayTopology(targetConfigs) &&
-                               DisplayConfigHelper.ApplyDisplayPosition(targetConfigs) &&
-                               DisplayConfigHelper.ApplyHdrSettings(targetConfigs);
-                    }
-                    
-                    // Step 1.2: Explicitly apply resolution and refresh rate for the active monitors.
-                    // This is the critical step to stabilize the system before adding more monitors.
-                    logger.Info("Phase 1: Applying resolution and refresh rate changes for active monitors.");
-                    foreach (var config in phase1Configs)
-                    {
-                        logger.Debug($"Phase 1: Changing mode for {config.DeviceName} to {config.Width}x{config.Height}@{config.RefreshRate}Hz");
-                        if (!DisplayHelper.ChangeResolution(config.DeviceName, config.Width, config.Height, (int)config.RefreshRate))
-                        {
-                            logger.Warn($"Phase 1: Failed to change resolution for {config.DeviceName}.");
-                        }
-                    }
-
-                    // Step 1.3: Apply HDR settings for this subset
-                    if (!DisplayConfigHelper.ApplyHdrSettings(phase1Configs))
-                    {
-                        logger.Warn("Phase 1: Some HDR settings failed to apply.");
-                    }
-
-                    logger.Info("Phase 1 completed. Waiting for stabilization...");
-                    int pauseMs = _settingsManager.GetStagedApplicationPauseMs();
-                    System.Threading.Thread.Sleep(pauseMs);
-                }
-                else
-                {
-                    logger.Info("No currently active monitors are part of the new profile's active set. Skipping Phase 1.");
-                }
-
-                // --- Phase 2: Apply the full configuration to activate remaining monitors and finalize state ---
-                logger.Info("Phase 2: Applying the full target profile.");
-
-                // Use the standard ApplyDisplayTopology which will handle enabling/disabling correctly
-                if (!DisplayConfigHelper.ApplyDisplayTopology(targetConfigs))
-                {
-                    logger.Error("Phase 2 failed: Could not apply the full display topology.");
+                    logger.Error("Failed to apply display topology");
                     return false;
                 }
 
-                // Apply final positions for all monitors
-                if (!DisplayConfigHelper.ApplyDisplayPosition(targetConfigs))
+                // Apply HDR settings (must be done after topology is established)
+                if (!DisplayConfigHelper.ApplyHdrSettings(displayConfigs))
                 {
-                    logger.Warn("Phase 2: Failed to apply final display positions.");
+                    logger.Warn("Some HDR settings failed to apply");
                 }
 
-                // Apply final HDR settings for all monitors
-                if (!DisplayConfigHelper.ApplyHdrSettings(targetConfigs))
+                // Verify configuration (non-blocking, for logging/debugging only)
+                System.Threading.Thread.Sleep(500);
+                bool verified = DisplayConfigHelper.VerifyDisplayConfiguration(displayConfigs);
+                if (verified)
                 {
-                    logger.Warn("Phase 2: Some final HDR settings failed to apply.");
+                    logger.Info("✓ Configuration verified successfully");
+                }
+                else
+                {
+                    logger.Warn("Configuration verification failed - settings may not match exactly");
                 }
 
-                logger.Info("Staged application completed successfully");
+                logger.Info("✓ Unified configuration applied successfully");
                 return true;
             }
             catch (Exception ex)
             {
-                logger.Error(ex, "Error during staged application");
+                logger.Error(ex, "Error during unified configuration");
                 return false;
             }
         }
