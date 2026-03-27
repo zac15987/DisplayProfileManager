@@ -1,0 +1,48 @@
+{
+  "app.title": "Display Profile Manager",
+
+  "menu.file": "File",
+  "menu.settings": "Settings",
+  "menu.about": "About",
+  "menu.exit": "Exit",
+
+  "window.main.title": "Display Profiles",
+  "window.settings.title": "Settings",
+  "window.about.title": "About Display Profile Manager",
+
+  "button.apply": "Apply",
+  "button.ok": "OK",
+  "button.cancel": "Cancel",
+  "button.add": "Add",
+  "button.remove": "Remove",
+  "button.edit": "Edit",
+  "button.close": "Close",
+
+  "label.currentProfile": "Current profile",
+  "label.display": "Display",
+  "label.resolution": "Resolution",
+  "label.refreshRate": "Refresh rate",
+  "label.scaling": "Scaling",
+  "label.colorDepth": "Color depth",
+
+  "settings.language": "Language",
+  "settings.startWithWindows": "Start with Windows",
+  "settings.minimizeToTray": "Minimize to tray",
+  "settings.applyOnStartup": "Apply profile on startup",
+
+  "tray.show": "Show",
+  "tray.exit": "Exit",
+
+  "dialog.confirm.title": "Confirmation",
+  "dialog.confirm.message": "Are you sure you want to continue?",
+
+  "dialog.deleteProfile.title": "Delete profile",
+  "dialog.deleteProfile.message": "Are you sure you want to delete this profile?",
+
+  "status.ready": "Ready",
+  "status.profileApplied": "Profile applied",
+
+  "error.generic": "An unexpected error occurred",
+  "error.loadProfiles": "Failed to load display profiles",
+  "error.applyProfile": "Failed to apply display profile"
+}
