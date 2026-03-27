@@ -148,8 +148,14 @@ namespace DisplayProfileManager.UI.Windows
                 };
                 ProfileDetailsPanel.Children.Add(displaysHeader);
 
-                foreach (var setting in profile.DisplaySettings)
+                // Use helper to group displays
+                var displayGroups = DisplayGroupingHelper.GroupDisplaysForUI(profile.DisplaySettings);
+
+                foreach (var group in displayGroups)
                 {
+                    var setting = group.RepresentativeSetting;
+                    var displayMembers = group.AllMembers;
+
                     var settingPanel = new StackPanel { Margin = new Thickness(0, 0, 0, 12) };
 
                     // Add a border for disabled monitors to make them visually distinct
@@ -169,7 +175,7 @@ namespace DisplayProfileManager.UI.Windows
                         // Add disabled indicator
                         var disabledIndicator = new TextBlock
                         {
-                            Text = "⚠ DISABLED MONITOR",
+                            Text = displayMembers.Count > 1 ? "⚠ DISABLED CLONE GROUP" : "⚠ DISABLED MONITOR",
                             Style = (Style)FindResource("ModernTextBlockStyle"),
                             FontSize = 11,
                             Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(200, 100, 0)),
@@ -178,14 +184,24 @@ namespace DisplayProfileManager.UI.Windows
                         };
                         innerPanel.Children.Add(disabledIndicator);
 
+                        // Show all clone group members or single display
+                        string deviceText = displayMembers.Count > 1
+                            ? string.Join("\n", displayMembers.Select(m => 
+                                !string.IsNullOrEmpty(m.ReadableDeviceName) ? m.ReadableDeviceName :
+                                (!string.IsNullOrEmpty(m.DeviceString) ? m.DeviceString : m.DeviceName)))
+                            : (!string.IsNullOrEmpty(setting.ReadableDeviceName) ? setting.ReadableDeviceName :
+                               (!string.IsNullOrEmpty(setting.DeviceString) ? setting.DeviceString : setting.DeviceName));
+
                         var deviceName = new TextBlock
                         {
-                            Text = !string.IsNullOrEmpty(setting.ReadableDeviceName) ? setting.ReadableDeviceName :
-                                   (!string.IsNullOrEmpty(setting.DeviceString) ? setting.DeviceString : setting.DeviceName),
+                            Text = deviceText,
                             Style = (Style)FindResource("ModernTextBlockStyle"),
                             FontWeight = FontWeights.Medium,
                             Opacity = 0.7,
-                            ToolTip = $"{setting.ReadableDeviceName ?? setting.DeviceString}\n{setting.DeviceName}\n\nThis monitor will be disabled when applying this profile"
+                            TextWrapping = TextWrapping.Wrap,
+                            ToolTip = displayMembers.Count > 1
+                                ? $"Clone Group:\n{string.Join("\n", displayMembers.Select(m => $"• {m.ReadableDeviceName ?? m.DeviceString} ({m.DeviceName})"))}\n\nThese monitors will be disabled when applying this profile"
+                                : $"{setting.ReadableDeviceName ?? setting.DeviceString}\n{setting.DeviceName}\n\nThis monitor will be disabled when applying this profile"
                         };
                         innerPanel.Children.Add(deviceName);
 
@@ -240,15 +256,40 @@ namespace DisplayProfileManager.UI.Windows
 
                         var innerPanel = new StackPanel();
 
+                        // Show all clone group members or single display
+                        string deviceText = displayMembers.Count > 1
+                            ? string.Join("\n", displayMembers.Select(m => 
+                                !string.IsNullOrEmpty(m.ReadableDeviceName) ? m.ReadableDeviceName :
+                                (!string.IsNullOrEmpty(m.DeviceString) ? m.DeviceString : m.DeviceName)))
+                            : (!string.IsNullOrEmpty(setting.ReadableDeviceName) ? setting.ReadableDeviceName :
+                               (!string.IsNullOrEmpty(setting.DeviceString) ? setting.DeviceString : setting.DeviceName));
+
                         var deviceName = new TextBlock
                         {
-                            Text = !string.IsNullOrEmpty(setting.ReadableDeviceName) ? setting.ReadableDeviceName :
-                                   (!string.IsNullOrEmpty(setting.DeviceString) ? setting.DeviceString : setting.DeviceName),
+                            Text = deviceText,
                             Style = (Style)FindResource("ModernTextBlockStyle"),
                             FontWeight = FontWeights.Medium,
-                            ToolTip = $"{setting.ReadableDeviceName ?? setting.DeviceString}\n{setting.DeviceName}"
+                            TextWrapping = TextWrapping.Wrap,
+                            ToolTip = displayMembers.Count > 1
+                                ? $"Clone Group (Duplicate Displays):\n{string.Join("\n", displayMembers.Select(m => $"• {m.ReadableDeviceName ?? m.DeviceString} ({m.DeviceName})"))}"
+                                : $"{setting.ReadableDeviceName ?? setting.DeviceString}\n{setting.DeviceName}"
                         };
                         innerPanel.Children.Add(deviceName);
+
+                        // Add clone group indicator for enabled monitors
+                        if (displayMembers.Count > 1)
+                        {
+                            var cloneIndicator = new TextBlock
+                            {
+                                Text = "🔗 Clone Group (Duplicate Displays)",
+                                Style = (Style)FindResource("ModernTextBlockStyle"),
+                                FontSize = 11,
+                                Foreground = (SolidColorBrush)FindResource("ButtonBackgroundBrush"),
+                                FontWeight = FontWeights.Medium,
+                                Margin = new Thickness(0, 2, 0, 4)
+                            };
+                            innerPanel.Children.Add(cloneIndicator);
+                        }
 
                         var resolution = new TextBlock
                         {
