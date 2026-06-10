@@ -178,6 +178,7 @@ namespace DisplayProfileManager.Helpers
             public uint scaling;
             public DISPLAYCONFIG_RATIONAL refreshRate;
             public uint scanLineOrdering;
+            [MarshalAs(UnmanagedType.Bool)]
             public bool targetAvailable;
             public uint statusFlags;
         }

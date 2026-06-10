@@ -387,21 +387,28 @@ namespace DisplayProfileManager.Helpers
                     {
                         foreach (ManagementObject obj in collection)
                         {
-                            var monitor = new MonitorInfo
+                            try
                             {
-                                Name = obj["Name"]?.ToString() ?? "",
-                                DeviceID = obj["DeviceID"]?.ToString() ?? "",
-                                PnPDeviceID = obj["PNPDeviceID"]?.ToString() ?? "",
-                                Description = obj["Description"]?.ToString() ?? "",
-                                Manufacturer = obj["Manufacturer"]?.ToString() ?? ""
-                            };
-                            
-                            logger.Debug($"WMI Win32PnPEntity Monitor: Name='{monitor.Name}', DeviceID='{monitor.DeviceID}', PnPDeviceID='{monitor.PnPDeviceID}'");
-                            
-                            // Filter out non-monitor devices
-                            if (!string.IsNullOrEmpty(monitor.Name))
+                                var monitor = new MonitorInfo
+                                {
+                                    Name = obj["Name"]?.ToString() ?? "",
+                                    DeviceID = obj["DeviceID"]?.ToString() ?? "",
+                                    PnPDeviceID = obj["PNPDeviceID"]?.ToString() ?? "",
+                                    Description = obj["Description"]?.ToString() ?? "",
+                                    Manufacturer = obj["Manufacturer"]?.ToString() ?? ""
+                                };
+                                
+                                logger.Debug($"WMI Win32PnPEntity Monitor: Name='{monitor.Name}', DeviceID='{monitor.DeviceID}', PnPDeviceID='{monitor.PnPDeviceID}'");
+                                
+                                // Filter out non-monitor devices
+                                if (!string.IsNullOrEmpty(monitor.Name))
+                                {
+                                    monitors.Add(monitor);
+                                }
+                            }
+                            finally
                             {
-                                monitors.Add(monitor);
+                                obj.Dispose();
                             }
                         }
                     }
@@ -435,27 +442,33 @@ namespace DisplayProfileManager.Helpers
                     {
                         foreach (ManagementObject obj in collection)
                         {
-                            var monitorId = new MonitorIdInfo
+                            try
                             {
-                                InstanceName = obj["InstanceName"]?.ToString() ?? "",
-                                // ManufacturerName, ProductCodeID, SerialNumberID are returned as ushort[] (UTF-16 words)
-                                ManufacturerName = ArrayUshortToString(obj["ManufacturerName"] as ushort[]),
-                                ProductCodeID = ArrayUshortToHexString(obj["ProductCodeID"] as ushort[]),
-                                SerialNumberID = ArrayUshortToString(obj["SerialNumberID"] as ushort[]),
-                            };
+                                var monitorId = new MonitorIdInfo
+                                {
+                                    InstanceName = obj["InstanceName"]?.ToString() ?? "",
+                                    // ManufacturerName, ProductCodeID, SerialNumberID are returned as ushort[] (UTF-16 words)
+                                    ManufacturerName = ArrayUshortToString(obj["ManufacturerName"] as ushort[]),
+                                    ProductCodeID = ArrayUshortToHexString(obj["ProductCodeID"] as ushort[]),
+                                    SerialNumberID = ArrayUshortToString(obj["SerialNumberID"] as ushort[]),
+                                };
 
-                            logger.Debug($"WMI WmiMonitorID Monitor: " +
-                                $"InstanceName='{monitorId.InstanceName}', " +
-                                $"ManufacturerName='{monitorId.ManufacturerName}', " +
-                                $"ProductCodeID='{monitorId.ProductCodeID}', " +
-                                $"SerialNumberID='{monitorId.SerialNumberID}'");
+                                logger.Debug($"WMI WmiMonitorID Monitor: " +
+                                    $"InstanceName='{monitorId.InstanceName}', " +
+                                    $"ManufacturerName='{monitorId.ManufacturerName}', " +
+                                    $"ProductCodeID='{monitorId.ProductCodeID}', " +
+                                    $"SerialNumberID='{monitorId.SerialNumberID}'");
 
-                            // Filter out non-monitor devices
-                            if (!string.IsNullOrEmpty(monitorId.InstanceName))
-                            {
-                                monitorIDs.Add(monitorId);
+                                // Filter out non-monitor devices
+                                if (!string.IsNullOrEmpty(monitorId.InstanceName))
+                                {
+                                    monitorIDs.Add(monitorId);
+                                }
                             }
-                            
+                            finally
+                            {
+                                obj.Dispose();
+                            }
                         }
                     }
                 }
