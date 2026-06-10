@@ -557,20 +557,28 @@ namespace DisplayProfileManager.Helpers
                     {
                         searcher.Options.Timeout = TimeSpan.FromSeconds(5);
 
-                        ManagementObjectCollection results = searcher.Get();
-
-                        foreach (var wmiDevice in results)
+                        using (ManagementObjectCollection results = searcher.Get())
+                        {
+                            foreach (ManagementObject wmiDevice in results)
                             {
-                            var deviceName = wmiDevice["Name"]?.ToString();
-                            var wmiDeviceId = wmiDevice["DeviceID"]?.ToString();
-
-                            // CRITICAL: Only process devices that could be related to our target device
-                            if (IsBluetoothDeviceFromWmiProperties(deviceName))
-                            {
-                                // Enhanced device-specific correlation
-                                if (IsDeviceSpecificallyRelated(targetDeviceId, wmiDeviceId))
+                                try
                                 {
-                                    return deviceName;
+                                    var deviceName = wmiDevice["Name"]?.ToString();
+                                    var wmiDeviceId = wmiDevice["DeviceID"]?.ToString();
+
+                                    // CRITICAL: Only process devices that could be related to our target device
+                                    if (IsBluetoothDeviceFromWmiProperties(deviceName))
+                                    {
+                                        // Enhanced device-specific correlation
+                                        if (IsDeviceSpecificallyRelated(targetDeviceId, wmiDeviceId))
+                                        {
+                                            return deviceName;
+                                        }
+                                    }
+                                }
+                                finally
+                                {
+                                    wmiDevice.Dispose();
                                 }
                             }
                         }
