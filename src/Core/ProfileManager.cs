@@ -863,6 +863,22 @@ private bool ApplyStagedConfiguration(List<DisplayConfigHelper.DisplayConfigInfo
                     return false;
                 }
 
+                // Explicitly apply resolution and refresh rate for monitors that were just activated in this phase.
+                // ApplyDisplayTopology only flips the active/inactive flags - it does not select a target mode,
+                // so a newly-enabled monitor can come up at whatever default mode Windows picks (often 60Hz).
+                var newlyEnabledConfigs = targetConfigs
+                    .Where(tc => tc.IsEnabled && !phase1Configs.Any(p => p.TargetId == tc.TargetId && p.SourceId == tc.SourceId))
+                    .ToList();
+
+                foreach (var config in newlyEnabledConfigs)
+                {
+                    logger.Debug($"Phase 2: Changing mode for newly-enabled {config.DeviceName} to {config.Width}x{config.Height}@{config.RefreshRate}Hz");
+                    if (!DisplayHelper.ChangeResolution(config.DeviceName, config.Width, config.Height, (int)config.RefreshRate))
+                    {
+                        logger.Warn($"Phase 2: Failed to change resolution for newly-enabled display {config.DeviceName}.");
+                    }
+                }
+
                 // Apply final positions for all monitors
                 if (!DisplayConfigHelper.ApplyDisplayPosition(targetConfigs))
                 {
