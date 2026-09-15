@@ -332,7 +332,7 @@ namespace DisplayProfileManager.Helpers
         {
             // A type of advanced color is supported
             AdvancedColorSupported = 0x1,
-            // A type of advanced color is enabled  
+            // A type of advanced color is enabled
             AdvancedColorEnabled = 0x2,
             // Wide color gamut is enabled
             WideColorEnforced = 0x4,
@@ -440,7 +440,7 @@ namespace DisplayProfileManager.Helpers
                 for (uint i = 0; i < pathCount; i++)
                 {
                     var path = paths[i];
-                    
+
                     // Only process paths with available targets
                     if (!path.targetInfo.targetAvailable)
                         continue;
@@ -493,40 +493,40 @@ namespace DisplayProfileManager.Helpers
 
                     result = DisplayConfigGetDeviceInfo(ref colorInfo);
                     logger.Debug($"HDR DEBUG: DisplayConfigGetDeviceInfo result: {result} (0 = SUCCESS)");
-                    
+
                     if (result == ERROR_SUCCESS)
                     {
                         logger.Debug($"HDR DEBUG: Raw values flags: 0x{colorInfo.values:X}");
                         logger.Debug($"HDR DEBUG: Color encoding: {colorInfo.colorEncoding}");
                         logger.Debug($"HDR DEBUG: Bits per color channel: {colorInfo.bitsPerColorChannel}");
-                        
+
                         var flags = colorInfo.values;
                         bool isSupported = (flags & DISPLAYCONFIG_ADVANCED_COLOR_INFO_FLAGS.AdvancedColorSupported) != 0;
                         bool isEnabled = (flags & DISPLAYCONFIG_ADVANCED_COLOR_INFO_FLAGS.AdvancedColorEnabled) != 0;
                         bool isWideColorEnforced = (flags & DISPLAYCONFIG_ADVANCED_COLOR_INFO_FLAGS.WideColorEnforced) != 0;
                         bool isForceDisabled = (flags & DISPLAYCONFIG_ADVANCED_COLOR_INFO_FLAGS.AdvancedColorForceDisabled) != 0;
-                        
+
                         logger.Debug($"HDR DEBUG: Flag breakdown - Supported: {isSupported}, Enabled: {isEnabled}, WideColor: {isWideColorEnforced}, ForceDisabled: {isForceDisabled}");
                         logger.Debug($"HDR DEBUG: Color encoding check (YCbCr444 = HDR active): {colorInfo.colorEncoding == DISPLAYCONFIG_COLOR_ENCODING.DISPLAYCONFIG_COLOR_ENCODING_YCBCR444}");
-                        
+
                         // Final decision: supported if flag is set and not force disabled
                         bool finalSupported = isSupported && !isForceDisabled;
                         // Final decision: enabled if flag is set or force disabled but we see YCbCr444 (some systems don't set the enabled flag correctly)
                         bool finalEnabled = isEnabled || (finalSupported && colorInfo.colorEncoding == DISPLAYCONFIG_COLOR_ENCODING.DISPLAYCONFIG_COLOR_ENCODING_YCBCR444);
-                        
+
                         logger.Debug($"HDR DEBUG: Final decisions - Supported: {finalSupported}, Enabled: {finalEnabled}");
-                        
+
                         displayConfig.IsHdrSupported = finalSupported;
                         displayConfig.IsHdrEnabled = finalEnabled;
                         displayConfig.ColorEncoding = colorInfo.colorEncoding;
                         displayConfig.BitsPerColorChannel = (uint)colorInfo.bitsPerColorChannel;
-                        
+
                         logger.Info($"HDR INFO: {displayConfig.DeviceName} - HDR Supported: {finalSupported}, HDR Enabled: {finalEnabled}, Encoding: {colorInfo.colorEncoding}, BitsPerChannel: {colorInfo.bitsPerColorChannel}");
                     }
                     else
                     {
                         logger.Warn($"HDR DEBUG: Failed to get HDR info for {displayConfig.DeviceName}: error code {result}");
-                        
+
                         // Detailed error logging
                         switch (result)
                         {
@@ -540,7 +540,7 @@ namespace DisplayProfileManager.Helpers
                                 logger.Warn($"HDR DEBUG: Unknown error code: {result}");
                                 break;
                         }
-                        
+
                         logger.Warn("HDR DEBUG: Alternative method also failed - setting defaults");
                         displayConfig.IsHdrSupported = false;
                         displayConfig.IsHdrEnabled = false;
@@ -697,8 +697,8 @@ namespace DisplayProfileManager.Helpers
                     paths,
                     modeCount,
                     modes,
-                    SetDisplayConfigFlags.SDC_APPLY | 
-                    SetDisplayConfigFlags.SDC_USE_SUPPLIED_DISPLAY_CONFIG | 
+                    SetDisplayConfigFlags.SDC_APPLY |
+                    SetDisplayConfigFlags.SDC_USE_SUPPLIED_DISPLAY_CONFIG |
                     SetDisplayConfigFlags.SDC_ALLOW_CHANGES |
                     SetDisplayConfigFlags.SDC_SAVE_TO_DATABASE);
 
@@ -760,6 +760,15 @@ namespace DisplayProfileManager.Helpers
 
                 logger.Info("Display topology applied successfully");
 
+                System.Threading.Thread.Sleep(500);
+
+                bool displayModesApplied = ApplyDisplayModes(displayConfigs);
+                if (!displayModesApplied)
+                {
+                    logger.Warn("Failed to apply one or more display modes");
+                }
+
+                System.Threading.Thread.Sleep(250);
 
                 bool displayPositionApplied = ApplyDisplayPosition(displayConfigs);
                 if (!displayPositionApplied)
@@ -858,7 +867,87 @@ namespace DisplayProfileManager.Helpers
                 return false;
             }
         }
+        public static bool ApplyDisplayModes(List<DisplayConfigInfo> displayConfigs)
+        {
+            try
+            {
+                var currentDisplays = GetDisplayConfigs();
 
+                bool success = true;
+
+                foreach (var display in displayConfigs.Where(d => d.IsEnabled))
+                {
+                    var currentDisplay = currentDisplays.FirstOrDefault(d =>
+                        d.TargetId == display.TargetId &&
+                        d.AdapterId.HighPart == display.AdapterId.HighPart &&
+                        d.AdapterId.LowPart == display.AdapterId.LowPart);
+
+                    if (currentDisplay == null)
+                    {
+                        logger.Warn($"Could not find active display {display.FriendlyName}");
+                        success = false;
+                        continue;
+                    }
+
+                    bool modeApplied = false;
+                    const int maxAttempts = 4;
+
+                    int modeWidth = display.Width;
+                    int modeHeight = display.Height;
+
+                    if (display.Rotation == DISPLAYCONFIG_ROTATION.DISPLAYCONFIG_ROTATION_ROTATE90 ||
+                        display.Rotation == DISPLAYCONFIG_ROTATION.DISPLAYCONFIG_ROTATION_ROTATE270)
+                    {
+                        modeWidth = display.Height;
+                        modeHeight = display.Width;
+                    }
+
+                    for (int attempt = 1; attempt <= maxAttempts; attempt++)
+                    {
+                        logger.Debug(
+                            $"Applying display mode to {currentDisplay.DeviceName}: " +
+                            $"{modeWidth}x{modeHeight}@{display.RefreshRate}Hz " +
+                            $"(attempt {attempt}/{maxAttempts})");
+
+                        modeApplied = DisplayHelper.ChangeResolution(
+                            currentDisplay.DeviceName,
+                            modeWidth,
+                            modeHeight,
+                            (int)Math.Round(display.RefreshRate));
+
+                        if (modeApplied)
+                        {
+                            logger.Debug(
+                                $"Display mode applied successfully to " +
+                                $"{currentDisplay.DeviceName} on attempt {attempt}");
+
+                            break;
+                        }
+
+                        if (attempt < maxAttempts)
+                        {
+                            System.Threading.Thread.Sleep(750);
+                        }
+                    }
+
+                    if (!modeApplied)
+                    {
+                        logger.Warn(
+                            $"Failed to apply display mode to {currentDisplay.DeviceName} " +
+                            $"after {maxAttempts} attempts");
+
+                        success = false;
+                    }
+                }
+
+                return success;
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex, "Error applying display modes");
+                return false;
+            }
+        }
         public static bool ApplyDisplayPosition(List<DisplayConfigInfo> displayConfigs)
         {
             try
