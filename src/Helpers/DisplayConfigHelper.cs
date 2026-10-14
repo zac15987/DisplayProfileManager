@@ -896,13 +896,15 @@ namespace DisplayProfileManager.Helpers
                 }
 
                 // Set monitor position based on displayConfigs
+                var positionedPathIndices = new HashSet<int>();
                 foreach (var displayInfo in displayConfigs)
                 {
-                    var foundPathIndex = Array.FindIndex(paths,
-                        x => (x.targetInfo.id == displayInfo.TargetId) && (x.sourceInfo.id == displayInfo.SourceId));
+                    var foundPathIndex = FindPathIndexForPositioning(paths, displayInfo);
 
-                    if (!paths[foundPathIndex].targetInfo.targetAvailable)
+                    if (foundPathIndex < 0 || !paths[foundPathIndex].targetInfo.targetAvailable)
                         continue;
+
+                    positionedPathIndices.Add(foundPathIndex);
 
                     // Set monitor position
                     var modeInfoIndex = paths[foundPathIndex].sourceInfo.modeInfoIdx;
@@ -936,10 +938,11 @@ namespace DisplayProfileManager.Helpers
                     if(path.targetInfo.scanLineOrdering == 0)
                         continue;
 
-                    // Check if this path exists in the displayConfigs list
-                    bool foundInProfile = displayConfigs.Any(d =>
-                        d.TargetId == path.targetInfo.id &&
-                        d.SourceId == path.sourceInfo.id);
+                    // Check if this path was already positioned from the profile, or exists in the displayConfigs list
+                    bool foundInProfile = positionedPathIndices.Contains(i) ||
+                        displayConfigs.Any(d =>
+                            d.TargetId == path.targetInfo.id &&
+                            d.SourceId == path.sourceInfo.id);
 
                     if (!foundInProfile)
                     {
@@ -1002,6 +1005,79 @@ namespace DisplayProfileManager.Helpers
                 logger.Error(ex, "Error applying display position");
                 return false;
             }
+        }
+
+        private static HashSet<uint> GetActiveTargetIds()
+        {
+            var targetIds = new HashSet<uint>();
+
+            uint pathCount = 0;
+            uint modeCount = 0;
+
+            int result = GetDisplayConfigBufferSizes(
+                QueryDisplayConfigFlags.QDC_ONLY_ACTIVE_PATHS,
+                out pathCount,
+                out modeCount);
+
+            if (result != ERROR_SUCCESS)
+            {
+                logger.Error($"GetDisplayConfigBufferSizes failed with error: {result}");
+                return targetIds;
+            }
+
+            var paths = new DISPLAYCONFIG_PATH_INFO[pathCount];
+            var modes = new DISPLAYCONFIG_MODE_INFO[modeCount];
+
+            result = QueryDisplayConfig(
+                QueryDisplayConfigFlags.QDC_ONLY_ACTIVE_PATHS,
+                ref pathCount,
+                paths,
+                ref modeCount,
+                modes,
+                IntPtr.Zero);
+
+            if (result != ERROR_SUCCESS)
+            {
+                logger.Error($"QueryDisplayConfig failed with error: {result}");
+                return targetIds;
+            }
+
+            for (uint i = 0; i < pathCount; i++)
+            {
+                if (paths[i].targetInfo.targetAvailable)
+                    targetIds.Add(paths[i].targetInfo.id);
+            }
+
+            return targetIds;
+        }
+
+        // Windows reassigns source IDs when the set of active displays changes, so the SourceId saved
+        // in a profile can be stale. Prefer the currently active path for the same target (stable per
+        // connector), and only fall back to the exact target/source match from the profile.
+        private static int FindPathIndexForPositioning(DISPLAYCONFIG_PATH_INFO[] paths, DisplayConfigInfo displayInfo)
+        {
+            int fallbackIndex = -1;
+            for (int i = 0; i < paths.Length; i++)
+            {
+                if (paths[i].targetInfo.id != displayInfo.TargetId)
+                    continue;
+
+                bool isActive = (paths[i].flags & (uint)DisplayConfigPathInfoFlags.DISPLAYCONFIG_PATH_ACTIVE) != 0;
+                if (isActive)
+                {
+                    if (paths[i].sourceInfo.id != displayInfo.SourceId)
+                    {
+                        logger.Debug($"Using active path for targetId {displayInfo.TargetId} with SourceId {paths[i].sourceInfo.id} " +
+                                     $"(profile SourceId {displayInfo.SourceId} is stale)");
+                    }
+                    return i;
+                }
+
+                if (fallbackIndex < 0 && paths[i].sourceInfo.id == displayInfo.SourceId)
+                    fallbackIndex = i;
+            }
+
+            return fallbackIndex;
         }
 
         public static bool ValidateDisplayTopology(List<DisplayConfigInfo> topology)
@@ -1068,12 +1144,16 @@ namespace DisplayProfileManager.Helpers
                 }
 
 
-                // Check for any disconnected displays
+                // Check for any displays that are not currently active.
+                // Match by TargetId rather than DeviceName: Windows reassigns \\.\DISPLAYn names when the
+                // set of active displays changes, so a profile's DeviceName can point at a different monitor.
+                var activeTargetIds = GetActiveTargetIds();
                 bool allDisplayConnected = true;
                 foreach (var displayConfig in displayConfigs)
                 {
-                    if (!DisplayHelper.IsMonitorConnected(displayConfig.DeviceName))
+                    if (!activeTargetIds.Contains(displayConfig.TargetId))
                     {
+                        logger.Debug($"Display targetId {displayConfig.TargetId} ({displayConfig.DeviceName}) is not currently active");
                         allDisplayConnected = false;
                     }
                 }
