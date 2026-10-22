@@ -11,6 +11,8 @@
 
 This project is currently **on hold** — updates and maintenance are paused for now. If I regain interest in the future, I may resume development and maintenance. Thank you for your understanding!
 
+👉 **Actively maintained fork:** [exytral/DisplayProfileManager](https://github.com/exytral/DisplayProfileManager) by [@exytral](https://github.com/exytral) continues development with many fixes and new features. Note that the fork uses a different license (MIT + Commons Clause), while this repository remains MIT.
+
 ---
 
 A lightweight Windows desktop application for managing display profiles with quick switching from the system tray. Perfect for users who frequently change display settings for different tasks or setups.
