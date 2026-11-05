@@ -35,9 +35,9 @@ namespace DisplayProfileManager.Helpers
         [StructLayout(LayoutKind.Sequential)]
         public struct DEVMODE
         {
-            public const int DM_DISPLAYFREQUENCY = 0x400000;
             public const int DM_PELSWIDTH = 0x80000;
             public const int DM_PELSHEIGHT = 0x100000;
+            public const int DM_DISPLAYFREQUENCY = 0x400000;
             private const int CCHDEVICENAME = 32;
             private const int CCHFORMNAME = 32;
 
@@ -287,7 +287,6 @@ namespace DisplayProfileManager.Helpers
 
             return resolutions;
         }
-
         public static bool ChangeResolution(string deviceName, int width, int height, int frequency = 0)
         {
             var devMode = new DEVMODE();
@@ -489,7 +488,7 @@ namespace DisplayProfileManager.Helpers
             return BitConverter.ToString(bytes, 0, len).Replace("-", "");
         }
 
-        public static string GetDeviceNameFromWMIMonitorID(string manufacturerName, string productCodeID, string serialNumberID)
+        public static string GetDeviceNameFromWMIMonitorID(string manufacturerName, string productCodeID, string serialNumberID, List<MonitorIdInfo> monitorIds = null)
         {
             if(string.IsNullOrEmpty(manufacturerName) || 
                 string.IsNullOrEmpty(productCodeID) || 
@@ -501,7 +500,8 @@ namespace DisplayProfileManager.Helpers
 
             string targetInstanceName = string.Empty;
 
-            var monitorIDs = GetMonitorIDsFromWmiMonitorID();
+            // Use provided list if available, otherwise query WMI
+            var monitorIDs = monitorIds ?? GetMonitorIDsFromWmiMonitorID();
             foreach (var monitorId in monitorIDs)
             {
                 // Match by ManufacturerName, ProductCodeID and SerialNumberID

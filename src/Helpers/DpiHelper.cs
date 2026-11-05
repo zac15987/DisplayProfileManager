@@ -115,16 +115,20 @@ namespace DisplayProfileManager.Helpers
             return adapterIdStruct;
         }
 
-        public static DPIScalingInfo GetDPIScalingInfo(string deviceName)
+        public static DPIScalingInfo GetDPIScalingInfo(string deviceName, DisplayConfigHelper.DisplayConfigInfo displayConfig = null)
         {
-            // Get display configs using QueueDisplayConfig
-            List<DisplayConfigHelper.DisplayConfigInfo> displayConfigs = DisplayConfigHelper.GetDisplayConfigs();
-
-            DisplayConfigHelper.DisplayConfigInfo foundConfig = null;
-
-            if (displayConfigs.Count > 0)
+            DisplayConfigHelper.DisplayConfigInfo foundConfig = displayConfig;
+            
+            // Only query if not provided
+            if (foundConfig == null)
             {
-                foundConfig = displayConfigs.Find(x => x.DeviceName == deviceName);
+                // Get display configs using QueueDisplayConfig
+                List<DisplayConfigHelper.DisplayConfigInfo> displayConfigs = DisplayConfigHelper.GetDisplayConfigs();
+
+                if (displayConfigs.Count > 0)
+                {
+                    foundConfig = displayConfigs.Find(x => x.DeviceName == deviceName);
+                }
             }
 
             var dpiInfo = new DPIScalingInfo();

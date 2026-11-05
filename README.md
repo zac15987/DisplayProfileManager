@@ -37,6 +37,7 @@ A lightweight Windows desktop application for managing display profiles with qui
 - 🔍 **Monitor Identification Overlay** - Visual overlay to identify monitors during configuration
 - 🎨 **HDR Support** - Enable/disable High Dynamic Range for HDR-capable displays
 - 🔄 **Screen Rotation Control** - Configure screen orientation (0°, 90°, 180°, 270°) per monitor
+- 🖥️ **Clone/Duplicate Display Support** - Configure multiple monitors to show identical content (pure clone mode or mixed with extended displays)
 - ⚙️ **Staged Application Mode** - Optional two-phase settings application for enhanced stability on complex multi-monitor setups
 
 ## 📸 Screenshots
