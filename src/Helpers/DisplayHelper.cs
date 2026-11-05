@@ -313,7 +313,17 @@ namespace DisplayProfileManager.Helpers
                 devMode.dmFields |= DEVMODE.DM_DISPLAYFREQUENCY;
             }
 
-            int result = ChangeDisplaySettingsEx(deviceName, ref devMode, IntPtr.Zero, ChangeDisplaySettingsFlags.CDS_UPDATEREGISTRY, IntPtr.Zero);
+            int result = ChangeDisplaySettingsEx(
+                deviceName,
+                ref devMode,
+                IntPtr.Zero,
+                ChangeDisplaySettingsFlags.CDS_UPDATEREGISTRY,
+                IntPtr.Zero);
+
+            logger.Debug(
+                $"ChangeDisplaySettingsEx for {deviceName}: " +
+                $"{width}x{height}@{frequency}Hz returned {result}");
+
             return result == (int)DISP_CHANGE.SUCCESSFUL;
         }
 
