@@ -146,10 +146,14 @@ namespace DisplayProfileManager
                 {
                     while (!_cancellationTokenSource.Token.IsCancellationRequested)
                     {
-                        if (_showWindowEvent.WaitOne(1000))
+                        if (_showWindowEvent == null)
+                        {
+                            await Task.Delay(1000);
+                        }
+                        else if (_showWindowEvent.WaitOne(1000))
                         {
                             _showWindowEvent.Reset();
-                            
+
                             await Dispatcher.InvokeAsync(() =>
                             {
                                 try
