@@ -422,6 +422,17 @@ namespace DisplayProfileManager
                 var profile = _profileManager.GetProfile(profileId);
                 if (profile != null)
                 {
+                    // Re-applying the active profile makes SetDisplayConfig fail with error 87
+                    // (identical topology), so treat it as a no-op.
+                    if (profile.Id == _profileManager.CurrentProfileId)
+                    {
+                        logger.Info($"Profile '{profile.Name}' is already active - ignoring hotkey");
+                        _trayIcon?.ShowNotification("Display Profile Manager",
+                            $"Profile '{profile.Name}' is already active.",
+                            System.Windows.Forms.ToolTipIcon.Info);
+                        return;
+                    }
+
                     logger.Info($"Applying profile '{profile.Name}' via hotkey");
 
                     var applyResult = await _profileManager.ApplyProfileAsync(profile);
