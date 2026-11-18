@@ -360,8 +360,16 @@ namespace DisplayProfileManager.Core
                     }
                 }
 
-                // Step 3: Choose application path (Staged or Simple)
-                if (_settingsManager.ShouldUseStagedApplication() && displayConfigs.Count > 1)
+                // Step 3: Choose application path (Already applied, Staged or Simple)
+                if (displayConfigs.Count > 0 && DisplayConfigHelper.IsTopologyAlreadyApplied(displayConfigs))
+                {
+                    // SetDisplayConfig fails with error 87 when asked for the layout that is already active,
+                    // so skip it; DPI, HDR and audio are still applied below.
+                    logger.Info($"Display layout of profile '{profile.Name}' is already active - skipping topology change.");
+                    result.DisplayConfigApplied = true;
+                    result.ResolutionChanged = true;
+                }
+                else if (_settingsManager.ShouldUseStagedApplication() && displayConfigs.Count > 1)
                 {
                     logger.Info("Using staged application path.");
                     result.DisplayConfigApplied = ApplyStagedConfiguration(displayConfigs);

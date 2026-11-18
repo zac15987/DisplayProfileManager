@@ -593,6 +593,56 @@ namespace DisplayProfileManager.Helpers
             return displays;
         }
 
+        /// <summary>
+        /// Returns true when the live display layout already matches the target (same set of active
+        /// displays with the same resolution, refresh rate, position and rotation). SetDisplayConfig
+        /// rejects a request for the layout that is already active with ERROR_INVALID_PARAMETER (87),
+        /// so callers should skip the topology step in that case.
+        /// </summary>
+        public static bool IsTopologyAlreadyApplied(List<DisplayConfigInfo> targetConfigs)
+        {
+            try
+            {
+                var current = GetDisplayConfigs().Where(d => d.IsEnabled).ToList();
+                var targetEnabled = targetConfigs.Where(t => t.IsEnabled).ToList();
+
+                if (current.Count == 0 || current.Count != targetEnabled.Count)
+                    return false;
+
+                foreach (var target in targetEnabled)
+                {
+                    var live = current.FirstOrDefault(c => c.TargetId == target.TargetId);
+                    if (live == null)
+                    {
+                        logger.Debug($"Topology differs: {target.DeviceName} (TargetId {target.TargetId}) is not active");
+                        return false;
+                    }
+
+                    bool same = live.Width == target.Width
+                                && live.Height == target.Height
+                                && Math.Abs(live.RefreshRate - target.RefreshRate) < 1.0
+                                && live.DisplayPositionX == target.DisplayPositionX
+                                && live.DisplayPositionY == target.DisplayPositionY
+                                && live.Rotation == target.Rotation;
+
+                    if (!same)
+                    {
+                        logger.Debug($"Topology differs for {target.DeviceName}: live {live.Width}x{live.Height}@{live.RefreshRate}Hz " +
+                                     $"at ({live.DisplayPositionX},{live.DisplayPositionY}) rot {live.Rotation}, target {target.Width}x{target.Height}@{target.RefreshRate}Hz " +
+                                     $"at ({target.DisplayPositionX},{target.DisplayPositionY}) rot {target.Rotation}");
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex, "Error comparing current topology with target");
+                return false;
+            }
+        }
+
         public static bool ApplyDisplayTopology(List<DisplayConfigInfo> displayConfigs)
         {
             try
