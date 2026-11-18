@@ -344,8 +344,17 @@ namespace DisplayProfileManager.Core
                     }
                 }
 
+                // SetDisplayConfig fails with error 87 when asked for the layout that is already active,
+                // so detect that up front and skip both the primary/position step and the topology step.
+                // DPI, HDR and audio are still applied below.
+                bool layoutAlreadyActive = displayConfigs.Count > 0 && DisplayConfigHelper.IsTopologyAlreadyApplied(displayConfigs);
+
                 // Step 2: Set Primary Display first (adjusts positions in the config list)
-                if (displayConfigs.Count > 0)
+                if (layoutAlreadyActive)
+                {
+                    result.PrimaryChanged = true;
+                }
+                else if (displayConfigs.Count > 0)
                 {
                     logger.Debug("Setting primary display...");
                     result.PrimaryChanged = DisplayConfigHelper.SetPrimaryDisplay(displayConfigs);
@@ -361,10 +370,8 @@ namespace DisplayProfileManager.Core
                 }
 
                 // Step 3: Choose application path (Already applied, Staged or Simple)
-                if (displayConfigs.Count > 0 && DisplayConfigHelper.IsTopologyAlreadyApplied(displayConfigs))
+                if (layoutAlreadyActive)
                 {
-                    // SetDisplayConfig fails with error 87 when asked for the layout that is already active,
-                    // so skip it; DPI, HDR and audio are still applied below.
                     logger.Info($"Display layout of profile '{profile.Name}' is already active - skipping topology change.");
                     result.DisplayConfigApplied = true;
                     result.ResolutionChanged = true;

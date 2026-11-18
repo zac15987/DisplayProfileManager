@@ -609,6 +609,14 @@ namespace DisplayProfileManager.Helpers
                 if (current.Count == 0 || current.Count != targetEnabled.Count)
                     return false;
 
+                // Windows always places the primary display at (0,0), so compare positions relative to the
+                // target's primary display (what SetPrimaryDisplay would produce) without modifying the list.
+                var targetPrimary = targetEnabled.FirstOrDefault(t => t.IsPrimary);
+                if (targetPrimary == null)
+                    return false;
+                int offsetX = -targetPrimary.DisplayPositionX;
+                int offsetY = -targetPrimary.DisplayPositionY;
+
                 foreach (var target in targetEnabled)
                 {
                     var live = current.FirstOrDefault(c => c.TargetId == target.TargetId);
@@ -618,18 +626,21 @@ namespace DisplayProfileManager.Helpers
                         return false;
                     }
 
+                    int targetX = target.DisplayPositionX + offsetX;
+                    int targetY = target.DisplayPositionY + offsetY;
+
                     bool same = live.Width == target.Width
                                 && live.Height == target.Height
                                 && Math.Abs(live.RefreshRate - target.RefreshRate) < 1.0
-                                && live.DisplayPositionX == target.DisplayPositionX
-                                && live.DisplayPositionY == target.DisplayPositionY
+                                && live.DisplayPositionX == targetX
+                                && live.DisplayPositionY == targetY
                                 && live.Rotation == target.Rotation;
 
                     if (!same)
                     {
                         logger.Debug($"Topology differs for {target.DeviceName}: live {live.Width}x{live.Height}@{live.RefreshRate}Hz " +
                                      $"at ({live.DisplayPositionX},{live.DisplayPositionY}) rot {live.Rotation}, target {target.Width}x{target.Height}@{target.RefreshRate}Hz " +
-                                     $"at ({target.DisplayPositionX},{target.DisplayPositionY}) rot {target.Rotation}");
+                                     $"at ({targetX},{targetY}) rot {target.Rotation}");
                         return false;
                     }
                 }
