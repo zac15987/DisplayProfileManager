@@ -593,6 +593,67 @@ namespace DisplayProfileManager.Helpers
             return displays;
         }
 
+        /// <summary>
+        /// Returns true when the live display layout already matches the target (same set of active
+        /// displays with the same resolution, refresh rate, position and rotation). SetDisplayConfig
+        /// rejects a request for the layout that is already active with ERROR_INVALID_PARAMETER (87),
+        /// so callers should skip the topology step in that case.
+        /// </summary>
+        public static bool IsTopologyAlreadyApplied(List<DisplayConfigInfo> targetConfigs)
+        {
+            try
+            {
+                var current = GetDisplayConfigs().Where(d => d.IsEnabled).ToList();
+                var targetEnabled = targetConfigs.Where(t => t.IsEnabled).ToList();
+
+                if (current.Count == 0 || current.Count != targetEnabled.Count)
+                    return false;
+
+                // Windows always places the primary display at (0,0), so compare positions relative to the
+                // target's primary display (what SetPrimaryDisplay would produce) without modifying the list.
+                var targetPrimary = targetEnabled.FirstOrDefault(t => t.IsPrimary);
+                if (targetPrimary == null)
+                    return false;
+                int offsetX = -targetPrimary.DisplayPositionX;
+                int offsetY = -targetPrimary.DisplayPositionY;
+
+                foreach (var target in targetEnabled)
+                {
+                    var live = current.FirstOrDefault(c => c.TargetId == target.TargetId);
+                    if (live == null)
+                    {
+                        logger.Debug($"Topology differs: {target.DeviceName} (TargetId {target.TargetId}) is not active");
+                        return false;
+                    }
+
+                    int targetX = target.DisplayPositionX + offsetX;
+                    int targetY = target.DisplayPositionY + offsetY;
+
+                    bool same = live.Width == target.Width
+                                && live.Height == target.Height
+                                && Math.Abs(live.RefreshRate - target.RefreshRate) < 1.0
+                                && live.DisplayPositionX == targetX
+                                && live.DisplayPositionY == targetY
+                                && live.Rotation == target.Rotation;
+
+                    if (!same)
+                    {
+                        logger.Debug($"Topology differs for {target.DeviceName}: live {live.Width}x{live.Height}@{live.RefreshRate}Hz " +
+                                     $"at ({live.DisplayPositionX},{live.DisplayPositionY}) rot {live.Rotation}, target {target.Width}x{target.Height}@{target.RefreshRate}Hz " +
+                                     $"at ({targetX},{targetY}) rot {target.Rotation}");
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex, "Error comparing current topology with target");
+                return false;
+            }
+        }
+
         public static bool ApplyDisplayTopology(List<DisplayConfigInfo> displayConfigs)
         {
             try
